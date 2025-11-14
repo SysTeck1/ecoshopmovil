@@ -1,0 +1,244 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Acceso | Sistema POS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --color-bg-app: #f5f6fa;
+            --color-text-main: #2f3640;
+            --color-text-muted: #636e72;
+            --color-text-subtle: #8391a6;
+            --color-surface-card: #ffffff;
+            --color-surface-soft: #f6f8fb;
+            --color-border-subtle: #dcdde1;
+            --color-border-divider: #ecf0f1;
+            --color-accent-400: #31b7c4;
+            --color-accent-500: #269faa;
+            --color-accent-500-rgb: 38, 159, 170;
+            --color-accent-deep: #273c75;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            background: radial-gradient(circle at 18% 24%, rgba(var(--color-accent-500-rgb), 0.12), transparent 60%),
+                        radial-gradient(circle at 82% 12%, rgba(var(--color-accent-500-rgb), 0.18), transparent 58%),
+                        var(--color-bg-app);
+            font-family: inherit;
+            color: var(--color-text-main);
+        }
+
+        .auth-shell {
+            width: min(440px, 92vw);
+            background: var(--color-surface-card);
+            border-radius: 22px;
+            padding: clamp(28px, 6vw, 42px);
+            box-shadow: 0 30px 60px rgba(24, 34, 53, 0.18);
+            border: 1px solid rgba(24, 34, 53, 0.06);
+            display: grid;
+            gap: 22px;
+        }
+
+        .auth-brand {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            text-align: center;
+        }
+
+        .auth-brand img {
+            height: 64px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .auth-brand__title {
+            margin: 0;
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--color-accent-deep);
+        }
+
+        .auth-brand__subtitle {
+            margin: 0;
+            color: var(--color-text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        form {
+            display: grid;
+            gap: 18px;
+        }
+
+        .field {
+            display: grid;
+            gap: 8px;
+        }
+
+        .field label {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .field input {
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--color-border-subtle);
+            background: var(--color-surface-soft);
+            font-size: 0.98rem;
+            transition: none;
+        }
+
+        .field input:focus {
+            border-color: var(--color-accent-500);
+            box-shadow: 0 0 0 3px rgba(var(--color-accent-500-rgb), 0.15);
+            outline: none;
+        }
+
+        .remember {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: var(--color-text-muted);
+        }
+
+        .remember input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--color-accent-deep);
+            margin: 0;
+        }
+
+        .auth-error {
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: rgba(231, 76, 60, 0.12);
+            color: #c0392b;
+            font-size: 0.93rem;
+            border: 1px solid rgba(231, 76, 60, 0.25);
+        }
+
+        .auth-submit {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: linear-gradient(135deg, var(--color-accent-500), var(--color-accent-400));
+            color: #fff;
+            padding: 14px;
+            border: none;
+            border-radius: 14px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: none;
+            box-shadow: 0 18px 34px rgba(var(--color-accent-500-rgb), 0.24);
+        }
+
+        .auth-submit:hover,
+        .auth-submit:focus-visible {
+            transform: translateY(-2px);
+            box-shadow: 0 22px 40px rgba(var(--color-accent-500-rgb), 0.28);
+            outline: none;
+        }
+
+        .auth-footer {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--color-text-subtle);
+        }
+
+        .auth-footer a {
+            color: var(--color-accent-deep);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .auth-footer a:hover,
+        .auth-footer a:focus-visible {
+            text-decoration: underline;
+            outline: none;
+        }
+
+        @media (max-width: 520px) {
+            .auth-shell {
+                border-radius: 18px;
+                padding: 26px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-shell">
+        <div class="auth-brand">
+            <img src="{{ dashboard_logo_url }}" alt="Logo Sistema POS" loading="lazy">
+            <h1 class="auth-brand__title">Bienvenido nuevamente</h1>
+            <p class="auth-brand__subtitle">Accede al panel profesional para gestionar tu tienda.</p>
+        </div>
+
+        {% if form.non_field_errors %}
+            <div class="auth-error">
+                {% for error in form.non_field_errors %}
+                    {{ error }}<br>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% if next %}
+                <input type="hidden" name="next" value="{{ next }}">
+            {% endif %}
+            <div class="field">
+                <label for="id_username">Usuario</label>
+                <input
+                    type="text"
+                    name="username"
+                    id="id_username"
+                    autocomplete="username"
+                    value="{{ form.username.value|default_if_none:'' }}"
+                    required
+                    placeholder="Ingresa tu usuario"
+                >
+            </div>
+            <div class="field">
+                <label for="id_password">Contraseña</label>
+                <input
+                    type="password"
+                    name="password"
+                    id="id_password"
+                    autocomplete="current-password"
+                    required
+                    placeholder="Ingresa tu contraseña"
+                >
+            </div>
+            <label class="remember">
+                <input type="checkbox" name="remember" value="1" {% if request.POST.remember %}checked{% endif %}>
+                Mantener sesión iniciada en este equipo.
+            </label>
+            <button type="submit" class="auth-submit">Entrar al panel</button>
+        </form>
+
+        <div class="auth-footer">
+            Acceso restringido. Contacta al administrador para crear o recuperar tu cuenta.
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,1267 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Compras{% endblock %}
+{% block page_title %}Compras{% endblock %}
+{% block content %}
+<section class="clients-section">
+    <div class="clients-header">
+        <p class="clients-description">
+            Gestiona y consulta los pedidos de compras registrados en el sistema.
+        </p>
+        <div class="clients-actions">
+            <button type="button" class="btn btn-primary" id="open-purchase-modal">Registrar compra</button>
+        </div>
+    </div>
+    
+    <div class="filter-toolbar" data-filter-toolbar>
+        <div class="filter-toolbar__fields">
+            <div class="filter-toolbar__field">
+                <span class="filter-toolbar__label">Buscar</span>
+                <div class="filter-toolbar__control filter-toolbar__control--icon">
+                    <i class="ri-search-line filter-toolbar__icon"></i>
+                    <input type="text" id="purchases-search" placeholder="Buscar por número, proveedor, producto...">
+                </div>
+            </div>
+            <div class="filter-toolbar__field">
+                <span class="filter-toolbar__label">Proveedor</span>
+                <div class="filter-toolbar__control filter-toolbar__control--icon">
+                    <i class="ri-user-2-line filter-toolbar__icon"></i>
+                    <select id="provider-filter">
+                        <option value="">Todos los proveedores</option>
+                        {% for proveedor in proveedores %}
+                            <option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                    <i class="ri-arrow-down-s-line filter-toolbar__chevron"></i>
+                </div>
+            </div>
+            <div class="filter-toolbar__field">
+                <span class="filter-toolbar__label">Fecha desde</span>
+                <div class="filter-toolbar__control filter-toolbar__control--icon">
+                    <i class="ri-calendar-line filter-toolbar__icon"></i>
+                    <input type="date" id="date-from-filter">
+                </div>
+            </div>
+            <div class="filter-toolbar__field">
+                <span class="filter-toolbar__label">Fecha hasta</span>
+                <div class="filter-toolbar__control filter-toolbar__control--icon">
+                    <i class="ri-calendar-event-line filter-toolbar__icon"></i>
+                    <input type="date" id="date-to-filter">
+                </div>
+            </div>
+        </div>
+        <div class="filter-toolbar__actions">
+            <button type="button" class="btn btn-outline" id="clear-purchases-filters">
+                <i class="ri-refresh-line"></i>
+                Limpiar
+            </button>
+            <button type="button" class="btn btn-secondary" id="apply-purchases-filters">
+                <i class="ri-filter-3-line"></i>
+                Filtrar
+            </button>
+        </div>
+    </div>
+    <div class="table-wrapper">
+        <table class="clients-table">
+            <thead>
+                <tr>
+                    <th>No. pedido</th>
+                    <th>Proveedor</th>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th class="actions-column">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for compra in compras_page %}
+                    <tr>
+                        <td>{{ compra.numero_pedido }}</td>
+                        <td>{% if compra.proveedor %}{{ compra.proveedor.nombre|default:compra.proveedor|default:"-" }}{% else %}-{% endif %}</td>
+                        <td>{% if compra.producto %}{{ compra.producto.nombre|default:compra.producto|default:"-" }}{% else %}-{% endif %}</td>
+                        <td>{{ compra.cantidad|default:"0" }}</td>
+                        <td>{{ compra.created_at|date:"d/m/Y"|default:"-" }}</td>
+                        <td>{{ compra.created_at|time:"h:i A"|default:"-" }}</td>
+                        <td class="actions-column">
+                            <button type="button" class="btn btn-secondary" data-action="view"
+                                data-purchase-id="{{ compra.id }}"
+                                data-purchase-number="{{ compra.numero_pedido }}"
+                                data-purchase-provider="{{ compra.proveedor.nombre|default:compra.proveedor|default:'-' }}"
+                                data-purchase-product="{{ compra.producto.nombre|default:compra.producto|default:'-' }}"
+                                data-purchase-quantity="{{ compra.cantidad|default:'0' }}"
+                                data-purchase-cost="{{ compra.precio_compra|default:'0.00' }}"
+                                data-purchase-price="{{ compra.precio_venta|default:'0.00' }}"
+                                data-purchase-stock-old="{{ compra.stock_anterior|default:'0' }}"
+                                data-purchase-stock-new="{{ compra.stock_actual|default:'0' }}"
+                                data-purchase-date="{{ compra.created_at|date:'d/m/Y'|default:'-' }}"
+                                data-purchase-time="{{ compra.created_at|time:'h:i A'|default:'-' }}">
+                                Ver
+                            </button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" class="empty-state">No hay compras registradas todavía.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if compras_page.has_other_pages %}
+        <nav class="pagination" aria-label="Paginación de compras">
+            <ul class="pagination__list">
+                {% if compras_page.has_previous %}
+                    <li class="pagination__item">
+                        <a class="pagination__link" href="?page={{ compras_page.previous_page_number }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}" aria-label="Página anterior">&laquo;</a>
+                    </li>
+                {% else %}
+                    <li class="pagination__item pagination__item--disabled"><span class="pagination__link" aria-hidden="true">&laquo;</span></li>
+                {% endif %}
+
+                {% for num in compras_page.paginator.page_range %}
+                    {% if num == compras_page.number %}
+                        <li class="pagination__item pagination__item--active"><span class="pagination__link">{{ num }}</span></li>
+                    {% else %}
+                        <li class="pagination__item">
+                            <a class="pagination__link" href="?page={{ num }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if compras_page.has_next %}
+                    <li class="pagination__item">
+                        <a class="pagination__link" href="?page={{ compras_page.next_page_number }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}" aria-label="Página siguiente">&raquo;</a>
+                    </li>
+                {% else %}
+                    <li class="pagination__item pagination__item--disabled"><span class="pagination__link" aria-hidden="true">&raquo;</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+</section>
+<div class="modal" id="purchase-modal" aria-hidden="true" data-force-open="{{ force_purchase_modal|yesno:'true,false' }}">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="purchase-modal-title">
+        <div class="modal-header">
+            <h2 id="purchase-modal-title">Agregar producto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <form method="post" class="modal-form" id="purchase-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_purchase">
+
+            {% if purchase_form_errors %}
+                <div class="form-errors">
+                    {% for error in purchase_form_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="form-grid">
+                <label class="form-field">
+                    <span class="form-label">No. pedido</span>
+                    <input type="text" name="numero_pedido" value="{{ purchase_form_values.numero_pedido|default:next_purchase_code }}" data-initial-order="{{ purchase_form_values.numero_pedido|default:next_purchase_code }}" readonly>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Proveedor</span>
+                    <div class="input-with-button">
+                        <select name="proveedor_id" required data-provider-select>
+                            <option value="">Selecciona proveedor</option>
+                            {% for proveedor in proveedores %}
+                                <option value="{{ proveedor.id }}" {% if purchase_form_values.proveedor_id == proveedor.id|stringformat:'s' %}selected{% endif %}>{{ proveedor.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-outline" data-open-provider-browser>Buscar</button>
+                    </div>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Producto</span>
+                    <div class="input-with-button">
+                        <select name="producto_id" required data-product-select>
+                            <option value="">Selecciona producto</option>
+                            {% for producto in productos %}
+                                <option value="{{ producto.id }}" data-cost="{{ producto.precio_compra }}" data-price="{{ producto.precio_venta }}" {% if purchase_form_values.producto_id == producto.id|stringformat:'s' %}selected{% endif %}>{{ producto.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-outline" data-open-product-browser>Buscar</button>
+                    </div>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Precio costo</span>
+                    <input type="text" name="precio_compra" data-product-cost readonly>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Precio venta</span>
+                    <input type="text" name="precio_venta" data-product-price readonly>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Nueva cantidad</span>
+                    <input type="number" name="cantidad" min="1" step="1" value="{{ purchase_form_values.cantidad|default:'' }}" required>
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-close-modal>Cancelar</button>
+                <button type="button" class="btn btn-outline" data-reset-purchase>Limpiar</button>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="provider-browser-modal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h2>Buscar proveedor</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-provider-browser>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="browser-search">
+                <input type="text" placeholder="Buscar por nombre" data-provider-search>
+            </div>
+            <div class="browser-table-wrapper">
+                <table class="browser-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Teléfono</th>
+                            <th>Documento</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody data-provider-results>
+                        {% for proveedor in proveedores %}
+                            <tr data-provider-row data-name="{{ proveedor.nombre|lower }}">
+                                <td>{{ proveedor.nombre }}</td>
+                                <td>{{ proveedor.telefono|default:"-" }}</td>
+                                <td>{{ proveedor.documento|default:"-" }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-primary btn-small" data-select-provider
+                                        data-provider-id="{{ proveedor.id }}"
+                                        data-provider-name="{{ proveedor.nombre }}">
+                                        Seleccionar
+                                    </button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="4" class="browser-empty">No hay proveedores registrados.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-close-provider-browser>Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="product-browser-modal" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h2>Buscar producto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-product-browser>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="browser-search">
+                <input type="text" placeholder="Buscar por nombre" data-product-search>
+            </div>
+            <div class="browser-table-wrapper">
+                <table class="browser-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Categoría</th>
+                            <th>Stock</th>
+                            <th>Precio costo</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody data-product-results>
+                        {% for producto in productos %}
+                            <tr data-product-row data-name="{{ producto.nombre|lower }}">
+                                <td>{{ producto.nombre }}</td>
+                                <td>{{ producto.categoria.nombre|default:"-" }}</td>
+                                <td>{{ producto.stock }}</td>
+                                <td>{{ producto.precio_compra }} RD$</td>
+                                <td>
+                                    <button type="button" class="btn btn-primary btn-small" data-select-product
+                                        data-product-id="{{ producto.id }}"
+                                        data-product-name="{{ producto.nombre }}"
+                                        data-product-cost="{{ producto.precio_compra }}"
+                                        data-product-price="{{ producto.precio_venta }}">
+                                        Seleccionar
+                                    </button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="browser-empty">No hay productos registrados.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-close-product-browser>Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal" id="view-purchase-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="view-purchase-title">
+        <div class="modal-header">
+            <h2 id="view-purchase-title">Detalle de compra</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-detail>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <table class="detail-table">
+                <tbody>
+                    <tr>
+                        <th>No. pedido</th>
+                        <td data-view-number>-</td>
+                    </tr>
+                    <tr>
+                        <th>Proveedor</th>
+                        <td data-view-provider>-</td>
+                    </tr>
+                    <tr>
+                        <th>Producto</th>
+                        <td data-view-product>-</td>
+                    </tr>
+                    <tr>
+                        <th>Cantidad agregada</th>
+                        <td data-view-quantity>-</td>
+                    </tr>
+                    <tr>
+                        <th>Precio costo</th>
+                        <td data-view-cost>-</td>
+                    </tr>
+                    <tr>
+                        <th>Precio venta</th>
+                        <td data-view-price>-</td>
+                    </tr>
+                    <tr>
+                        <th>Stock anterior</th>
+                        <td data-view-stock-old>-</td>
+                    </tr>
+                    <tr>
+                        <th>Stock actualizado</th>
+                        <td data-view-stock-new>-</td>
+                    </tr>
+                    <tr>
+                        <th>Fecha</th>
+                        <td data-view-date>-</td>
+                    </tr>
+                    <tr>
+                        <th>Hora</th>
+                        <td data-view-time>-</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-close-detail>Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    .clients-section {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .clients-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .clients-description {
+        margin: 0;
+        max-width: 520px;
+        color: #636e72;
+    }
+
+    .clients-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        border: none;
+        border-radius: 6px;
+        padding: 8px 14px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-primary {
+        background-color: #0097e6;
+        color: #ffffff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background-color: #00a8ff;
+    }
+
+    .btn-secondary {
+        background-color: #dcdde1;
+        color: #2f3640;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+        background-color: #ced6e0;
+    }
+
+    .btn-outline {
+        border: 1px solid #273c75;
+        background: transparent;
+        color: #273c75;
+    }
+
+    .btn-outline:hover:not(:disabled) {
+        background: rgba(39, 60, 117, 0.1);
+    }
+
+    .table-wrapper {
+        overflow-x: auto;
+        border-radius: 8px;
+        background-color: #ffffff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .clients-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 720px;
+    }
+
+    .clients-table thead {
+        background-color: #273c75;
+        color: #f5f6fa;
+    }
+
+    .clients-table th,
+    .clients-table td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #ecf0f1;
+        white-space: nowrap;
+    }
+
+    .clients-table tbody tr:hover {
+        background-color: #f1f2f6;
+    }
+
+    .actions-column {
+        white-space: nowrap;
+        text-align: right;
+    }
+
+    .empty-state {
+        text-align: center;
+        color: #95a5a6;
+        padding: 24px;
+        font-style: italic;
+    }
+
+    @media (max-width: 640px) {
+        .clients-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .clients-table {
+            min-width: 100%;
+            font-size: 0.9rem;
+        }
+
+        .clients-table th,
+        .clients-table td {
+            padding: 10px 12px;
+        }
+    }
+
+    .modal {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.4);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        z-index: 1000;
+    }
+
+    .modal.is-visible {
+        display: flex;
+    }
+
+    .modal-dialog {
+        background-color: #ffffff;
+        border-radius: 10px;
+        max-width: 840px;
+        width: 100%;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px;
+        border-bottom: 1px solid #ecf0f1;
+    }
+
+    .modal-close {
+        border: none;
+        background: transparent;
+        font-size: 1.6rem;
+        cursor: pointer;
+        line-height: 1;
+        color: #2f3640;
+    }
+
+    .modal-form {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .form-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    }
+
+    .form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #2f3640;
+    }
+
+    .form-field input,
+    .form-field select {
+        border: 1px solid #dcdde1;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 0.95rem;
+        outline: none;
+        transition: border-color 0.2s ease;
+    }
+
+    .form-field input[readonly] {
+        background-color: #f5f6fa;
+        cursor: not-allowed;
+    }
+
+    .input-with-button {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .input-with-button .btn {
+        flex-shrink: 0;
+        padding: 8px 12px;
+    }
+
+    .input-with-button select,
+    .input-with-button input[type="text"] {
+        flex: 1;
+        max-width: 65%;
+    }
+
+    .form-field input[readonly] {
+        background-color: #f5f6fa;
+        cursor: not-allowed;
+    }
+
+    .form-field input:focus,
+    .form-field select:focus {
+        border-color: #0097e6;
+        box-shadow: 0 0 0 2px rgba(0, 151, 230, 0.15);
+    }
+
+    .form-errors {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 12px;
+        border-radius: 6px;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+    }
+
+    .modal-form--static {
+        gap: 18px;
+        max-height: none;
+        padding-top: 20px;
+        padding-bottom: 20px;
+    }
+
+    .browser-search {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .browser-search input {
+        flex: 1;
+        padding: 10px 12px;
+        border-radius: 6px;
+        border: 1px solid #dcdde1;
+        font-size: 0.95rem;
+    }
+
+    .browser-table-wrapper {
+        max-height: 420px;
+        overflow-y: auto;
+        overflow-x: auto;
+        border: 1px solid #ecf0f1;
+        border-radius: 8px;
+        background-color: #ffffff;
+        padding: 8px 12px;
+        margin-bottom: 16px;
+    }
+
+    .browser-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+        min-width: 100%;
+    }
+
+    .browser-table th,
+    .browser-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #ecf0f1;
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .browser-table tbody tr:hover {
+        background-color: #f5f6fa;
+    }
+
+    .browser-table th:last-child,
+    .browser-table td:last-child {
+        text-align: right;
+        width: 140px;
+    }
+
+    .browser-empty {
+        text-align: center;
+        padding: 16px;
+        color: #7f8fa6;
+        font-style: italic;
+    }
+
+    .btn-small {
+        padding: 8px 14px;
+        font-size: 0.8rem;
+        white-space: nowrap;
+    }
+
+    #view-purchase-modal .modal-dialog {
+        max-width: 520px;
+    }
+
+    #view-purchase-modal .modal-form {
+        padding: 20px;
+        gap: 16px;
+    }
+
+    #view-purchase-modal .detail-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    #view-purchase-modal .detail-table th,
+    #view-purchase-modal .detail-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #ecf0f1;
+        text-align: left;
+        vertical-align: middle;
+    }
+
+    #view-purchase-modal .detail-table th {
+        width: 48%;
+        color: #636e72;
+        font-weight: 600;
+    }
+
+    #view-purchase-modal .detail-table td {
+        font-weight: 600;
+        color: #2f3640;
+    }
+
+    .detail-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    .detail-table th,
+    .detail-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #ecf0f1;
+        text-align: left;
+        vertical-align: top;
+    }
+
+    .detail-table th {
+        width: 40%;
+        color: #2f3640;
+        font-weight: 600;
+    }
+
+    .detail-table td {
+        color: #636e72;
+    }
+
+    @media (max-width: 520px) {
+        .modal-dialog {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        var openButton = document.querySelector(".clients-actions .btn.btn-primary");
+        var modal = document.getElementById("purchase-modal");
+        var closeElements = modal ? modal.querySelectorAll("[data-close-modal]") : [];
+        var form = modal ? modal.querySelector("form") : null;
+        var orderInput = modal ? modal.querySelector('input[name="numero_pedido"]') : null;
+        var productSelect = modal ? modal.querySelector('select[name="producto_id"]') : null;
+        var costInput = modal ? modal.querySelector('[data-product-cost]') : null;
+        var priceInput = modal ? modal.querySelector('[data-product-price]') : null;
+        var viewModal = document.getElementById("view-purchase-modal");
+        var providerModal = document.getElementById("provider-browser-modal");
+        var productModal = document.getElementById("product-browser-modal");
+        var lastViewTrigger = null;
+
+        function openModal() {
+            if (!modal) return;
+            modal.classList.add("is-visible");
+            modal.setAttribute("aria-hidden", "false");
+            var firstInput = modal.querySelector("input, select");
+            if (firstInput) {
+                firstInput.focus();
+            }
+        }
+
+        function openGenericModal(targetModal, trigger) {
+            if (!targetModal) return;
+            targetModal.classList.add("is-visible");
+            targetModal.setAttribute("aria-hidden", "false");
+            if (trigger) {
+                trigger.setAttribute("data-last-trigger", "true");
+            }
+            var input = targetModal.querySelector("input, select, button");
+            if (input) {
+                input.focus();
+            }
+        }
+
+        function closeGenericModal(targetModal) {
+            if (!targetModal) return;
+            targetModal.classList.remove("is-visible");
+            targetModal.setAttribute("aria-hidden", "true");
+            var trigger = document.querySelector('[data-last-trigger="true"]');
+            if (trigger) {
+                trigger.removeAttribute("data-last-trigger");
+                trigger.focus();
+            }
+        }
+
+        function closeModal() {
+            if (!modal) return;
+            modal.classList.remove("is-visible");
+            modal.setAttribute("aria-hidden", "true");
+            if (openButton) {
+                openButton.focus();
+            }
+        }
+
+        if (openButton && modal) {
+            openButton.addEventListener("click", function () {
+                openModal();
+                if (orderInput) {
+                    var initialOrder = orderInput.getAttribute("data-initial-order");
+                    if (!orderInput.value && initialOrder) {
+                        orderInput.value = initialOrder;
+                    }
+                }
+            });
+        }
+
+        closeElements.forEach(function (element) {
+            element.addEventListener("click", closeModal);
+        });
+
+        if (modal) {
+            modal.addEventListener("click", function (event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+        }
+
+        if (viewModal) {
+            viewModal.addEventListener("click", function (event) {
+                if (event.target === viewModal) {
+                    closeViewModal();
+                }
+            });
+            viewModal.querySelectorAll("[data-close-detail]").forEach(function (element) {
+                element.addEventListener("click", closeViewModal);
+            });
+        }
+
+        function openViewModal(trigger) {
+            if (!viewModal) return;
+            viewModal.classList.add("is-visible");
+            viewModal.setAttribute("aria-hidden", "false");
+            lastViewTrigger = trigger || null;
+        }
+
+        function closeViewModal() {
+            if (!viewModal) return;
+            viewModal.classList.remove("is-visible");
+            viewModal.setAttribute("aria-hidden", "true");
+            if (lastViewTrigger) {
+                lastViewTrigger.focus();
+                lastViewTrigger = null;
+            }
+        }
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key !== "Escape") {
+                return;
+            }
+            if (viewModal && viewModal.classList.contains("is-visible")) {
+                closeViewModal();
+                return;
+            }
+            if (modal && modal.classList.contains("is-visible")) {
+                closeModal();
+            }
+        });
+
+        var resetButton = modal ? modal.querySelector('[data-reset-purchase]') : null;
+
+        if (resetButton) {
+            resetButton.addEventListener("click", function () {
+                if (form) {
+                    form.reset();
+                }
+                if (orderInput) {
+                    var initial = orderInput.getAttribute("data-initial-order");
+                    orderInput.value = initial || "";
+                }
+                if (costInput) {
+                    costInput.value = "";
+                }
+                if (priceInput) {
+                    priceInput.value = "";
+                }
+            });
+        }
+
+        if (productSelect && costInput && priceInput) {
+            productSelect.addEventListener("change", function () {
+                var selectedOption = productSelect.options[productSelect.selectedIndex];
+                var cost = selectedOption ? selectedOption.getAttribute("data-cost") : "";
+                var price = selectedOption ? selectedOption.getAttribute("data-price") : "";
+                costInput.value = cost || "";
+                priceInput.value = price || "";
+            });
+            var initialOption = productSelect.options[productSelect.selectedIndex];
+            if (initialOption) {
+                costInput.value = initialOption.getAttribute("data-cost") || "";
+                priceInput.value = initialOption.getAttribute("data-price") || "";
+            }
+        }
+
+        var providerSelect = modal ? modal.querySelector('[data-provider-select]') : null;
+        var productSelect = modal ? modal.querySelector('[data-product-select]') : null;
+        var providerSearch = providerModal ? providerModal.querySelector('[data-provider-search]') : null;
+        var productSearch = productModal ? productModal.querySelector('[data-product-search]') : null;
+        var providerRows = providerModal ? providerModal.querySelectorAll('[data-provider-row]') : [];
+        var productRows = productModal ? productModal.querySelectorAll('[data-product-row]') : [];
+
+        function filterRows(rows, term) {
+            var normalized = term.trim().toLowerCase();
+            rows.forEach(function (row) {
+                var name = row.getAttribute("data-name") || "";
+                var visible = !normalized || name.indexOf(normalized) !== -1;
+                row.style.display = visible ? "table-row" : "none";
+            });
+        }
+
+        if (providerSearch) {
+            providerSearch.addEventListener("input", function () {
+                filterRows(providerRows, providerSearch.value);
+            });
+        }
+
+        if (productSearch) {
+            productSearch.addEventListener("input", function () {
+                filterRows(productRows, productSearch.value);
+            });
+        }
+
+        document.querySelectorAll('[data-open-provider-browser]').forEach(function (button) {
+            button.addEventListener("click", function () {
+                openGenericModal(providerModal, button);
+            });
+        });
+
+        document.querySelectorAll('[data-open-product-browser]').forEach(function (button) {
+            button.addEventListener("click", function () {
+                openGenericModal(productModal, button);
+            });
+        });
+
+        if (providerModal) {
+            providerModal.querySelectorAll('[data-close-provider-browser]').forEach(function (button) {
+                button.addEventListener("click", function () {
+                    closeGenericModal(providerModal);
+                });
+            });
+            providerModal.addEventListener("click", function (event) {
+                if (event.target === providerModal) {
+                    closeGenericModal(providerModal);
+                }
+            });
+            providerModal.querySelectorAll('[data-select-provider]').forEach(function (button) {
+                button.addEventListener("click", function () {
+                    if (providerSelect) {
+                        providerSelect.value = button.dataset.providerId || "";
+                    }
+                    closeGenericModal(providerModal);
+                });
+            });
+        }
+
+        if (productModal) {
+            productModal.querySelectorAll('[data-close-product-browser]').forEach(function (button) {
+                button.addEventListener("click", function () {
+                    closeGenericModal(productModal);
+                });
+            });
+            productModal.addEventListener("click", function (event) {
+                if (event.target === productModal) {
+                    closeGenericModal(productModal);
+                }
+            });
+            productModal.querySelectorAll('[data-select-product]').forEach(function (button) {
+                button.addEventListener("click", function () {
+                    if (productSelect) {
+                        productSelect.value = button.dataset.productId || "";
+                        productSelect.dispatchEvent(new Event("change"));
+                    }
+                    if (costInput) {
+                        costInput.value = button.dataset.productCost || "";
+                    }
+                    if (priceInput) {
+                        priceInput.value = button.dataset.productPrice || "";
+                    }
+                    closeGenericModal(productModal);
+                });
+            });
+        }
+
+        var forceOpen = modal ? modal.dataset.forceOpen === "true" : false;
+        if (forceOpen) {
+            openModal();
+        }
+
+        if (viewModal) {
+            var fieldRefs = {
+                number: viewModal.querySelector('[data-view-number]'),
+                provider: viewModal.querySelector('[data-view-provider]'),
+                product: viewModal.querySelector('[data-view-product]'),
+                quantity: viewModal.querySelector('[data-view-quantity]'),
+                cost: viewModal.querySelector('[data-view-cost]'),
+                price: viewModal.querySelector('[data-view-price]'),
+                stockOld: viewModal.querySelector('[data-view-stock-old]'),
+                stockNew: viewModal.querySelector('[data-view-stock-new]'),
+                date: viewModal.querySelector('[data-view-date]'),
+                time: viewModal.querySelector('[data-view-time]')
+            };
+
+            document.querySelectorAll('[data-action="view"]').forEach(function (button) {
+                button.addEventListener("click", function () {
+                    if (fieldRefs.number) {
+                        fieldRefs.number.textContent = button.dataset.purchaseNumber || "-";
+                    }
+                    if (fieldRefs.provider) {
+                        fieldRefs.provider.textContent = button.dataset.purchaseProvider || "-";
+                    }
+                    if (fieldRefs.product) {
+                        fieldRefs.product.textContent = button.dataset.purchaseProduct || "-";
+                    }
+                    if (fieldRefs.quantity) {
+                        fieldRefs.quantity.textContent = button.dataset.purchaseQuantity || "0";
+                    }
+                    if (fieldRefs.cost) {
+                        fieldRefs.cost.textContent = (button.dataset.purchaseCost || "0.00") + " RD$";
+                    }
+                    if (fieldRefs.price) {
+                        fieldRefs.price.textContent = (button.dataset.purchasePrice || "0.00") + " RD$";
+                    }
+                    if (fieldRefs.stockOld) {
+                        fieldRefs.stockOld.textContent = button.dataset.purchaseStockOld || "0";
+                    }
+                    if (fieldRefs.stockNew) {
+                        fieldRefs.stockNew.textContent = button.dataset.purchaseStockNew || "0";
+                    }
+                    if (fieldRefs.date) {
+                        fieldRefs.date.textContent = button.dataset.purchaseDate || "-";
+                    }
+                    if (fieldRefs.time) {
+                        fieldRefs.time.textContent = button.dataset.purchaseTime || "-";
+                    }
+                    openViewModal(button);
+                });
+            });
+        }
+
+        // Funcionalidad de filtros para compras
+        var searchInput = document.getElementById('purchases-search');
+        var providerFilter = document.getElementById('provider-filter');
+        var dateFromFilter = document.getElementById('date-from-filter');
+        var dateToFilter = document.getElementById('date-to-filter');
+        var applyFiltersBtn = document.getElementById('apply-purchases-filters');
+        var clearFiltersBtn = document.getElementById('clear-purchases-filters');
+
+        function applyFilters() {
+            var params = new URLSearchParams();
+            
+            if (searchInput && searchInput.value.trim()) {
+                params.set('search', searchInput.value.trim());
+            }
+            if (providerFilter && providerFilter.value) {
+                params.set('proveedor', providerFilter.value);
+            }
+            if (dateFromFilter && dateFromFilter.value) {
+                params.set('fecha_desde', dateFromFilter.value);
+            }
+            if (dateToFilter && dateToFilter.value) {
+                params.set('fecha_hasta', dateToFilter.value);
+            }
+            
+            window.location.href = '?' + params.toString();
+        }
+
+        function clearFilters() {
+            if (searchInput) searchInput.value = '';
+            if (providerFilter) providerFilter.value = '';
+            if (dateFromFilter) dateFromFilter.value = '';
+            if (dateToFilter) dateToFilter.value = '';
+            window.location.href = window.location.pathname;
+        }
+
+        if (applyFiltersBtn) {
+            applyFiltersBtn.addEventListener('click', applyFilters);
+        }
+
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', clearFilters);
+        }
+
+        // Aplicar filtros al presionar Enter en el campo de búsqueda
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    applyFilters();
+                }
+            });
+        }
+
+        // Cargar valores de filtros desde URL
+        var urlParams = new URLSearchParams(window.location.search);
+        if (searchInput && urlParams.get('search')) {
+            searchInput.value = urlParams.get('search');
+        }
+        if (providerFilter && urlParams.get('proveedor')) {
+            providerFilter.value = urlParams.get('proveedor');
+        }
+        if (dateFromFilter && urlParams.get('fecha_desde')) {
+            dateFromFilter.value = urlParams.get('fecha_desde');
+        }
+        if (dateToFilter && urlParams.get('fecha_hasta')) {
+            dateToFilter.value = urlParams.get('fecha_hasta');
+        }
+    });
+</script>
+
+<style>
+    /* Estilos para filtros modernos */
+    .filters-section {
+        margin: 24px 0;
+        background: var(--color-surface-card);
+        border-radius: 16px;
+        border: 1px solid var(--color-border-subtle);
+        overflow: hidden;
+    }
+
+    .filters-container {
+        padding: 20px 24px;
+    }
+
+    .filters-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr auto;
+        gap: 16px;
+        align-items: end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .filter-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-text-main);
+        margin: 0;
+    }
+
+    .search-input-wrapper {
+        position: relative;
+    }
+
+    .filter-input, .filter-select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 8px;
+        background: var(--color-surface-main);
+        color: var(--color-text-main);
+        font-size: 0.9rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .search-input {
+        padding-right: 40px;
+    }
+
+    .search-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--color-text-muted);
+        font-size: 1.1rem;
+        pointer-events: none;
+    }
+
+    .filter-input:focus, .filter-select:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .btn-sm {
+        padding: 8px 16px;
+        font-size: 0.875rem;
+        min-height: auto;
+    }
+
+    /* Responsive design */
+    @media (max-width: 1200px) {
+        .filters-row {
+            grid-template-columns: 2fr 1fr 1fr auto;
+        }
+        
+        .filter-group:nth-child(4) {
+            grid-column: 1 / -2;
+            margin-top: 12px;
+        }
+        
+        .filter-actions {
+            grid-column: -2 / -1;
+            margin-top: 12px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .filters-row {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        
+        .filter-group:nth-child(4) {
+            grid-column: auto;
+            margin-top: 0;
+        }
+        
+        .filter-actions {
+            grid-column: auto;
+            margin-top: 0;
+            justify-content: stretch;
+        }
+        
+        .filter-actions .btn {
+            flex: 1;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .filters-container {
+            padding: 16px;
+        }
+        
+        .filter-actions {
+            flex-direction: column;
+            gap: 8px;
+        }
+    }
+</style>
+{% endblock %}

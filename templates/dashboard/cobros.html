@@ -1,0 +1,1989 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Cobros{% endblock %}
+{% block page_title %}Cobros{% endblock %}
+{% block extra_styles %}
+{{ block.super }}
+<style>
+    .credits {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .credit-history__item-info {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        color: var(--color-text-main);
+        width: 100%;
+    }
+
+    .credit-history__item-line {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .credit-history__item-info strong {
+        font-size: 1rem;
+    }
+
+    .credit-history__item-divider {
+        color: var(--color-border-subtle);
+        font-size: 0.9rem;
+    }
+
+    .credit-history__item-date {
+        font-size: 0.85rem;
+        color: var(--color-text-subtle);
+    }
+
+    .credit-history__item-meta {
+        font-size: 0.85rem;
+        color: var(--color-text-subtle);
+        width: 100%;
+    }
+
+    .credit-history__item-comment {
+        font-size: 0.85rem;
+        color: var(--color-text-muted);
+        width: 100%;
+    }
+
+    .credits__header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .credits__title {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-text-main);
+    }
+
+    .credits__subtitle {
+        margin: 4px 0 0;
+        color: var(--color-text-muted);
+        font-size: 0.95rem;
+        max-width: 520px;
+    }
+
+    .credits__filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .credits__filter-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .credits__filter-group input[type="search"],
+    .credits__filter-group select {
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 0.95rem;
+        background: var(--color-surface-card);
+    }
+
+    .credits__filter-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .credits__filter-actions .btn {
+        padding: 10px 18px;
+        font-size: 0.95rem;
+        border-radius: 8px;
+        min-height: 40px;
+    }
+
+    .credits__filter-actions .btn-outline--primary {
+        border: 1px solid var(--color-info);
+        color: var(--color-info);
+        background: transparent;
+    }
+
+    .credits__filter-actions .btn-outline--primary:hover {
+        background: rgba(var(--color-info-rgb), 0.1);
+        color: var(--color-info-dark);
+        border-color: var(--color-info-dark);
+    }
+
+    .credits__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .credits-table {
+        overflow-x: auto;
+        border-radius: 8px;
+        background-color: var(--color-surface-card);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .credits-table__grid {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 720px;
+    }
+
+    .credits-table__grid thead {
+        background-color: var(--color-accent-deep);
+        color: var(--color-sidebar-text);
+    }
+
+    .credits-table__grid th,
+    .credits-table__grid td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid var(--color-border-divider);
+        font-size: 0.95rem;
+        white-space: nowrap;
+    }
+
+    .credits-table__grid tbody tr:hover {
+        background-color: var(--color-surface-muted);
+    }
+
+    .credits-table__grid tbody tr.is-selected {
+        background: rgba(var(--color-info-rgb), 0.16);
+    }
+
+    .credits-table__empty {
+        text-align: center;
+        padding: 24px;
+        color: var(--color-text-soft);
+        font-style: italic;
+    }
+
+    .credit-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 120px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .credit-status--pendiente {
+        background: rgba(var(--color-pending-rgb), 0.15);
+        color: var(--color-warning);
+    }
+
+    .credit-status--pagado {
+        background: rgba(var(--color-success-rgb), 0.18);
+        color: var(--color-success);
+    }
+
+    .credit-status-wrapper {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .credit-countdown {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--color-accent-deep);
+        background: rgba(var(--color-accent-deep-rgb), 0.08);
+        padding: 4px 10px;
+        border-radius: 999px;
+    }
+
+    .credit-countdown--ok {
+        color: var(--color-success);
+        background: rgba(var(--color-success-rgb), 0.12);
+    }
+
+    .credit-countdown--warning {
+        color: var(--color-warning);
+        background: rgba(var(--color-warning-rgb), 0.18);
+    }
+
+    .credit-countdown--danger {
+        color: var(--color-danger-strong);
+        background: rgba(var(--color-danger-strong-rgb), 0.16);
+    }
+
+    .btn.btn-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: 1px solid transparent;
+        background: rgba(var(--color-ink-rgb), 0.08);
+        color: inherit;
+        padding: 0;
+        transition: background-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .btn.btn-icon:hover:not(:disabled) {
+        background: rgba(var(--color-ink-rgb), 0.16);
+        transform: translateY(-1px);
+    }
+
+    .btn.btn-icon:disabled {
+        opacity: 0.45;
+        cursor: default;
+        transform: none;
+    }
+
+    .btn-whatsapp {
+        color: var(--color-whatsapp);
+        border-color: rgba(var(--color-whatsapp-rgb), 0.35);
+        background: rgba(var(--color-whatsapp-rgb), 0.12);
+    }
+
+    .btn-whatsapp:hover:not(:disabled) {
+        border-color: rgba(var(--color-whatsapp-rgb), 0.5);
+        background: rgba(var(--color-whatsapp-rgb), 0.2);
+    }
+
+    .btn-whatsapp i {
+        font-size: 1.1rem;
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .credit-summary {
+        background: var(--color-surface-card);
+        border-radius: 16px;
+        box-shadow: 0 12px 24px rgba(var(--color-ink-rgb), 0.08);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .credit-summary[hidden] {
+        display: none;
+    }
+
+    .credit-summary header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+    }
+
+    .credit-summary__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+    }
+
+    .credit-summary__label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--color-text-subtle);
+    }
+
+    .credit-summary__value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-accent-deep);
+    }
+
+    .modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1100;
+    }
+
+    .modal.is-visible {
+        display: flex;
+    }
+
+    .modal-dialog {
+        background: var(--color-surface-card);
+        border-radius: 12px;
+        width: 100%;
+        max-width: 520px;
+        max-height: 90vh;
+        overflow: hidden;
+        box-shadow: 0 24px 48px rgba(var(--color-ink-rgb), 0.18);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-dialog--narrow {
+        max-width: 440px;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px;
+        border-bottom: 1px solid var(--color-border-divider);
+    }
+
+    .modal-form {
+        padding: 24px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .modal-form--static {
+        gap: 18px;
+    }
+
+    .modal-form__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+    }
+
+    .modal-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .modal-field--full {
+        grid-column: 1 / -1;
+    }
+
+    .modal-field__label {
+        font-weight: 600;
+        color: var(--color-text-main);
+        font-size: 0.9rem;
+    }
+
+    .modal-field__value {
+        font-weight: 600;
+        color: var(--color-accent-deep);
+    }
+
+    .modal-field input,
+    .modal-field textarea {
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 6px;
+        padding: 10px;
+        font-size: 0.95rem;
+        background: var(--color-surface-card);
+        width: 100%;
+    }
+
+    .modal-field textarea {
+        resize: vertical;
+    }
+
+    .modal-actions {
+        padding: 0 24px 24px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .modal-close {
+        border: none;
+        background: none;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        color: var(--color-text-muted);
+    }
+
+    .credit-history__summary {
+        display: grid;
+        gap: 10px;
+        background: var(--color-surface-contrast);
+        border-radius: 12px;
+        padding: 16px;
+    }
+
+    .credit-history__list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 320px;
+        overflow-y: auto;
+    }
+
+    .credit-history__list li {
+        border: 1px solid var(--color-border-divider);
+        border-radius: 10px;
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        background: var(--color-surface-contrast);
+        width: 100%;
+    }
+
+    .credit-history__item-info {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        color: var(--color-text-main);
+        width: 100%;
+    }
+
+    .credit-history__item-info strong {
+        font-size: 1rem;
+    }
+
+    .credit-history__item-date {
+        font-size: 0.85rem;
+        color: var(--color-text-subtle);
+        margin-top: 2px;
+    }
+
+    .credit-history__item-meta,
+    .credit-history__item-comment {
+        font-size: 0.85rem;
+        color: var(--color-text-subtle);
+        width: 100%;
+    }
+
+    .credit-history__item-comment {
+        color: var(--color-text-muted);
+    }
+
+    .credit-history__empty {
+        text-align: center;
+        font-style: italic;
+        color: var(--color-text-soft);
+        padding: 18px 12px;
+    }
+
+    .btn.btn-outline.btn-outline--danger {
+        border: 1px solid var(--color-danger-border);
+        color: var(--color-danger-border);
+        background: transparent;
+    }
+
+    .btn.btn-outline.btn-outline--danger:hover {
+        background: rgba(var(--color-danger-strong-rgb), 0.08);
+        color: var(--color-danger-strong);
+        border-color: var(--color-danger-strong);
+    }
+
+    .credit-paid__table-wrapper {
+        max-height: 320px;
+        overflow-y: auto;
+    }
+
+    .credit-paid__table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 640px;
+    }
+
+    .credit-paid__table th,
+    .credit-paid__table td {
+        padding: 10px 14px;
+        text-align: left;
+        border-bottom: 1px solid var(--color-border-divider);
+    }
+
+    .credit-paid__table tbody tr:hover {
+        background: rgba(var(--color-success-rgb), 0.08);
+    }
+
+    /* Estilos para cuotas */
+    .credit-installments {
+        font-weight: 600;
+        color: var(--color-primary);
+        background: rgba(var(--color-primary-rgb), 0.1);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        display: inline-block;
+    }
+
+    .credit-frequency {
+        display: block;
+        color: var(--color-text-subtle);
+        font-size: 0.75rem;
+        margin-top: 2px;
+    }
+
+    .credit-no-installments {
+        color: var(--color-text-muted);
+        font-style: italic;
+        font-size: 0.85rem;
+    }
+
+    @media (max-width: 1024px) {
+        .credits__header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .credits__filter,
+        .credits__actions {
+            width: 100%;
+            justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .credits__actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .credits-table__grid {
+            min-width: 600px;
+        }
+
+        .modal-form__grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="credits">
+    <header class="credits__header">
+        <div>
+            <h2 class="credits__title">Créditos activos</h2>
+            <p class="credits__subtitle">Administra los pagos pendientes de tus clientes.</p>
+        </div>
+        <form class="credits__filter" method="get">
+            <div class="credits__filter-group">
+                <input type="search" name="q" placeholder="Buscar por factura, cliente o estado" value="{{ search_term }}">
+                <select name="estado">
+                    <option value="">Todos los estados</option>
+                    <option value="pendiente" {% if estado_filter == "pendiente" %}selected{% endif %}>Pendiente</option>
+                    <option value="pagado" {% if estado_filter == "pagado" %}selected{% endif %}>Pagado</option>
+                </select>
+            </div>
+            <div class="credits__filter-actions">
+                <button type="submit" class="btn btn-outline btn-outline--primary">Buscar</button>
+                {% if search_term or estado_filter %}
+                    <a href="{% url 'dashboard:cobros' %}" class="btn btn-secondary btn-outline">Limpiar</a>
+                {% endif %}
+            </div>
+        </form>
+        <div class="credits__actions">
+            <button type="button" class="btn btn-outline btn-outline--primary" data-credit-action="register-late-payment" data-credit-requires-selection="true" hidden disabled>Registrar pago tardío</button>
+            <button type="button" class="btn btn-outline btn-outline--primary" data-credit-action="view-payments">Ver cuotas pendientes</button>
+        </div>
+    </header>
+
+    <div class="credits-table" data-credit-table-container>
+        <table class="credits-table__grid" data-credit-table>
+            <thead>
+                <tr>
+                    <th>Factura</th>
+                    <th>Cliente</th>
+                    <th>Total crédito</th>
+                    <th>Saldo pendiente</th>
+                    <th>Abonado</th>
+                    <th>Cuotas</th>
+                    <th>Fecha venta</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if creditos %}
+                    {% for credito in creditos_page %}
+                        <tr data-credit-row data-credit-id="{{ credito.cuenta_id }}"
+                            data-credit-due-seconds="{{ credito.due_in_seconds }}"
+                            data-credit-due-date="{{ credito.due_date_iso }}"
+                            data-credit-warning-days="{{ credito.countdown_warning_days }}"
+                            data-credit-whatsapp-enabled="{% if credito.whatsapp_enabled %}true{% else %}false{% endif %}"
+                            data-credit-whatsapp-phone="{{ credito.cliente_telefono_sanitized }}"
+                            data-credit-whatsapp-days="{{ credito.whatsapp_alert_days }}">
+                            <td data-credit-field="factura">{{ credito.factura }}</td>
+                            <td data-credit-field="cliente">{{ credito.cliente }}</td>
+                            <td data-credit-field="total">{{ credito.total_credito_display }}</td>
+                            <td data-credit-field="saldo">{{ credito.saldo_pendiente_display }}</td>
+                            <td data-credit-field="abonado">{{ credito.total_abonado_display }}</td>
+                            <td data-credit-field="cuotas">
+                                {% if credito.progreso_cuotas %}
+                                    <span class="credit-installments">{{ credito.progreso_cuotas }}</span>
+                                    {% if credito.frecuencia_display %}
+                                        <small class="credit-frequency">({{ credito.frecuencia_display }})</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="credit-no-installments">Pago único</span>
+                                {% endif %}
+                            </td>
+                            <td data-credit-field="fecha">{{ credito.fecha_venta_display }}</td>
+                            <td>
+                                <div class="credit-status-wrapper">
+                                    <span class="credit-status credit-status--{{ credito.estado|default:'pendiente' }}" data-credit-status>{{ credito.estado_display }}</span>
+                                    <span class="credit-countdown" data-credit-countdown hidden>{{ credito.countdown_display }}</span>
+                                    <button type="button" class="btn btn-icon btn-whatsapp" data-credit-whatsapp
+                                        title="Enviar recordatorio por WhatsApp"
+                                        disabled>
+                                        <i class="ri-whatsapp-line" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="credits-table__empty">No hay créditos registrados por el momento.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    {% if creditos_page.has_other_pages %}
+        <nav class="pagination" aria-label="Paginación de cobros">
+            <ul class="pagination__list">
+                {% if creditos_page.has_previous %}
+                    <li class="pagination__item">
+                        <a class="pagination__link" href="?page={{ creditos_page.previous_page_number }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}" aria-label="Página anterior">&laquo;</a>
+                    </li>
+                {% else %}
+                    <li class="pagination__item pagination__item--disabled"><span class="pagination__link" aria-hidden="true">&laquo;</span></li>
+                {% endif %}
+
+                {% for num in creditos_page.paginator.page_range %}
+                    {% if num == creditos_page.number %}
+                        <li class="pagination__item pagination__item--active"><span class="pagination__link">{{ num }}</span></li>
+                    {% else %}
+                        <li class="pagination__item">
+                            <a class="pagination__link" href="?page={{ num }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if creditos_page.has_next %}
+                    <li class="pagination__item">
+                        <a class="pagination__link" href="?page={{ creditos_page.next_page_number }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}" aria-label="Página siguiente">&raquo;</a>
+                    </li>
+                {% else %}
+                    <li class="pagination__item pagination__item--disabled"><span class="pagination__link" aria-hidden="true">&raquo;</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+
+    <aside class="credit-summary" data-credit-summary hidden>
+        <header>
+            <h3>Crédito seleccionado</h3>
+            <p data-summary-badge>Sin selección</p>
+        </header>
+        <div class="credit-summary__grid">
+            <div>
+                <span class="credit-summary__label">Cliente</span>
+                <span class="credit-summary__value" data-summary-cliente>—</span>
+            </div>
+            <div>
+                <span class="credit-summary__label">Saldo pendiente</span>
+                <span class="credit-summary__value" data-summary-saldo>—</span>
+            </div>
+            <div>
+                <span class="credit-summary__label">Total crédito</span>
+                <span class="credit-summary__value" data-summary-total>—</span>
+            </div>
+            <div>
+                <span class="credit-summary__label">Abonado</span>
+                <span class="credit-summary__value" data-summary-abonado>—</span>
+            </div>
+            <div>
+                <span class="credit-summary__label">Último pago</span>
+                <span class="credit-summary__value" data-summary-ultimo-pago>—</span>
+            </div>
+        </div>
+    </aside>
+</section>
+
+{{ creditos|json_script:"credits-data" }}
+
+<div class="modal" id="credit-history-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="credit-history-title">
+        <div class="modal-header">
+            <h2 id="credit-history-title">Cuotas pendientes</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-credit-history>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="credit-history__summary">
+                <p><strong>Factura:</strong> <span data-history-factura>—</span></p>
+                <p><strong>Cliente:</strong> <span data-history-cliente>—</span></p>
+                <p><strong>Productos:</strong> <span data-history-producto>—</span></p>
+            </div>
+            <div class="credit-history__list-wrapper">
+                <ul class="credit-history__list credit-history__list--scroll" data-credit-history-list>
+                    <li class="credit-history__empty">Selecciona un crédito para ver sus cuotas pendientes.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-close-credit-history>Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="late-payment-modal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog--narrow" role="dialog" aria-modal="true" aria-labelledby="late-payment-title">
+        <div class="modal-header">
+            <h2 id="late-payment-title">Registrar pago tardío</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-late-payment>&times;</button>
+        </div>
+        <form class="modal-form" data-late-payment-form>
+            <input type="hidden" name="cuenta_id" data-late-payment-id>
+            <div class="modal-field">
+                <span class="modal-field__label">Factura</span>
+                <span class="modal-field__value" data-late-payment-factura>—</span>
+            </div>
+            <div class="modal-field">
+                <span class="modal-field__label">Cliente</span>
+                <span class="modal-field__value" data-late-payment-cliente>—</span>
+            </div>
+            <div class="modal-field">
+                <span class="modal-field__label">Saldo pendiente actual</span>
+                <span class="modal-field__value" data-late-payment-saldo>—</span>
+            </div>
+            <div class="modal-field">
+                <label class="modal-field__label" for="late-payment-amount">Monto recibido</label>
+                <input id="late-payment-amount" type="number" name="monto" step="0.01" min="0.01" data-late-payment-amount placeholder="Dejar vacío para usar el saldo completo">
+            </div>
+            <div class="modal-field modal-field--full">
+                <label class="modal-field__label" for="late-payment-comment">Comentario</label>
+                <textarea id="late-payment-comment" name="comentario" rows="2" data-late-payment-comment placeholder="Ej. Pago recibido fuera de fecha"></textarea>
+            </div>
+        </form>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-close-late-payment>Cancelar</button>
+            <button type="submit" class="btn btn-primary" form="" data-late-payment-submit>Registrar pago tardío</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .credits {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .credits__filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .credits__filter-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .credits__filter-group input[type="search"],
+    .credits__filter-group select {
+        border: 1px solid #dcdde1;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 0.95rem;
+    }
+
+    .credits__filter-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .credits__filter-actions .btn {
+        padding: 10px 18px;
+        font-size: 0.95rem;
+        border-radius: 8px;
+        min-height: 40px;
+    }
+
+    .credits__filter-actions .btn-outline--primary {
+        border: 1px solid #0097e6;
+        color: #0097e6;
+        background: transparent;
+    }
+
+    .credits__filter-actions .btn-outline--primary:hover {
+        background: rgba(0, 168, 255, 0.1);
+        color: #0083c9;
+        border-color: #0083c9;
+    }
+
+    .credits__filter-actions .btn.btn-secondary.btn-outline {
+        border: 1px solid #b2bec3;
+        color: #636e72;
+        background: transparent;
+    }
+
+    .credits__filter-actions .btn.btn-secondary.btn-outline:hover {
+        border-color: #95a5a6;
+        color: #2f3640;
+        background: rgba(189, 195, 199, 0.15);
+    }
+
+    .btn.btn-secondary.btn-outline {
+        border: 1px solid #b2bec3;
+        color: #636e72;
+        background: transparent;
+    }
+
+    .credits__header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 20px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #f5f6fa, #ffffff);
+        box-shadow: 0 12px 32px rgba(47, 54, 64, 0.08);
+    }
+
+    .credits__title {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #2f3640;
+    }
+
+    .credits__subtitle {
+        margin: 4px 0 0;
+        color: #636e72;
+        font-size: 0.95rem;
+    }
+
+    .credits__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .credits__actions .btn {
+        padding: 10px 18px;
+        font-size: 0.95rem;
+        border-radius: 8px;
+        min-height: 42px;
+        position: relative;
+    }
+
+    .btn.is-loading {
+        color: transparent !important;
+        pointer-events: none;
+    }
+
+    .btn.is-loading::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 18px;
+        height: 18px;
+        margin: -9px 0 0 -9px;
+        border-radius: 50%;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
+        animation: btn-spinner 0.8s linear infinite;
+    }
+
+    @keyframes btn-spinner {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .credits__actions .btn-primary {
+        background: linear-gradient(135deg, #0097e6, #00a8ff);
+        color: #fff;
+        box-shadow: 0 10px 24px rgba(0, 168, 255, 0.25);
+        border: none;
+    }
+
+    .credits__actions .btn-primary:hover {
+        filter: brightness(0.95);
+    }
+
+    .credits__actions .btn-outline--primary {
+        border: 1px solid #0097e6;
+        color: #0097e6;
+        background: transparent;
+    }
+
+    .credits__actions .btn-outline--primary:hover {
+        background: rgba(0, 168, 255, 0.1);
+        color: #0083c9;
+        border-color: #0083c9;
+    }
+
+    .credits-table {
+        overflow-x: auto;
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 10px 28px rgba(47, 54, 64, 0.08);
+    }
+
+    .credits-table__grid {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 720px;
+    }
+
+    .credits-table__grid thead {
+        background: #f1f2f6;
+    }
+
+    .credits-table__grid th,
+    .credits-table__grid td {
+        padding: 14px 18px;
+        text-align: left;
+        font-size: 0.95rem;
+    }
+
+    .credits-table__grid th {
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+        color: #2f3640;
+    }
+
+    .credits-table__grid tbody tr:nth-child(even) {
+        background: #fff;
+    }
+
+    .credits-table__grid tbody tr:nth-child(odd) {
+        background: #fbfcfe;
+    }
+
+    .credits-table__grid tbody tr:hover {
+        background: rgba(0, 168, 255, 0.08);
+    }
+
+    .credits-table__empty {
+        text-align: center;
+        color: #95a5a6;
+        padding: 32px 18px;
+        font-style: italic;
+    }
+
+    .credit-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 120px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .credit-status--pendiente {
+        background: rgba(255, 159, 67, 0.15);
+        color: #e67e22;
+    }
+
+    .credit-status--atrasado {
+        background: rgba(214, 48, 49, 0.15);
+        color: #c0392b;
+    }
+
+    .credit-status--pagado {
+        background: rgba(76, 209, 55, 0.18);
+        color: #27ae60;
+    }
+
+    .credit-status--pagado_tarde {
+        background: rgba(76, 209, 55, 0.18);
+        color: #1e8449;
+    }
+
+    @media (max-width: 768px) {
+        .credits__header {
+            padding: 16px;
+        }
+
+        .credits__title {
+            font-size: 1.3rem;
+        }
+
+        .credits__actions {
+            width: 100%;
+            justify-content: flex-start;
+        }
+
+        .credits-table__grid {
+            min-width: 600px;
+        }
+    }
+
+    .credit-summary {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 12px 24px rgba(47, 54, 64, 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .credit-summary[hidden] {
+        display: none;
+    }
+
+    .credit-summary header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+    }
+
+    .credit-summary__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+    }
+
+    .credit-summary__label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #8391a6;
+    }
+
+    .credit-summary__value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #273c75;
+    }
+
+    .credits-table__grid tr.is-selected {
+        background: rgba(0, 168, 255, 0.16);
+    }
+
+    .modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1100;
+    }
+
+    .modal.is-visible {
+        display: flex;
+    }
+
+    .modal-dialog {
+        background: #ffffff;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 520px;
+        max-height: 90vh;
+        overflow: hidden;
+        box-shadow: 0 24px 48px rgba(47, 54, 64, 0.18);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-dialog--narrow {
+        max-width: 440px;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px;
+        border-bottom: 1px solid #ecf0f1;
+    }
+
+    .modal-form {
+        padding: 24px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .modal-form--static {
+        gap: 18px;
+    }
+
+    .modal-form__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+    }
+
+    .modal-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .modal-field--full {
+        grid-column: 1 / -1;
+    }
+
+    .modal-field__label {
+        font-weight: 600;
+        color: #2f3640;
+        font-size: 0.9rem;
+    }
+
+    .modal-field__value {
+        font-weight: 600;
+        color: #273c75;
+    }
+
+    .modal-field input,
+    .modal-field textarea {
+        border: 1px solid #dcdde1;
+        border-radius: 6px;
+        padding: 10px;
+        font-size: 0.95rem;
+        background: #ffffff;
+        width: 100%;
+    }
+
+    .modal-field textarea {
+        resize: vertical;
+    }
+
+    .modal-actions {
+        padding: 0 24px 24px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .modal-close {
+        border: none;
+        background: none;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        color: #636e72;
+    }
+
+    .credit-history__list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 320px;
+        overflow-y: auto;
+    }
+
+    .credit-history__list li {
+        border: 1px solid #ecf0f1;
+        border-radius: 10px;
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        background: #f8f9fd;
+    }
+
+    .credit-history__item-info {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .credit-history__item-line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .credit-history__item-divider {
+        color: #bdc3c7;
+        font-size: 0.85rem;
+    }
+
+    .credit-history__item-date,
+    .credit-history__item-meta {
+        font-size: 0.9rem;
+        color: #636e72;
+    }
+
+    .credit-history__item-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        align-self: flex-start;
+    }
+
+    .credit-history__item-status--pendiente {
+        background: rgba(255, 159, 67, 0.18);
+        color: #e67e22;
+    }
+
+    .credit-history__item-status--pagado {
+        background: rgba(76, 209, 55, 0.2);
+        color: #27ae60;
+    }
+
+    .credit-history__item-status--atrasado {
+        background: rgba(214, 48, 49, 0.2);
+        color: #c0392b;
+    }
+
+    .credit-history__empty {
+        text-align: center;
+        font-style: italic;
+        color: #95a5a6;
+        padding: 18px 12px;
+    }
+
+    .modal-actions .btn {
+        border-radius: 10px;
+        padding: 12px 18px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        min-height: 44px;
+        transition: all 0.2s ease;
+    }
+
+    .modal-actions .btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .modal-actions .btn.btn-secondary.btn-outline {
+        border: 1px solid #b2bec3;
+        color: #636e72;
+        background: transparent;
+    }
+
+    .modal-actions .btn.btn-secondary.btn-outline:hover {
+        border-color: #95a5a6;
+        color: #2f3640;
+        background: rgba(189, 195, 199, 0.15);
+        box-shadow: 0 8px 20px rgba(178, 190, 195, 0.25);
+    }
+</style>
+
+{% block extra_scripts %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var creditsScript = document.getElementById('credits-data');
+        if (!creditsScript) {
+            return;
+        }
+
+        var creditsData = JSON.parse(creditsScript.textContent);
+        var creditMap = new Map();
+        creditsData.forEach(function (credit) {
+            creditMap.set(String(credit.cuenta_id), credit);
+        });
+
+        var table = document.querySelector('[data-credit-table]');
+        var rows = table ? Array.prototype.slice.call(table.querySelectorAll('[data-credit-row]')) : [];
+        var countdownTimers = [];
+        var actionButtons = document.querySelectorAll('[data-credit-action]');
+        var summaryCard = document.querySelector('[data-credit-summary]');
+        var summaryFactura = document.querySelector('[data-summary-badge]');
+        var summaryCliente = document.querySelector('[data-summary-cliente]');
+        var summarySaldo = document.querySelector('[data-summary-saldo]');
+        var summaryTotal = document.querySelector('[data-summary-total]');
+        var summaryAbonado = document.querySelector('[data-summary-abonado]');
+        var summaryLastPayment = document.querySelector('[data-summary-ultimo-pago]');
+
+        var historyModal = document.getElementById('credit-history-modal');
+        var historyList = historyModal ? historyModal.querySelector('[data-credit-history-list]') : null;
+        var historyFactura = historyModal ? historyModal.querySelector('[data-history-factura]') : null;
+        var historyCliente = historyModal ? historyModal.querySelector('[data-history-cliente]') : null;
+        var historyProducto = historyModal ? historyModal.querySelector('[data-history-producto]') : null;
+        var closeHistoryButtons = historyModal ? historyModal.querySelectorAll('[data-close-credit-history]') : [];
+
+        var lateModal = document.getElementById('late-payment-modal');
+        var lateForm = lateModal ? lateModal.querySelector('[data-late-payment-form]') : null;
+        var lateSubmitButton = lateModal ? lateModal.querySelector('[data-late-payment-submit]') : null;
+        var lateIdInput = lateModal ? lateModal.querySelector('[data-late-payment-id]') : null;
+        var lateFacturaLabel = lateModal ? lateModal.querySelector('[data-late-payment-factura]') : null;
+        var lateClienteLabel = lateModal ? lateModal.querySelector('[data-late-payment-cliente]') : null;
+        var lateSaldoLabel = lateModal ? lateModal.querySelector('[data-late-payment-saldo]') : null;
+        var lateAmountInput = lateModal ? lateModal.querySelector('[data-late-payment-amount]') : null;
+        var lateCommentInput = lateModal ? lateModal.querySelector('[data-late-payment-comment]') : null;
+        var closeLateButtons = lateModal ? lateModal.querySelectorAll('[data-close-late-payment]') : [];
+
+        var selectedCreditId = null;
+
+        function formatCurrency(value) {
+            var number = Number(value || 0);
+            if (!Number.isFinite(number)) {
+                number = 0;
+            }
+            return number.toLocaleString('es-DO', {
+                style: 'currency',
+                currency: 'DOP',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+        }
+
+        function getCredit(id) {
+            return creditMap.get(String(id));
+        }
+
+        function updateSummary(credit) {
+            if (!summaryCard) {
+                return;
+            }
+            if (!credit) {
+                summaryCard.hidden = true;
+                summaryFactura.textContent = 'Sin selección';
+                summaryCliente.textContent = '—';
+                summarySaldo.textContent = '—';
+                summaryTotal.textContent = '—';
+                summaryAbonado.textContent = '—';
+                if (summaryLastPayment) {
+                    summaryLastPayment.textContent = '—';
+                }
+                return;
+            }
+            summaryCard.hidden = false;
+            summaryFactura.textContent = credit.factura;
+            summaryCliente.textContent = credit.cliente;
+            summarySaldo.textContent = credit.saldo_pendiente_display;
+            summaryTotal.textContent = credit.total_credito_display;
+            summaryAbonado.textContent = credit.total_abonado_display;
+            if (summaryLastPayment) {
+                summaryLastPayment.textContent = credit.last_payment_display || '—';
+            }
+        }
+
+        function updateRow(credit) {
+            var row = table ? table.querySelector('[data-credit-row][data-credit-id="' + credit.cuenta_id + '"]') : null;
+            if (!row) {
+                return;
+            }
+
+            row.dataset.creditState = credit.estado || 'pendiente';
+            row.classList.toggle('is-paid', ['pagado', 'pagado_tarde'].includes(credit.estado));
+
+            var facturaCell = row.querySelector('[data-credit-field="factura"]');
+            if (facturaCell) {
+                facturaCell.textContent = credit.factura;
+            }
+            row.querySelector('[data-credit-field="cliente"]').textContent = credit.cliente;
+            row.querySelector('[data-credit-field="total"]').textContent = credit.total_credito_display;
+            row.querySelector('[data-credit-field="saldo"]').textContent = credit.saldo_pendiente_display;
+            row.querySelector('[data-credit-field="abonado"]').textContent = credit.total_abonado_display;
+            row.querySelector('[data-credit-field="fecha"]').textContent = credit.fecha_venta_display;
+
+            var statusNode = row.querySelector('[data-credit-status]');
+            if (statusNode) {
+                statusNode.textContent = credit.estado_display;
+                statusNode.className = 'credit-status credit-status--' + (credit.estado || 'pendiente');
+            }
+
+            row.setAttribute('data-credit-due-seconds', credit.due_in_seconds);
+            row.setAttribute('data-credit-due-date', credit.due_date_iso);
+            row.setAttribute('data-credit-whatsapp-enabled', credit.whatsapp_enabled ? 'true' : 'false');
+            row.setAttribute('data-credit-whatsapp-phone', credit.cliente_telefono_sanitized || '');
+            row.setAttribute('data-credit-whatsapp-days', credit.whatsapp_alert_days);
+
+            updateCountdownForRow(row, credit);
+
+            if (['pagado', 'pagado_tarde'].includes(credit.estado) && selectedCreditId === String(credit.cuenta_id)) {
+                toggleActionButtons(false, null);
+            }
+        }
+
+        function toggleActionButtons(enabled, credit) {
+            actionButtons.forEach(function (button) {
+                var requiresSelection = button.hasAttribute('data-credit-requires-selection');
+                if (!requiresSelection) {
+                    return;
+                }
+                var enableButton = enabled;
+                if (enableButton && button.dataset.creditAction === 'register-late-payment') {
+                    enableButton = Boolean(credit && credit.can_register_late_payment);
+                    button.hidden = !enableButton;
+                } else if (button.dataset.creditAction === 'register-late-payment') {
+                    button.hidden = true;
+                }
+                button.disabled = !enableButton;
+            });
+        }
+
+        function clearSelection() {
+            rows.forEach(function (item) {
+                item.classList.remove('is-selected');
+            });
+            selectedCreditId = null;
+            updateSummary(null);
+            toggleActionButtons(false, null);
+        }
+
+        function selectCreditRow(row) {
+            rows.forEach(function (item) {
+                item.classList.toggle('is-selected', item === row);
+            });
+            selectedCreditId = row ? row.getAttribute('data-credit-id') : null;
+            var credit = selectedCreditId ? getCredit(selectedCreditId) : null;
+            updateSummary(credit);
+            var enableActions = Boolean(selectedCreditId) && credit && !['pagado', 'pagado_tarde'].includes(credit.estado);
+            toggleActionButtons(enableActions, credit);
+            if (credit && ['pagado', 'pagado_tarde'].includes(credit.estado)) {
+                actionButtons.forEach(function (button) {
+                    if (button.dataset.creditAction === 'view-payments') {
+                        button.disabled = false;
+                    }
+                });
+            }
+        }
+
+        rows.forEach(function (row) {
+            row.addEventListener('click', function () {
+                var rowCreditId = row.getAttribute('data-credit-id');
+                if (selectedCreditId && selectedCreditId === rowCreditId) {
+                    clearSelection();
+                } else {
+                    selectCreditRow(row);
+                }
+            });
+        });
+
+        toggleActionButtons(false);
+
+        function openModal(modal) {
+            if (!modal) {
+                return;
+            }
+            modal.classList.add('is-visible');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeModal(modal) {
+            if (!modal) {
+                return;
+            }
+            modal.classList.remove('is-visible');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        closeHistoryButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                closeModal(historyModal);
+            });
+        });
+
+        closeLateButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                closeModal(lateModal);
+            });
+        });
+
+        var whatsappBaseUrl = 'https://wa.me/';
+
+        function enableWhatsappButton(button, phoneDigits) {
+            if (!button) {
+                return;
+            }
+            if (phoneDigits) {
+                button.disabled = false;
+                button.onclick = function () {
+                    window.open(whatsappBaseUrl + phoneDigits, '_blank');
+                };
+                button.dataset.whatsappUrl = whatsappBaseUrl + phoneDigits;
+                button.setAttribute('aria-label', 'Enviar recordatorio por WhatsApp');
+            } else {
+                disableWhatsappButton(button);
+            }
+        }
+
+        function disableWhatsappButton(button) {
+            if (!button) {
+                return;
+            }
+            button.disabled = true;
+            button.onclick = null;
+            button.removeAttribute('data-whatsapp-url');
+        }
+
+        function formatCountdown(seconds) {
+            var total = Math.max(0, Math.floor(Number(seconds) || 0));
+            var days = Math.floor(total / 86400);
+            var hours = Math.floor((total % 86400) / 3600);
+            var minutes = Math.floor((total % 3600) / 60);
+            var secs = total % 60;
+            var timePart = [hours, minutes, secs].map(function (value) {
+                return String(value).padStart(2, '0');
+            }).join(':');
+            if (days > 0) {
+                return String(days).padStart(2, '0') + 'd ' + timePart;
+            }
+            return timePart;
+        }
+
+        function updateCountdownForRow(row, credit) {
+            if (!row) {
+                return;
+            }
+            var countdownNode = row.querySelector('[data-credit-countdown]');
+            var whatsappButton = row.querySelector('[data-credit-whatsapp]');
+            var statusNode = row.querySelector('[data-credit-status]');
+            var dueSeconds = Number(credit.due_in_seconds || row.getAttribute('data-credit-due-seconds') || 0);
+            var warningDays = Number(credit.countdown_warning_days || row.getAttribute('data-credit-warning-days') || 0);
+            var whatsappEnabledFlag = Boolean(
+                credit.whatsapp_enabled === true ||
+                String(credit.whatsapp_enabled).toLowerCase() === 'true'
+            );
+            var whatsappPhone = credit.cliente_telefono_sanitized || row.getAttribute('data-credit-whatsapp-phone') || '';
+            var whatsappThresholdDays = Number(credit.whatsapp_alert_days || row.getAttribute('data-credit-whatsapp-days') || 0);
+
+            if (typeof dueSeconds !== 'number' || Number.isNaN(dueSeconds)) {
+                dueSeconds = 0;
+            }
+
+            row.setAttribute('data-credit-due-seconds', dueSeconds);
+            row.setAttribute('data-credit-whatsapp-enabled', whatsappEnabledFlag ? 'true' : 'false');
+            row.setAttribute('data-credit-whatsapp-phone', whatsappPhone);
+
+            if (!countdownNode) {
+                return;
+            }
+
+            var warningThreshold = Math.max(0, (whatsappThresholdDays || 0) * 86400);
+            var okThreshold = Math.max(0, (warningDays || 0) * 86400);
+
+            countdownNode.classList.remove('credit-countdown--ok', 'credit-countdown--warning', 'credit-countdown--danger');
+
+            if (credit.estado === 'pagado') {
+                countdownNode.hidden = true;
+                disableWhatsappButton(whatsappButton);
+                countdownTimers = countdownTimers.filter(function (timer) {
+                    return timer.row !== row;
+                });
+                return;
+            }
+
+            if (dueSeconds <= 0) {
+                countdownNode.textContent = 'Vencido';
+                countdownNode.hidden = false;
+                countdownNode.classList.add('credit-countdown--danger');
+                if (whatsappEnabledFlag && whatsappPhone) {
+                    enableWhatsappButton(whatsappButton, whatsappPhone);
+                } else {
+                    disableWhatsappButton(whatsappButton);
+                }
+                if (statusNode) {
+                    statusNode.classList.add('credit-status--atrasado');
+                }
+                countdownTimers = countdownTimers.filter(function (timer) {
+                    return timer.row !== row;
+                });
+                return;
+            }
+
+            countdownNode.textContent = formatCountdown(dueSeconds);
+            countdownNode.hidden = false;
+            countdownNode.classList.remove('credit-countdown--danger');
+            if (statusNode) {
+                statusNode.classList.remove('credit-status--atrasado');
+            }
+
+            if (warningThreshold > 0 && dueSeconds <= warningThreshold) {
+                countdownNode.classList.add('credit-countdown--danger');
+                if (whatsappEnabledFlag && whatsappPhone) {
+                    enableWhatsappButton(whatsappButton, whatsappPhone);
+                } else {
+                    disableWhatsappButton(whatsappButton);
+                }
+            } else if (okThreshold > 0 && dueSeconds <= okThreshold) {
+                countdownNode.classList.add('credit-countdown--warning');
+                disableWhatsappButton(whatsappButton);
+            } else {
+                countdownNode.classList.add('credit-countdown--ok');
+                disableWhatsappButton(whatsappButton);
+            }
+
+            countdownTimers = countdownTimers.filter(function (timer) {
+                return timer.row !== row;
+            });
+
+            countdownTimers.push({
+                row: row,
+                node: countdownNode,
+                dueSeconds: dueSeconds,
+                whatsappButton: whatsappButton,
+                whatsappPhone: whatsappPhone,
+                whatsappEnabled: whatsappEnabledFlag,
+                whatsappThreshold: warningThreshold,
+                statusNode: statusNode,
+                okThreshold: okThreshold
+            });
+        }
+
+        function initializeCountdowns() {
+            countdownTimers = [];
+            rows.forEach(function (row) {
+                var creditId = row.getAttribute('data-credit-id');
+                var credit = getCredit(creditId);
+                if (credit) {
+                    updateCountdownForRow(row, credit);
+                }
+            });
+        }
+
+        function tickCountdowns() {
+            countdownTimers = countdownTimers.filter(function (timer) {
+                if (!timer.node || !timer.row) {
+                    return false;
+                }
+
+                timer.dueSeconds = Math.max(0, timer.dueSeconds - 1);
+                timer.row.setAttribute('data-credit-due-seconds', timer.dueSeconds);
+
+                if (timer.dueSeconds <= 0) {
+                    timer.node.textContent = 'Vencido';
+                    timer.node.hidden = false;
+                    timer.node.classList.remove('credit-countdown--ok', 'credit-countdown--warning');
+                    timer.node.classList.add('credit-countdown--danger');
+                    if (timer.statusNode) {
+                        timer.statusNode.classList.add('credit-status--atrasado');
+                    }
+                    if (timer.whatsappEnabled && timer.whatsappPhone) {
+                        enableWhatsappButton(timer.whatsappButton, timer.whatsappPhone);
+                    } else {
+                        disableWhatsappButton(timer.whatsappButton);
+                    }
+                    return false;
+                }
+
+                timer.node.textContent = formatCountdown(timer.dueSeconds);
+                timer.node.hidden = false;
+                timer.node.classList.remove('credit-countdown--danger');
+
+                if (timer.statusNode) {
+                    timer.statusNode.classList.remove('credit-status--atrasado');
+                }
+
+                if (timer.whatsappThreshold > 0 && timer.dueSeconds <= timer.whatsappThreshold) {
+                    timer.node.classList.remove('credit-countdown--ok');
+                    timer.node.classList.add('credit-countdown--danger');
+                    if (timer.whatsappEnabled && timer.whatsappPhone) {
+                        enableWhatsappButton(timer.whatsappButton, timer.whatsappPhone);
+                    } else {
+                        disableWhatsappButton(timer.whatsappButton);
+                    }
+                } else if (timer.okThreshold > 0 && timer.dueSeconds <= timer.okThreshold) {
+                    timer.node.classList.remove('credit-countdown--ok', 'credit-countdown--danger');
+                    timer.node.classList.add('credit-countdown--warning');
+                    disableWhatsappButton(timer.whatsappButton);
+                } else {
+                    timer.node.classList.remove('credit-countdown--warning', 'credit-countdown--danger');
+                    timer.node.classList.add('credit-countdown--ok');
+                    disableWhatsappButton(timer.whatsappButton);
+                }
+
+                return true;
+            });
+        }
+
+        initializeCountdowns();
+        setInterval(tickCountdowns, 1000);
+
+        function ensureSelection() {
+            if (!selectedCreditId) {
+                showToast('Selecciona un crédito de la tabla primero.', 'warning');
+                return false;
+            }
+            return true;
+        }
+
+        function getCsrfToken() {
+            var name = 'csrftoken=';
+            var decodedCookie = decodeURIComponent(document.cookie);
+            var parts = decodedCookie.split(';');
+            for (var i = 0; i < parts.length; i++) {
+                var c = parts[i].trim();
+                if (c.indexOf(name) === 0) {
+                    return c.substring(name.length, c.length);
+                }
+            }
+            return '';
+        }
+
+        document.querySelector('[data-credit-action="view-payments"]').addEventListener('click', function () {
+            if (!ensureSelection()) {
+                return;
+            }
+            var credit = getCredit(selectedCreditId);
+            if (!credit) {
+                showToast('No se pudo cargar la información del crédito.', 'error');
+                return;
+            }
+
+            if (historyFactura) {
+                historyFactura.textContent = credit.factura;
+            }
+            if (historyCliente) {
+                historyCliente.textContent = credit.cliente;
+            }
+            if (historyProducto) {
+                historyProducto.textContent = credit.productos_display || '—';
+            }
+            if (historyList) {
+                var cuotaAmount = Number(credit.monto_cuota || 0);
+                var cuotasPagadas = Number(credit.cuotas_pagadas || 0);
+                var totalCuotas = Number(credit.numero_cuotas || 0);
+                var frecuenciaDias = Number(credit.frecuencia_dias || 0);
+                var dueDateIso = credit.due_date_iso || null;
+                var ventaDateIso = credit.fecha_venta_iso || null;
+                var frecuenciaReal = frecuenciaDias > 0 ? frecuenciaDias : 30;
+                var nowDate = new Date();
+                var scheduleMap = {};
+                var nextDueBase = null;
+
+                if (dueDateIso) {
+                    nextDueBase = new Date(dueDateIso);
+                } else if (ventaDateIso) {
+                    var provisionalBase = new Date(ventaDateIso);
+                    provisionalBase.setDate(provisionalBase.getDate() + frecuenciaReal * Math.max(1, cuotasPagadas + 1));
+                    nextDueBase = provisionalBase;
+                }
+
+                if (totalCuotas > 0) {
+                    if (nextDueBase) {
+                        for (var forwardIndex = cuotasPagadas + 1; forwardIndex <= totalCuotas; forwardIndex++) {
+                            var forwardDue = new Date(nextDueBase);
+                            var increments = forwardIndex - (cuotasPagadas + 1);
+                            forwardDue.setDate(forwardDue.getDate() + frecuenciaReal * increments);
+                            scheduleMap[forwardIndex] = { dueDate: forwardDue };
+                        }
+                        for (var backwardIndex = cuotasPagadas; backwardIndex >= 1; backwardIndex--) {
+                            var backwardDue = new Date(nextDueBase);
+                            var offset = (cuotasPagadas + 1) - backwardIndex;
+                            backwardDue.setDate(backwardDue.getDate() - frecuenciaReal * offset);
+                            scheduleMap[backwardIndex] = { dueDate: backwardDue };
+                        }
+                    } else if (ventaDateIso) {
+                        var saleDate = new Date(ventaDateIso);
+                        for (var scheduleIndex = 1; scheduleIndex <= totalCuotas; scheduleIndex++) {
+                            var schedDue = new Date(saleDate);
+                            schedDue.setDate(schedDue.getDate() + frecuenciaReal * scheduleIndex);
+                            scheduleMap[scheduleIndex] = { dueDate: schedDue };
+                        }
+                    }
+                }
+
+                var allInstallments = [];
+                for (var installmentIndex = 1; installmentIndex <= totalCuotas; installmentIndex++) {
+                    var mapEntry = scheduleMap[installmentIndex] || { dueDate: null };
+                    var dueDate = mapEntry.dueDate;
+                    var status = installmentIndex <= cuotasPagadas ? 'pagado' : 'pendiente';
+                    if (status === 'pendiente' && dueDate && dueDate.getTime() < nowDate.getTime()) {
+                        status = 'atrasado';
+                    }
+                    var statusLabel = status === 'pagado' ? 'Pagado' : (status === 'atrasado' ? 'Atrasado' : 'Pendiente');
+                    allInstallments.push({
+                        index: installmentIndex,
+                        amount: cuotaAmount,
+                        dueDate: dueDate,
+                        status: status,
+                        statusLabel: statusLabel,
+                    });
+                }
+
+                if (allInstallments.length === 0) {
+                    historyList.innerHTML = '<li class="credit-history__empty">Este crédito no tiene cuotas registradas.</li>';
+                } else {
+                    var startWindow = Math.max(0, cuotasPagadas > 0 ? cuotasPagadas - 1 : 0);
+                    var visibleInstallments = allInstallments.slice(startWindow, startWindow + 6);
+                    historyList.innerHTML = visibleInstallments.map(function (installment) {
+                        var dueDateText = installment.dueDate ? installment.dueDate.toLocaleDateString() : 'Sin fecha';
+                        return (
+                            '<li>' +
+                                '<div class="credit-history__item-info">' +
+                                    '<div class="credit-history__item-line">' +
+                                        '<strong>Cuota #' + installment.index + '</strong>' +
+                                        '<span class="credit-history__item-divider">•</span>' +
+                                        '<span class="credit-history__item-date">Vence el ' + dueDateText + '</span>' +
+                                        '<span class="credit-history__item-divider">•</span>' +
+                                        '<span class="credit-history__item-meta">Monto: ' + formatCurrency(installment.amount) + '</span>' +
+                                    '</div>' +
+                                    '<span class="credit-history__item-status credit-history__item-status--' + installment.status + '" data-installment-status>' + installment.statusLabel + '</span>' +
+                                '</div>' +
+                            '</li>'
+                        );
+                    }).join('');
+                }
+            }
+
+            openModal(historyModal);
+        });
+
+        document.querySelector('[data-credit-action="register-late-payment"]').addEventListener('click', function () {
+            if (!ensureSelection()) {
+                return;
+            }
+            var credit = getCredit(selectedCreditId);
+            if (!credit) {
+                showToast('No se pudo cargar la información del crédito.', 'error');
+                return;
+            }
+            if (!credit.can_register_late_payment) {
+                showToast('Este crédito no admite pago tardío en este momento.', 'warning');
+                return;
+            }
+
+            if (lateIdInput) {
+                lateIdInput.value = credit.cuenta_id;
+            }
+            if (lateFacturaLabel) {
+                lateFacturaLabel.textContent = credit.factura;
+            }
+            if (lateClienteLabel) {
+                lateClienteLabel.textContent = credit.cliente;
+            }
+            if (lateSaldoLabel) {
+                lateSaldoLabel.textContent = credit.saldo_pendiente_display;
+            }
+            if (lateAmountInput) {
+                lateAmountInput.value = '';
+                lateAmountInput.max = credit.saldo_pendiente;
+            }
+            if (lateCommentInput) {
+                lateCommentInput.value = '';
+            }
+
+            openModal(lateModal);
+            if (lateAmountInput) {
+                lateAmountInput.focus();
+            }
+        });
+
+        if (lateForm && lateSubmitButton) {
+            lateSubmitButton.addEventListener('click', function () {
+                lateForm.requestSubmit();
+            });
+
+            lateForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+
+                if (!ensureSelection()) {
+                    return;
+                }
+                var credit = getCredit(selectedCreditId);
+                if (!credit) {
+                    showToast('No se pudo registrar el pago tardío.', 'error');
+                    return;
+                }
+
+                var amountValue = lateAmountInput ? Number(lateAmountInput.value || 0) : 0;
+                if (lateAmountInput && lateAmountInput.value && (!Number.isFinite(amountValue) || amountValue <= 0)) {
+                    showToast('Ingresa un monto válido para el pago tardío.', 'warning');
+                    return;
+                }
+
+                var payload = {
+                    cuenta_id: credit.cuenta_id,
+                    monto: lateAmountInput && lateAmountInput.value ? amountValue : null,
+                    comentario: lateCommentInput ? lateCommentInput.value : '',
+                };
+
+                lateSubmitButton.disabled = true;
+                lateSubmitButton.classList.add('is-loading');
+
+                fetch('{% url "dashboard:registrar_pago_tardio_credito_api" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    body: JSON.stringify(payload),
+                })
+                    .then(function (response) {
+                        if (!response.ok) {
+                            return response.json().then(function (data) {
+                                throw new Error(data.error || 'Error al registrar el pago tardío');
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(function (payload) {
+                        if (!payload || !payload.credito) {
+                            throw new Error('El servidor no devolvió la información actualizada del crédito.');
+                        }
+
+                        var updated = payload.credito;
+                        creditMap.set(String(updated.cuenta_id), updated);
+                        updateRow(updated);
+                        updateSummary(updated);
+                        if (selectedCreditId === String(updated.cuenta_id)) {
+                            toggleActionButtons(false, updated);
+                        }
+
+                        showToast('Pago tardío registrado correctamente.', 'success');
+                        closeModal(lateModal);
+                    })
+                    .catch(function (error) {
+                        console.error(error);
+                        showToast(error.message || 'No se pudo registrar el pago tardío.', 'error');
+                    })
+                    .finally(function () {
+                        lateSubmitButton.disabled = false;
+                        lateSubmitButton.classList.remove('is-loading');
+                    });
+            });
+        }
+    });
+</script>
+{% endblock %}
+</style>
+{% endblock %}

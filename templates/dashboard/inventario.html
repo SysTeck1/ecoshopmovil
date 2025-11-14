@@ -1,0 +1,2265 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Inventario{% endblock %}
+{% block page_title %}Inventario{% endblock %}
+{% block content %}
+<section class="inventory-section">
+    <div class="inventory-header">
+        <p class="inventory-description">
+            Administra el catálogo de productos disponibles en tu inventario. Crea nuevos artículos y mantén actualizados sus datos.
+        </p>
+        <button type="button" class="btn btn-primary" id="open-create-product">Crear producto</button>
+    </div>
+    
+    <div class="filter-toolbar" data-filter-toolbar>
+        <div class="filter-toolbar__fields">
+            <div class="filter-toolbar__field">
+                <span class="filter-toolbar__label">Buscar</span>
+                <div class="filter-toolbar__control filter-toolbar__control--icon">
+                    <i class="ri-search-line filter-toolbar__icon"></i>
+                    <input type="text" id="inventory-search" placeholder="Buscar por nombre, modelo, IMEI...">
+                </div>
+            </div>
+            <div class="filter-toolbar__field">
+                <span class="filter-toolbar__label">Categoría</span>
+                <div class="filter-toolbar__control filter-toolbar__control--icon">
+                    <i class="ri-apps-2-line filter-toolbar__icon"></i>
+                    <select id="category-filter">
+                        <option value="">Todas las categorías</option>
+                        {% for categoria in categorias_catalogo %}
+                            <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                    <i class="ri-arrow-down-s-line filter-toolbar__chevron"></i>
+                </div>
+            </div>
+            <div class="filter-toolbar__field">
+                <span class="filter-toolbar__label">Marca</span>
+                <div class="filter-toolbar__control filter-toolbar__control--icon">
+                    <i class="ri-price-tag-3-line filter-toolbar__icon"></i>
+                    <select id="brand-filter">
+                        <option value="">Todas las marcas</option>
+                        {% for marca in marcas_catalogo %}
+                            <option value="{{ marca.id }}">{{ marca.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                    <i class="ri-arrow-down-s-line filter-toolbar__chevron"></i>
+                </div>
+            </div>
+            <div class="filter-toolbar__field">
+                <span class="filter-toolbar__label">Estado</span>
+                <div class="filter-toolbar__control filter-toolbar__control--icon">
+                    <i class="ri-toggle-line filter-toolbar__icon"></i>
+                    <select id="status-filter">
+                        <option value="">Todos</option>
+                        <option value="true">Activo</option>
+                        <option value="false">Inactivo</option>
+                    </select>
+                    <i class="ri-arrow-down-s-line filter-toolbar__chevron"></i>
+                </div>
+            </div>
+            <div class="filter-toolbar__field">
+                <span class="filter-toolbar__label">Stock</span>
+                <div class="filter-toolbar__control filter-toolbar__control--icon">
+                    <i class="ri-archive-2-line filter-toolbar__icon"></i>
+                    <select id="stock-filter">
+                        <option value="">Todos</option>
+                        <option value="available">Con stock</option>
+                        <option value="low">Stock bajo</option>
+                        <option value="out">Sin stock</option>
+                    </select>
+                    <i class="ri-arrow-down-s-line filter-toolbar__chevron"></i>
+                </div>
+            </div>
+        </div>
+        <div class="filter-toolbar__actions">
+            <button type="button" class="btn btn-outline" id="clear-filters">
+                <i class="ri-refresh-line"></i>
+                Limpiar
+            </button>
+            <button type="button" class="btn btn-secondary" id="apply-filters">
+                <i class="ri-filter-3-line"></i>
+                Filtrar
+            </button>
+        </div>
+    </div>
+    <div class="table-wrapper">
+        <table class="inventory-table">
+            <thead>
+                <tr>
+                    <th>Título</th>
+                    <th>Categoría</th>
+                    <th>Modelo</th>
+                    <th>Precio costo</th>
+                    <th>Precio venta</th>
+                    <th>Stock actual</th>
+                    <th>Stock mínimo</th>
+                    <th>Estado</th>
+                    <th class="actions-column">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for producto in productos_page %}
+                    <tr>
+                        <td>{{ producto.nombre }}</td>
+                        <td>{{ producto.categoria.nombre|default:"Sin categoría" }}</td>
+                        <td>{{ producto.modelo|default:"-" }}</td>
+                        <td>{{ producto.precio_compra|default:"0.00" }} RD$</td>
+                        <td>{{ producto.precio_venta|default:"0.00" }} RD$</td>
+                        <td>{{ producto.stock|default:"0" }}</td>
+                        <td>{{ producto.stock_minimo|default:"0" }}</td>
+                        <td>
+                            <span class="status-pill status-pill--{{ producto.activo|yesno:'activo,inactivo' }}">
+                                {{ producto.activo|yesno:'Activo,Inactivo' }}
+                            </span>
+                        </td>
+                        <td class="actions-column">
+                            <div class="inventory-actions">
+                                <button type="button" class="btn btn-secondary" data-action="edit"
+                                    data-product-id="{{ producto.id }}"
+                                    data-product-name="{{ producto.nombre }}"
+                                    data-product-brand="{{ producto.marca_id|default:'' }}"
+                                    data-product-model="{{ producto.modelo_id|default:'' }}"
+                                    data-product-storage="{{ producto.almacenamiento|default:'' }}"
+                                    data-product-ram="{{ producto.memoria_ram|default:'' }}"
+                                    data-product-cost="{{ producto.precio_compra|default:'0.00' }}"
+                                    data-product-price="{{ producto.precio_venta|default:'0.00' }}"
+                                    data-product-tax-id="{{ producto.impuesto_id|default:'' }}"
+                                    data-product-stock="{{ producto.stock|default:'0' }}"
+                                    data-product-stockmin="{{ producto.stock_minimo|default:'0' }}"
+                                    data-product-imei="{{ producto.imei|default:'' }}"
+                                    data-product-colors="{{ producto.colores_disponibles|default:'' }}"
+                                    data-product-proveedor="{% if producto.proveedor %}{{ producto.proveedor.nombre }}{% endif %}"
+                                    data-product-proveedor-id="{{ producto.proveedor_id|default:'' }}"
+                                    data-product-image="{{ producto.imagen_principal|default:'' }}"
+                                    data-product-description="{{ producto.descripcion|default:'Sin descripción disponible.' }}">
+                                    Editar
+                                </button>
+                                <button type="button" class="btn btn-danger" data-action="delete"
+                                    data-product-id="{{ producto.id }}"
+                                    data-product-name="{{ producto.nombre }}">
+                                    Eliminar
+                                </button>
+                                <a href="{% url 'dashboard:producto_detail' producto.id %}" class="btn btn-info" title="Ver detalle completo">
+                                    <i class="ri-eye-line"></i>
+                                    Detalle
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9" class="empty-state">No hay productos registrados.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if productos_page.has_other_pages %}
+        <nav class="pagination" aria-label="Paginación de inventario">
+            <ul class="pagination__list">
+                {% if productos_page.has_previous %}
+                    <li class="pagination__item">
+                        <a class="pagination__link" href="?page={{ productos_page.previous_page_number }}{% if productos_pagination_querystring %}&{{ productos_pagination_querystring }}{% endif %}" aria-label="Página anterior">&laquo;</a>
+                    </li>
+                {% else %}
+                    <li class="pagination__item pagination__item--disabled"><span class="pagination__link" aria-hidden="true">&laquo;</span></li>
+                {% endif %}
+
+                {% for num in productos_page.paginator.page_range %}
+                    {% if num == productos_page.number %}
+                        <li class="pagination__item pagination__item--active"><span class="pagination__link">{{ num }}</span></li>
+                    {% else %}
+                        <li class="pagination__item">
+                            <a class="pagination__link" href="?page={{ num }}{% if productos_pagination_querystring %}&{{ productos_pagination_querystring }}{% endif %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if productos_page.has_next %}
+                    <li class="pagination__item">
+                        <a class="pagination__link" href="?page={{ productos_page.next_page_number }}{% if productos_pagination_querystring %}&{{ productos_pagination_querystring }}{% endif %}" aria-label="Página siguiente">&raquo;</a>
+                    </li>
+                {% else %}
+                    <li class="pagination__item pagination__item--disabled"><span class="pagination__link" aria-hidden="true">&raquo;</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+</section>
+
+<div class="modal" id="create-product-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="create-product-title">
+        <div class="modal-header">
+            <h2 id="create-product-title">Registrar producto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <form class="modal-form" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create">
+            <div class="form-grid">
+                <label class="form-field form-field--full">
+                    <span class="form-label">Título del producto</span>
+                    <input type="text" name="nombre" placeholder="Ej. iPhone 14 Pro" required>
+                </label>
+                <label class="form-field form-field--full">
+                    <span class="form-label">Características</span>
+                    <textarea name="descripcion" rows="3" placeholder="Breve descripción técnica"></textarea>
+                </label>
+                <label class="form-field form-field--full">
+                    <span class="form-label">Categoría</span>
+                    <select name="categoria" class="select-control">
+                        <option value="">Sin categoría</option>
+                        {% for categoria in categorias_catalogo %}
+                            <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Marca</span>
+                    <div class="form-field__group form-field__group--compact">
+                        <select name="marca" class="select-control select-control--compact" data-brand-select>
+                            <option value="">Sin marca</option>
+                            {% for marca in marcas_catalogo %}
+                                <option value="{{ marca.id }}">{{ marca.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn-icon btn-icon--ghost" data-action="buscar-marca" title="Buscar marca">
+                            <span aria-hidden="true">🔍</span>
+                            <span class="sr-only">Buscar Marca</span>
+                        </button>
+                    </div>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Modelo</span>
+                    <div class="form-field__group form-field__group--compact">
+                        <select name="modelo" class="select-control select-control--compact" data-model-select>
+                            <option value="">Sin modelo</option>
+                            {% for modelo in modelos_catalogo %}
+                                <option value="{{ modelo.id }}">{{ modelo }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn-icon btn-icon--ghost" data-action="buscar-modelo" title="Buscar modelo">
+                            <span aria-hidden="true">🔍</span>
+                            <span class="sr-only">Buscar Modelo</span>
+                        </button>
+                    </div>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Almacenamiento</span>
+                    <select name="almacenamiento" class="select-control">
+                        <option value="">Selecciona capacidad</option>
+                        {% for value, label in producto_form.fields.almacenamiento.choices %}
+                            {% if value %}
+                                <option value="{{ value }}">{{ label }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Memoria RAM</span>
+                    <select name="memoria_ram" class="select-control">
+                        <option value="">Selecciona RAM</option>
+                        {% for value, label in producto_form.fields.memoria_ram.choices %}
+                            {% if value %}
+                                <option value="{{ value }}">{{ label }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">IMEI / Serie</span>
+                    <input type="text" name="imei" placeholder="Opcional">
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Colores disponibles</span>
+                    <input type="text" name="colores_disponibles" placeholder="Negro, Azul, Dorado">
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Precio de costo</span>
+                    <input type="number" name="precio_compra" min="0" step="0.01" placeholder="0.00">
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Precio de venta</span>
+                    <input type="number" name="precio_venta" min="0" step="0.01" placeholder="0.00">
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Impuesto aplicado</span>
+                    <select name="impuesto" class="select-control">
+                        <option value="">Sin impuesto</option>
+                        {% for impuesto in impuestos_catalogo %}
+                            <option value="{{ impuesto.id }}">{{ impuesto.nombre }} ({{ impuesto.porcentaje }}%)</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Stock actual</span>
+                    <input type="number" name="stock" min="0" step="1" placeholder="0">
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Alerta de stock mínimo</span>
+                    <input type="number" name="stock_minimo" min="0" step="1" placeholder="Ej. 5">
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Proveedor</span>
+                    <select name="proveedor" class="select-control" data-provider-select>
+                        <option value="">Sin proveedor</option>
+                        {% for proveedor in proveedores_catalogo %}
+                            <option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-field form-field--full">
+                    <span class="form-label">Imagen principal</span>
+                    <input type="file" name="imagen" accept="image/*">
+                </label>
+                <label class="form-field form-field--full form-field--checkbox">
+                    <span class="form-label">Estado del producto</span>
+                    <label class="checkbox-toggle">
+                        <input type="checkbox" name="activo" checked>
+                        <span class="checkbox-toggle__track">
+                            <span class="checkbox-toggle__thumb"></span>
+                        </span>
+                        <span class="checkbox-toggle__label">Activo</span>
+                    </label>
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-close-modal>Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="brand-search-modal" data-toggle-template="{% url 'dashboard:toggle_brand_status_api' 0 %}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog--wide" role="dialog" aria-modal="true" aria-labelledby="brand-search-title">
+        <div class="modal-header">
+            <h2 id="brand-search-title">Buscar marca</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="modal-top-actions">
+                <button type="button" class="btn btn-primary" data-open-brand-create>Agregar marca</button>
+            </div>
+            <div class="modal-table-wrapper">
+                <table class="lookup-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Marca</th>
+                            <th>Estado</th>
+                            <th colspan="2">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody data-brand-table-body>
+                        {% for marca in marcas_admin_catalogo %}
+                            <tr data-brand-row data-brand-id="{{ marca.id }}" data-brand-name="{{ marca.nombre }}" data-brand-active="{{ marca.activo|yesno:'true,false' }}">
+                                <td data-row-index></td>
+                                <td>
+                                    <span class="lookup-name">{{ marca.nombre }}</span>
+                                </td>
+                                <td>
+                                    <span class="lookup-status {% if marca.activo %}lookup-status--active{% else %}lookup-status--inactive{% endif %}">
+                                        {% if marca.activo %}Activo{% else %}Inactivo{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline btn--compact" data-brand-select-button data-brand-id="{{ marca.id }}" data-brand-name="{{ marca.nombre }}">
+                                        Seleccionar
+                                    </button>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline lookup-toggle" data-brand-toggle data-toggle-url="{% url 'dashboard:toggle_brand_status_api' marca.id %}">
+                                        {% if marca.activo %}Inactivar{% else %}Activar{% endif %}
+                                    </button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr data-brand-empty>
+                                <td colspan="5">No hay marcas registradas.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-pagination" data-brand-pagination>
+                <button type="button" class="btn btn-outline btn--compact" data-brand-page-prev disabled>Anterior</button>
+                <span class="modal-pagination__info" data-brand-page-info>Página 1 de 1</span>
+                <button type="button" class="btn btn-outline btn--compact" data-brand-page-next disabled>Siguiente</button>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-close-modal>Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="model-search-modal" data-toggle-template="{% url 'dashboard:toggle_model_status_api' 0 %}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog--wide" role="dialog" aria-modal="true" aria-labelledby="model-search-title">
+        <div class="modal-header">
+            <h2 id="model-search-title">Buscar modelo</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="modal-top-actions">
+                <button type="button" class="btn btn-primary" data-open-model-create>Agregar modelo</button>
+            </div>
+            <div class="modal-table-wrapper">
+                <table class="lookup-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Marca</th>
+                            <th>Modelo</th>
+                            <th>Estado</th>
+                            <th colspan="2">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody data-model-table-body>
+                        {% for modelo in modelos_admin_catalogo %}
+                            <tr data-model-row data-model-id="{{ modelo.id }}" data-model-name="{{ modelo.nombre }}" data-model-brand="{% if modelo.marca %}{{ modelo.marca.nombre }}{% endif %}" data-model-brand-id="{% if modelo.marca %}{{ modelo.marca.id }}{% endif %}" data-model-active="{{ modelo.activo|yesno:'true,false' }}">
+                                <td data-row-index></td>
+                                <td>
+                                    {% if modelo.marca %}
+                                        <span class="lookup-name">{{ modelo.marca.nombre }}</span>
+                                    {% else %}
+                                        <span class="lookup-name lookup-name--muted">Sin marca</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="lookup-name">{{ modelo.nombre }}</span>
+                                </td>
+                                <td>
+                                    <span class="lookup-status {% if modelo.activo %}lookup-status--active{% else %}lookup-status--inactive{% endif %}">
+                                        {% if modelo.activo %}Activo{% else %}Inactivo{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline btn--compact" data-model-select-button data-model-id="{{ modelo.id }}" data-model-name="{{ modelo.nombre }}" data-model-brand-id="{% if modelo.marca %}{{ modelo.marca.id }}{% endif %}">
+                                        Seleccionar
+                                    </button>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline lookup-toggle" data-model-toggle data-toggle-url="{% url 'dashboard:toggle_model_status_api' modelo.id %}">
+                                        {% if modelo.activo %}Inactivar{% else %}Activar{% endif %}
+                                    </button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr data-model-empty>
+                                <td colspan="6">No hay modelos registrados.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-pagination" data-model-pagination>
+                <button type="button" class="btn btn-outline btn--compact" data-model-page-prev disabled>Anterior</button>
+                <span class="modal-pagination__info" data-model-page-info>Página 1 de 1</span>
+                <button type="button" class="btn btn-outline btn--compact" data-model-page-next disabled>Siguiente</button>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-close-modal>Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="edit-product-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="edit-product-title">
+        <div class="modal-header">
+            <h2 id="edit-product-title">Editar producto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <form class="modal-form" data-edit-form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update">
+            <input type="hidden" name="producto_id" data-edit-id>
+            <div class="form-grid">
+                <label class="form-field form-field--full">
+                    <span class="form-label">Título</span>
+                    <input type="text" name="nombre" data-edit-name>
+                </label>
+                <label class="form-field form-field--full">
+                    <span class="form-label">Marca</span>
+                    <div class="form-field__group form-field__group--compact">
+                        <select name="marca" data-edit-brand class="select-control select-control--compact" data-brand-select>
+                            <option value="">Sin marca</option>
+                            {% for marca in marcas_catalogo %}
+                                <option value="{{ marca.id }}">{{ marca.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn-icon btn-icon--ghost" data-action="buscar-marca" title="Buscar marca">
+                            <span class="icon-search" aria-hidden="true"></span>
+                            <span class="sr-only">Buscar Marca</span>
+                        </button>
+                    </div>
+                </label>
+                <label class="form-field form-field--full">
+                    <span class="form-label">Categoría</span>
+                    <select name="categoria" data-edit-category class="select-control">
+                        <option value="">Sin categoría</option>
+                        {% for categoria in categorias_catalogo %}
+                            <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-field form-field--full">
+                    <span class="form-label">Proveedor</span>
+                    <select name="proveedor" data-edit-provider class="select-control">
+                        <option value="">Sin proveedor</option>
+                        {% for proveedor in proveedores_catalogo %}
+                            <option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-field form-field--full">
+                    <span class="form-label">Modelo</span>
+                    <div class="form-field__group form-field__group--compact">
+                        <select name="modelo" data-edit-model class="select-control select-control--compact" data-model-select>
+                            <option value="">Sin modelo</option>
+                            {% for modelo in modelos_catalogo %}
+                                <option value="{{ modelo.id }}">{{ modelo }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn-icon btn-icon--ghost" data-action="buscar-modelo" title="Buscar modelo">
+                            <span aria-hidden="true">🔍</span>
+                            <span class="sr-only">Buscar Modelo</span>
+                        </button>
+                    </div>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Almacenamiento</span>
+                    <select name="almacenamiento" data-edit-storage class="select-control">
+                        <option value="">Selecciona capacidad</option>
+                        {% for value, label in producto_form.fields.almacenamiento.choices %}
+                            {% if value %}
+                                <option value="{{ value }}">{{ label }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Memoria RAM</span>
+                    <select name="memoria_ram" data-edit-ram class="select-control">
+                        <option value="">Selecciona RAM</option>
+                        {% for value, label in producto_form.fields.memoria_ram.choices %}
+                            {% if value %}
+                                <option value="{{ value }}">{{ label }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">IMEI / Serie</span>
+                    <input type="text" name="imei" data-edit-imei>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Colores disponibles</span>
+                    <input type="text" name="colores_disponibles" data-edit-colors>
+                </label>
+                <label class="form-field form-field--full">
+                    <span class="form-label">Descripción</span>
+                    <textarea name="descripcion" rows="3" data-edit-description></textarea>
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-close-modal>Cerrar</button>
+                <button type="submit" class="btn btn-primary">Actualizar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="brand-create-modal" data-create-url="{% url 'dashboard:create_brand_api' %}" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="brand-create-title">
+        <div class="modal-header">
+            <h2 id="brand-create-title">Agregar marca</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <form class="modal-form" data-brand-create-form>
+            {% csrf_token %}
+            <div class="form-grid">
+                <label class="form-field form-field--full">
+                    <span class="form-label">Nombre de la marca</span>
+                    <input type="text" name="nombre" placeholder="Ej. Apple" data-brand-create-name required>
+                </label>
+                <div class="form-field form-field--checkbox">
+                    <span class="form-label">Estado</span>
+                    <label class="checkbox-toggle">
+                        <input type="checkbox" name="activo" data-brand-create-active checked>
+                        <span class="checkbox-toggle__track">
+                            <span class="checkbox-toggle__thumb"></span>
+                        </span>
+                        <span class="checkbox-toggle__label">Activo</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-brand-create-cancel data-close-modal>Cancelar</button>
+                <button type="button" class="btn btn-primary" data-brand-create-save>Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="model-create-modal" data-create-url="{% url 'dashboard:create_model_api' %}" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="model-create-title">
+        <div class="modal-header">
+            <h2 id="model-create-title">Agregar modelo</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <form class="modal-form" data-model-create-form>
+            {% csrf_token %}
+            <div class="form-grid">
+                <label class="form-field form-field--full">
+                    <span class="form-label">Nombre del modelo</span>
+                    <input type="text" name="nombre" placeholder="Ej. iPhone 15 Pro" data-model-create-name required>
+                </label>
+                <label class="form-field form-field--full">
+                    <span class="form-label">Marca asociada</span>
+                    <select name="marca" class="select-control" data-model-create-brand>
+                        <option value="">Sin marca</option>
+                        {% for marca in marcas_catalogo %}
+                            <option value="{{ marca.id }}">{{ marca.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="form-field form-field--checkbox">
+                    <span class="form-label">Estado</span>
+                    <label class="checkbox-toggle">
+                        <input type="checkbox" name="activo" data-model-create-active checked>
+                        <span class="checkbox-toggle__track">
+                            <span class="checkbox-toggle__thumb"></span>
+                        </span>
+                        <span class="checkbox-toggle__label">Activo</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-model-create-cancel data-close-modal>Cancelar</button>
+                <button type="button" class="btn btn-primary" data-model-create-save>Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="delete-product-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-product-title">
+        <div class="modal-header">
+            <h2 id="delete-product-title">Eliminar producto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <form class="modal-form" data-delete-form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="producto_id" data-delete-id>
+            <p>¿Deseas eliminar el producto <strong data-delete-name></strong>? Esta acción no se puede deshacer.</p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-close-modal>Cancelar</button>
+                <button type="submit" class="btn btn-danger">Eliminar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    .inventory-section {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .inventory-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .inventory-description {
+        margin: 0;
+        max-width: 520px;
+        color: #636e72;
+    }
+
+    .btn {
+        border: none;
+        border-radius: 6px;
+        padding: 8px 14px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .btn-primary {
+        background-color: #0097e6;
+        color: #ffffff;
+    }
+
+    .btn-primary:hover {
+        background-color: #00a8ff;
+    }
+
+    .btn-secondary {
+        background-color: #dcdde1;
+        color: #2f3640;
+    }
+
+    .btn-secondary:hover {
+        background-color: #ced6e0;
+    }
+
+    .btn-info {
+        background-color: #17a2b8;
+        color: #ffffff;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .btn-info:hover {
+        background-color: #138496;
+        color: #ffffff;
+        text-decoration: none;
+    }
+
+    .btn-danger {
+        background-color: #e84118;
+        color: #ffffff;
+    }
+
+    .btn-danger:hover {
+        background-color: #ff4757;
+    }
+
+    .table-wrapper {
+        overflow-x: auto;
+        border-radius: 8px;
+        background-color: #ffffff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .inventory-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 720px;
+    }
+
+    .inventory-table thead {
+        background-color: #273c75;
+        color: #f5f6fa;
+    }
+
+    .inventory-table th,
+    .inventory-table td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #ecf0f1;
+        white-space: nowrap;
+    }
+
+    .inventory-table tbody tr:hover {
+        background-color: #f1f2f6;
+    }
+
+    .actions-column {
+        white-space: nowrap;
+        text-align: right;
+    }
+
+    .inventory-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
+    }
+
+    .inventory-actions .btn {
+        flex: 0 0 auto;
+    }
+
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: auto;
+        padding: 4px 10px;
+        border-radius: 14px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .status-pill--activo {
+        background: rgba(46, 204, 113, 0.16);
+        color: #1e8449;
+    }
+
+    .status-pill--inactivo {
+        background: rgba(231, 76, 60, 0.16);
+        color: #c0392b;
+    }
+
+    .btn-outline {
+        background-color: #ffffff;
+        border: 1px solid #dcdde1;
+        color: #2f3640;
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+
+    .btn-outline:hover {
+        background-color: #f1f2f6;
+    }
+
+    .empty-state {
+        text-align: center;
+        color: #95a5a6;
+        padding: 24px;
+        font-style: italic;
+    }
+
+    .modal {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.45);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        z-index: 1050;
+    }
+
+    .modal.is-visible {
+        display: flex;
+    }
+
+    .modal-dialog {
+        background: #ffffff;
+        border-radius: 12px;
+        max-width: 520px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px;
+        border-bottom: 1px solid #ecf0f1;
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: #2f3640;
+    }
+
+    .modal-close {
+        border: none;
+        background: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #636e72;
+    }
+
+    .modal-form {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        max-height: calc(90vh - 120px);
+        overflow-y: auto;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-field__group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-field__group--compact {
+        max-width: 280px;
+    }
+
+    .select-control--compact {
+        width: 180px;
+        min-width: 140px;
+    }
+
+    .form-field__group--compact .select-control--compact {
+        flex: 1 1 auto;
+    }
+
+    .btn-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        transition: none;
+        font-size: 1rem;
+    }
+
+    .btn-icon--ghost {
+        background-color: #f1f2f6;
+        border: 1px solid #dcdde1;
+        color: #2f3640;
+    }
+
+    .btn-icon--ghost:hover {
+        background-color: #e6e9ef;
+        border-color: #cfd3d9;
+    }
+
+    .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+
+    .form-field--checkbox {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .checkbox-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .checkbox-toggle input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .checkbox-toggle__track {
+        position: relative;
+        width: 44px;
+        height: 24px;
+        background: #dcdde1;
+        border-radius: 999px;
+        transition: background-color 0.2s ease;
+    }
+
+    .checkbox-toggle__thumb {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #ffffff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        transition: none;
+    }
+
+    .checkbox-toggle input:checked + .checkbox-toggle__track {
+        background: #2ecc71;
+    }
+
+    .checkbox-toggle input:checked + .checkbox-toggle__track .checkbox-toggle__thumb {
+        transform: translateX(20px);
+    }
+
+    .checkbox-toggle__label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #2f3640;
+    }
+
+    .form-field--full {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #2f3640;
+    }
+
+    .form-field input,
+    .form-field textarea,
+    .form-field select {
+        border: 1px solid #dcdde1;
+        border-radius: 6px;
+        padding: 10px;
+        font-size: 0.95rem;
+        background-color: #ffffff;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .form-field textarea {
+        resize: vertical;
+    }
+
+    .form-field input:focus,
+    .form-field textarea:focus,
+    .form-field select:focus {
+        outline: none;
+        border-color: #0097e6;
+        box-shadow: 0 0 0 2px rgba(0, 151, 230, 0.1);
+    }
+
+    .helper-text {
+        font-size: 0.8rem;
+        color: #7f8fa6;
+    }
+
+    .modal-dialog--wide {
+        max-width: 640px;
+    }
+
+    .modal-table-wrapper {
+        overflow-x: auto;
+        overflow-y: auto;
+        max-height: 340px;
+        border: 1px solid #ecf0f1;
+        border-radius: 10px;
+        background: #ffffff;
+    }
+
+    .modal-table-wrapper td,
+    .modal-table-wrapper th {
+        padding: 14px 16px;
+    }
+
+    .modal-table-wrapper .lookup-name {
+        display: block;
+        font-weight: 600;
+        color: #2f3640;
+        margin-bottom: 4px;
+    }
+
+    .modal-table-wrapper .lookup-name--muted {
+        color: #95a5a6;
+        font-weight: 500;
+        margin-bottom: 0;
+    }
+
+    .modal-table-wrapper .lookup-placeholder {
+        color: #b2bec3;
+        font-size: 1.1rem;
+        display: inline-block;
+        padding-left: 2px;
+    }
+
+    .modal-table-wrapper .lookup-meta {
+        display: block;
+        color: #718093;
+        font-size: 0.85rem;
+    }
+
+    .lookup-table th,
+    .lookup-table td {
+        text-align: left;
+        vertical-align: middle;
+    }
+
+    .lookup-table th:first-child,
+    .lookup-table td:first-child {
+        width: 60px;
+        text-align: right;
+        font-weight: 600;
+        color: #57606f;
+    }
+
+    .lookup-table th:nth-child(2),
+    .lookup-table td:nth-child(2) {
+        width: 42%;
+        text-align: left;
+    }
+
+    .lookup-table th:nth-child(3),
+    .lookup-table td:nth-child(3) {
+        text-align: center;
+        width: 140px;
+    }
+
+    .lookup-table th:nth-child(4),
+    .lookup-table td:nth-child(4) {
+        text-align: center;
+        width: 140px;
+    }
+
+    .lookup-table th:last-child,
+    .lookup-table td:last-child {
+        text-align: center;
+        width: 160px;
+    }
+
+    .lookup-table--models th:nth-child(2),
+    .lookup-table--models td:nth-child(2) {
+        width: 42%;
+        text-align: left;
+    }
+
+    .lookup-table--models th:nth-child(3),
+    .lookup-table--models td:nth-child(3) {
+        width: 42%;
+        text-align: left;
+    }
+
+    .lookup-table--models th:nth-child(4),
+    .lookup-table--models td:nth-child(4) {
+        width: 160px;
+    }
+
+    .lookup-table--models th:last-child,
+    .lookup-table--models td:last-child {
+        width: 170px;
+    }
+
+    .modal-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 14px;
+    }
+
+    .modal-pagination__info {
+        flex: 1;
+        text-align: center;
+        font-weight: 600;
+        color: #57606f;
+        font-size: 0.9rem;
+    }
+
+    .btn--compact {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+
+    .modal-table-wrapper--models {
+        overflow-x: auto;
+    }
+
+    .modal-table-wrapper--models .lookup-table {
+        min-width: 1120px;
+    }
+
+</style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        var modals = document.querySelectorAll(".modal");
+        var activeModal = null;
+        var lastTrigger = null;
+
+        var numericFieldNames = ["precio_compra", "precio_venta", "stock", "stock_minimo"];
+        var LOOKUP_PAGE_SIZE = 10;
+        var brandPagination = null;
+        var modelPagination = null;
+
+        function unlockField(input) {
+            if (!input) {
+                return;
+            }
+            input.readOnly = false;
+            input.disabled = false;
+            input.removeAttribute("readonly");
+            input.removeAttribute("disabled");
+        }
+
+        function enableNumericFields(scope) {
+            (scope || document).querySelectorAll('[name="' + numericFieldNames.join('"], [name="') + '"]').forEach(function (input) {
+                unlockField(input);
+            });
+        }
+
+        enableNumericFields();
+
+        document.addEventListener("focusin", function (event) {
+            if (numericFieldNames.includes(event.target && event.target.name)) {
+                unlockField(event.target);
+            }
+        });
+
+        function openModal(modal, trigger) {
+            if (!modal) {
+                return;
+            }
+            activeModal = modal;
+            lastTrigger = trigger || null;
+            modal.classList.add("is-visible");
+            modal.setAttribute("aria-hidden", "false");
+            var focusable = modal.querySelector("input, textarea, select, button");
+            if (focusable) {
+                focusable.focus();
+            }
+        }
+
+        function closeModal(modal) {
+            if (!modal) {
+                return;
+            }
+            modal.classList.remove("is-visible");
+            modal.setAttribute("aria-hidden", "true");
+            if (lastTrigger) {
+                lastTrigger.focus();
+            }
+            if (activeModal === modal) {
+                activeModal = null;
+            }
+        }
+
+        modals.forEach(function (modal) {
+            modal.querySelectorAll("[data-close-modal]").forEach(function (element) {
+                element.addEventListener("click", function () {
+                    closeModal(modal);
+                });
+            });
+        });
+
+        var openButton = document.getElementById("open-create-product");
+        var createModal = document.getElementById("create-product-modal");
+        if (openButton && createModal) {
+            openButton.addEventListener("click", function () {
+                var form = createModal.querySelector("form");
+                if (form) {
+                    form.reset();
+                    enableNumericFields(form);
+                }
+                openModal(createModal, openButton);
+            });
+        }
+
+        var brandSearchModal = document.getElementById("brand-search-modal");
+        var modelSearchModal = document.getElementById("model-search-modal");
+
+        document.addEventListener("click", function (evt) {
+            var brandTrigger = evt.target.closest('[data-action="buscar-marca"]');
+            if (brandTrigger && brandSearchModal) {
+                evt.preventDefault();
+                evt.stopPropagation();
+                if (brandPagination) {
+                    brandPagination.goToFirstPage();
+                }
+                openModal(brandSearchModal, brandTrigger);
+                return;
+            }
+
+            var modelTrigger = evt.target.closest('[data-action="buscar-modelo"]');
+            if (modelTrigger && modelSearchModal) {
+                evt.preventDefault();
+                evt.stopPropagation();
+                if (modelPagination) {
+                    modelPagination.goToFirstPage();
+                }
+                openModal(modelSearchModal, modelTrigger);
+                if (modelPagination) {
+                    modelPagination.updateRowNumbers();
+                }
+            }
+        });
+
+        function initLookupPagination(config) {
+            if (!config || !config.tbody) {
+                return null;
+            }
+
+            var state = {
+                tbody: config.tbody,
+                container: config.container || null,
+                rowSelector: config.rowSelector,
+                emptySelector: config.emptySelector,
+                prevButton: config.prevButton || null,
+                nextButton: config.nextButton || null,
+                pageInfo: config.pageInfo || null,
+                scrollContainer: config.scrollContainer || null,
+                currentPage: 1,
+            };
+
+            state.refresh = function (moveToLast) {
+                var rows = Array.prototype.slice.call(state.tbody.querySelectorAll(state.rowSelector));
+                var emptyRow = state.emptySelector ? state.tbody.querySelector(state.emptySelector) : null;
+                var totalItems = rows.length;
+                var totalPages = Math.max(1, Math.ceil(totalItems / LOOKUP_PAGE_SIZE));
+
+                if (totalItems === 0) {
+                    state.currentPage = 1;
+                    if (emptyRow) {
+                        emptyRow.hidden = false;
+                    }
+                    if (state.container) {
+                        state.container.hidden = true;
+                    }
+                    if (state.pageInfo) {
+                        state.pageInfo.textContent = "Página 1 de 1";
+                    }
+                    if (state.prevButton) {
+                        state.prevButton.disabled = true;
+                    }
+                    if (state.nextButton) {
+                        state.nextButton.disabled = true;
+                    }
+                    return;
+                }
+
+                if (moveToLast) {
+                    state.currentPage = totalPages;
+                }
+
+                if (state.currentPage > totalPages) {
+                    state.currentPage = totalPages;
+                }
+                if (state.currentPage < 1) {
+                    state.currentPage = 1;
+                }
+
+                var visibleIndex = 0;
+                rows.forEach(function (row, index) {
+                    var pageIndex = Math.floor(index / LOOKUP_PAGE_SIZE) + 1;
+                    row.hidden = pageIndex !== state.currentPage;
+                    var indexCell = row.querySelector("[data-row-index]");
+                    if (pageIndex === state.currentPage) {
+                        visibleIndex += 1;
+                        if (indexCell) {
+                            indexCell.textContent = visibleIndex;
+                        }
+                    } else if (indexCell) {
+                        indexCell.textContent = "";
+                    }
+                });
+
+                if (emptyRow) {
+                    emptyRow.hidden = true;
+                }
+                if (state.container) {
+                    state.container.hidden = false;
+                }
+                if (state.pageInfo) {
+                    state.pageInfo.textContent = "Página " + state.currentPage + " de " + totalPages;
+                }
+                if (state.prevButton) {
+                    state.prevButton.disabled = state.currentPage <= 1;
+                }
+                if (state.nextButton) {
+                    state.nextButton.disabled = state.currentPage >= totalPages;
+                }
+                if (state.scrollContainer) {
+                    state.scrollContainer.scrollTop = 0;
+                }
+            };
+
+            state.goToFirstPage = function () {
+                state.currentPage = 1;
+                state.refresh();
+            };
+
+            state.updateRowNumbers = function () {
+                state.refresh();
+            };
+
+            state.goToPreviousPage = function () {
+                state.currentPage -= 1;
+                state.refresh();
+            };
+
+            state.goToNextPage = function () {
+                state.currentPage += 1;
+                state.refresh();
+            };
+
+            if (state.prevButton) {
+                state.prevButton.addEventListener("click", function () {
+                    state.goToPreviousPage();
+                });
+            }
+
+            if (state.nextButton) {
+                state.nextButton.addEventListener("click", function () {
+                    state.goToNextPage();
+                });
+            }
+
+            state.refresh();
+            return state;
+        }
+
+        function getCsrfToken() {
+            var csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+            if (csrfInput) {
+                return csrfInput.value;
+            }
+            var cookie = document.cookie.split(";").find(function (item) {
+                return item.trim().startsWith("csrftoken=");
+            });
+            if (cookie) {
+                return cookie.split("=")[1];
+            }
+            return null;
+        }
+
+        function updateLookupRow(row, isActive, type) {
+            if (!row) {
+                return;
+            }
+            var statusSpan = row.querySelector(".lookup-status");
+            var toggleButton = row.querySelector(".lookup-toggle");
+            if (type === "brand") {
+                row.dataset.brandActive = isActive ? "true" : "false";
+            } else {
+                row.dataset.modelActive = isActive ? "true" : "false";
+            }
+            if (statusSpan) {
+                statusSpan.textContent = isActive ? "Activo" : "Inactivo";
+                statusSpan.classList.toggle("lookup-status--active", isActive);
+                statusSpan.classList.toggle("lookup-status--inactive", !isActive);
+            }
+            if (toggleButton) {
+                toggleButton.textContent = isActive ? "Inactivar" : "Activar";
+                toggleButton.disabled = false;
+            }
+        }
+
+        function handleLookupToggle(event, type) {
+            var button = event.currentTarget;
+            var url = button.dataset.toggleUrl;
+            if (!url) {
+                return;
+            }
+            var row = button.closest(type === "brand" ? "[data-brand-row]" : "[data-model-row]");
+            if (!row) {
+                return;
+            }
+            button.disabled = true;
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": getCsrfToken() || "",
+                    "Accept": "application/json",
+                },
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("Error al actualizar estado");
+                    }
+                    return response.json();
+                })
+                .then(function (data) {
+                    updateLookupRow(row, !!data.activo, type);
+                })
+                .catch(function () {
+                    button.disabled = false;
+                    showToast("No se pudo actualizar el estado. Intenta nuevamente.", "error");
+                });
+        }
+
+        function attachBrandToggle(button) {
+            if (!button || button.dataset.toggleListener === "true") {
+                return;
+            }
+            button.dataset.toggleListener = "true";
+            button.addEventListener("click", function (event) {
+                handleLookupToggle(event, "brand");
+            });
+        }
+
+        function attachModelToggle(button) {
+            if (!button || button.dataset.toggleListener === "true") {
+                return;
+            }
+            button.dataset.toggleListener = "true";
+            button.addEventListener("click", function (event) {
+                handleLookupToggle(event, "model");
+            });
+        }
+
+        document.querySelectorAll("[data-brand-toggle]").forEach(attachBrandToggle);
+        document.querySelectorAll("[data-model-toggle]").forEach(attachModelToggle);
+
+        function selectBrandFromRow(row) {
+            if (!row) {
+                return;
+            }
+            var brandId = row.dataset.brandId;
+            var brandName = row.dataset.brandName;
+            if (!brandId) {
+                return;
+            }
+            document.querySelectorAll("[data-brand-select]").forEach(function (select) {
+                select.value = brandId;
+            });
+            showToast("Marca seleccionada: " + brandName, "success");
+            closeModal(brandSearchModal);
+        }
+
+        function selectModelFromRow(row) {
+            if (!row) {
+                return;
+            }
+            var modelId = row.dataset.modelId;
+            var modelName = row.dataset.modelName;
+            var modelBrandId = row.dataset.modelBrandId;
+            if (!modelId) {
+                return;
+            }
+            document.querySelectorAll("[data-model-select]").forEach(function (select) {
+                select.value = modelId;
+            });
+            if (modelBrandId) {
+                document.querySelectorAll("[data-brand-select]").forEach(function (select) {
+                    select.value = modelBrandId;
+                });
+            }
+            showToast("Modelo seleccionado: " + modelName, "success");
+            closeModal(modelSearchModal);
+        }
+
+        function attachBrandSelect(button) {
+            if (!button || button.dataset.selectListener === "true") {
+                return;
+            }
+            button.dataset.selectListener = "true";
+            button.addEventListener("click", function () {
+                var row = button.closest("[data-brand-row]");
+                selectBrandFromRow(row);
+            });
+        }
+
+        function attachModelSelect(button) {
+            if (!button || button.dataset.selectListener === "true") {
+                return;
+            }
+            button.dataset.selectListener = "true";
+            button.addEventListener("click", function () {
+                var row = button.closest("[data-model-row]");
+                if (row && !row.dataset.modelBrandId) {
+                    var brandIdFromRow = row.dataset.modelBrand;
+                    if (brandIdFromRow) {
+                        row.dataset.modelBrandId = brandIdFromRow;
+                    }
+                }
+                selectModelFromRow(row);
+            });
+        }
+
+        if (brandSearchModal) {
+            brandSearchModal.querySelectorAll("[data-brand-select-button]").forEach(attachBrandSelect);
+        }
+        if (modelSearchModal) {
+            modelSearchModal.querySelectorAll("[data-model-select-button]").forEach(attachModelSelect);
+        }
+
+        if (brandSearchModal) {
+            brandPagination = initLookupPagination({
+                tbody: brandSearchModal.querySelector("[data-brand-table-body]"),
+                container: brandSearchModal.querySelector("[data-brand-pagination]"),
+                rowSelector: "[data-brand-row]",
+                emptySelector: "[data-brand-empty]",
+                prevButton: brandSearchModal.querySelector("[data-brand-page-prev]"),
+                nextButton: brandSearchModal.querySelector("[data-brand-page-next]"),
+                pageInfo: brandSearchModal.querySelector("[data-brand-page-info]"),
+                scrollContainer: brandSearchModal.querySelector(".modal-table-wrapper")
+            });
+        }
+
+        if (modelSearchModal) {
+            modelPagination = initLookupPagination({
+                tbody: modelSearchModal.querySelector("[data-model-table-body]"),
+                container: modelSearchModal.querySelector("[data-model-pagination]"),
+                rowSelector: "[data-model-row]",
+                emptySelector: "[data-model-empty]",
+                prevButton: modelSearchModal.querySelector("[data-model-page-prev]"),
+                nextButton: modelSearchModal.querySelector("[data-model-page-next]"),
+                pageInfo: modelSearchModal.querySelector("[data-model-page-info]"),
+                scrollContainer: modelSearchModal.querySelector(".modal-table-wrapper")
+            });
+        }
+
+        function addBrandOptionToSelects(data) {
+            var selects = document.querySelectorAll("[data-brand-select]");
+            selects.forEach(function (select) {
+                var exists = Array.prototype.some.call(select.options, function (option) {
+                    return option.value === String(data.id);
+                });
+                if (exists) {
+                    return;
+                }
+                var option = document.createElement("option");
+                option.value = data.id;
+                option.textContent = data.nombre;
+                select.appendChild(option);
+            });
+        }
+
+        function addModelOptionToSelects(data) {
+            var selects = document.querySelectorAll("[data-model-select]");
+            selects.forEach(function (select) {
+                var exists = Array.prototype.some.call(select.options, function (option) {
+                    return option.value === String(data.id);
+                });
+                if (exists) {
+                    return;
+                }
+                var option = document.createElement("option");
+                option.value = data.id;
+                option.textContent = data.nombre;
+                select.appendChild(option);
+            });
+        }
+
+        function addBrandRow(data) {
+            if (!brandSearchModal) {
+                return;
+            }
+            var tbody = brandSearchModal.querySelector("[data-brand-table-body]");
+            if (!tbody) {
+                return;
+            }
+            var emptyRow = tbody.querySelector("[data-brand-empty]");
+            if (emptyRow) {
+                emptyRow.remove();
+            }
+            var row = document.createElement("tr");
+            row.dataset.brandRow = "";
+            row.dataset.brandId = data.id;
+            row.dataset.brandName = data.nombre;
+            row.dataset.brandActive = data.activo ? "true" : "false";
+
+            var toggleTemplate = brandSearchModal.dataset.toggleTemplate || "";
+            var toggleUrl = toggleTemplate ? toggleTemplate.replace(/0\/toggle\/$/, data.id + "/toggle/") : "";
+
+            row.innerHTML = [
+                '<td data-row-index></td>',
+                '<td><span class="lookup-name">' + data.nombre + "</span></td>",
+                '<td><span class="lookup-status ' + (data.activo ? "lookup-status--active" : "lookup-status--inactive") + '">' + data.estado_display + "</span></td>",
+                '<td><button type="button" class="btn btn-outline btn--compact" data-brand-select-button data-brand-id="' + data.id + '" data-brand-name="' + data.nombre + '">Seleccionar</button></td>',
+                '<td><button type="button" class="btn btn-outline lookup-toggle" data-brand-toggle data-toggle-url="' + toggleUrl + '">' + (data.activo ? "Inactivar" : "Activar") + "</button></td>",
+            ].join("");
+
+            tbody.appendChild(row);
+            attachBrandToggle(row.querySelector("[data-brand-toggle]"));
+            attachBrandSelect(row.querySelector("[data-brand-select-button]"));
+            if (brandPagination) {
+                brandPagination.refresh(true);
+            }
+        }
+
+        function addModelRow(data) {
+            if (!modelSearchModal) {
+                return;
+            }
+            var tbody = modelSearchModal.querySelector("[data-model-table-body]");
+            if (!tbody) {
+                return;
+            }
+            var emptyRow = tbody.querySelector("[data-model-empty]");
+            if (emptyRow) {
+                emptyRow.remove();
+            }
+            var row = document.createElement("tr");
+            row.dataset.modelRow = "";
+            row.dataset.modelId = data.id;
+            row.dataset.modelName = data.nombre;
+            row.dataset.modelBrand = data.marca_nombre || "";
+            row.dataset.modelBrandId = data.marca_id || (data.marca && data.marca.id) || "";
+            row.dataset.modelActive = data.activo ? "true" : "false";
+
+            var toggleTemplate = modelSearchModal.dataset.toggleTemplate || "";
+            var toggleUrl = toggleTemplate ? toggleTemplate.replace(/0\/toggle\/$/, data.id + "/toggle/") : "";
+
+            row.innerHTML = [
+                '<td data-row-index></td>',
+                '<td>' + (data.marca_nombre ? '<span class="lookup-name">' + data.marca_nombre + '</span>' : '<span class="lookup-name lookup-name--muted">Sin marca</span>') + "</td>",
+                '<td><span class="lookup-name">' + data.nombre + "</span></td>",
+                '<td><span class="lookup-status ' + (data.activo ? "lookup-status--active" : "lookup-status--inactive") + '">' + data.estado_display + "</span></td>",
+                '<td><button type="button" class="btn btn-outline btn--compact" data-model-select-button data-model-id="' + data.id + '" data-model-name="' + data.nombre + '" data-model-brand-id="' + (data.marca_id || "") + '">Seleccionar</button></td>',
+                '<td><button type="button" class="btn btn-outline lookup-toggle" data-model-toggle data-toggle-url="' + toggleUrl + '">' + (data.activo ? "Inactivar" : "Activar") + "</button></td>",
+            ].join("");
+
+            tbody.appendChild(row);
+            attachModelToggle(row.querySelector("[data-model-toggle]"));
+            attachModelSelect(row.querySelector("[data-model-select-button]"));
+            if (modelPagination) {
+                modelPagination.refresh(true);
+            }
+        }
+
+        var brandCreateModal = document.getElementById("brand-create-modal");
+        if (brandSearchModal && brandCreateModal) {
+            var openBrandCreateButton = brandSearchModal.querySelector("[data-open-brand-create]");
+            var brandCreateFormElement = brandCreateModal.querySelector("[data-brand-create-form]");
+            var brandCreateNameInput = brandCreateModal.querySelector("[data-brand-create-name]");
+            var brandCreateActiveInput = brandCreateModal.querySelector("[data-brand-create-active]");
+            var brandCreateSaveButton = brandCreateModal.querySelector("[data-brand-create-save]");
+            var brandCreateCancelButtons = brandCreateModal.querySelectorAll("[data-brand-create-cancel]");
+            var brandCreateCloseButtons = brandCreateModal.querySelectorAll("#brand-create-modal [data-close-modal]");
+            var brandCreateUrl = brandCreateModal.dataset.createUrl || "";
+
+            function reopenBrandSearch() {
+                setTimeout(function () {
+                    if (brandSearchModal && openBrandCreateButton) {
+                        if (brandPagination) {
+                            brandPagination.refresh();
+                        }
+                        openModal(brandSearchModal, openBrandCreateButton);
+                    }
+                }, 150);
+            }
+
+            function resetBrandCreateForm() {
+                if (!brandCreateFormElement) {
+                    return;
+                }
+                brandCreateFormElement.reset();
+                if (brandCreateActiveInput) {
+                    brandCreateActiveInput.checked = true;
+                }
+            }
+
+            if (openBrandCreateButton) {
+                openBrandCreateButton.addEventListener("click", function () {
+                    closeModal(brandSearchModal);
+                    resetBrandCreateForm();
+                    setTimeout(function () {
+                        openModal(brandCreateModal, openBrandCreateButton);
+                        if (brandCreateNameInput) {
+                            brandCreateNameInput.focus();
+                        }
+                    }, 150);
+                });
+            }
+
+            brandCreateCancelButtons.forEach(function (button) {
+                button.addEventListener("click", function () {
+                    closeModal(brandCreateModal);
+                    reopenBrandSearch();
+                    if (brandPagination) {
+                        brandPagination.updateRowNumbers();
+                    }
+                });
+            });
+
+            brandCreateCloseButtons.forEach(function (button) {
+                button.addEventListener("click", function () {
+                    reopenBrandSearch();
+                    if (brandPagination) {
+                        brandPagination.updateRowNumbers();
+                    }
+                });
+            });
+
+            if (brandCreateSaveButton) {
+                brandCreateSaveButton.addEventListener("click", function () {
+                    if (!brandCreateUrl) {
+                        showToast("No se puede registrar la marca en este momento.", "error");
+                        return;
+                    }
+                    var nombre = (brandCreateNameInput && brandCreateNameInput.value || "").trim();
+                    if (!nombre) {
+                        showToast("Ingresa el nombre de la marca.", "warning");
+                        if (brandCreateNameInput) {
+                            brandCreateNameInput.focus();
+                        }
+                        return;
+                    }
+                    var activo = brandCreateActiveInput ? brandCreateActiveInput.checked : true;
+                    brandCreateSaveButton.disabled = true;
+                    fetch(brandCreateUrl, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": getCsrfToken() || "",
+                            "Accept": "application/json",
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ nombre: nombre, activo: activo }),
+                    })
+                        .then(function (response) {
+                            if (!response.ok) {
+                                return response.json().then(function (data) {
+                                    throw new Error(data && data.error ? data.error : "No se pudo registrar la marca.");
+                                }).catch(function (error) {
+                                    throw error instanceof Error ? error : new Error("No se pudo registrar la marca.");
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(function (data) {
+                            addBrandRow(data);
+                            addBrandOptionToSelects(data);
+                            showToast("Marca registrada correctamente.", "success");
+                            closeModal(brandCreateModal);
+                            reopenBrandSearch();
+                            if (brandPagination) {
+                                brandPagination.updateRowNumbers();
+                            }
+                        })
+                        .catch(function (error) {
+                            showToast(error && error.message ? error.message : "No se pudo registrar la marca.", "error");
+                        })
+                        .finally(function () {
+                            brandCreateSaveButton.disabled = false;
+                        });
+                });
+            }
+        }
+
+        var modelCreateModal = document.getElementById("model-create-modal");
+        if (modelSearchModal && modelCreateModal) {
+            var openModelCreateButton = modelSearchModal.querySelector("[data-open-model-create]");
+            var modelCreateFormElement = modelCreateModal.querySelector("[data-model-create-form]");
+            var modelCreateNameInput = modelCreateModal.querySelector("[data-model-create-name]");
+            var modelCreateBrandSelect = modelCreateModal.querySelector("[data-model-create-brand]");
+            var modelCreateActiveInput = modelCreateModal.querySelector("[data-model-create-active]");
+            var modelCreateSaveButton = modelCreateModal.querySelector("[data-model-create-save]");
+            var modelCreateCancelButtons = modelCreateModal.querySelectorAll("[data-model-create-cancel]");
+            var modelCreateCloseButtons = modelCreateModal.querySelectorAll("#model-create-modal [data-close-modal]");
+            var modelCreateUrl = modelCreateModal.dataset.createUrl || "";
+
+            function reopenModelSearch() {
+                setTimeout(function () {
+                    if (modelSearchModal && openModelCreateButton) {
+                        if (modelPagination) {
+                            modelPagination.refresh();
+                        }
+                        openModal(modelSearchModal, openModelCreateButton);
+                    }
+                }, 150);
+            }
+
+            function resetModelCreateForm() {
+                if (!modelCreateFormElement) {
+                    return;
+                }
+                modelCreateFormElement.reset();
+                if (modelCreateActiveInput) {
+                    modelCreateActiveInput.checked = true;
+                }
+            }
+
+            if (openModelCreateButton) {
+                openModelCreateButton.addEventListener("click", function () {
+                    closeModal(modelSearchModal);
+                    resetModelCreateForm();
+                    setTimeout(function () {
+                        openModal(modelCreateModal, openModelCreateButton);
+                        if (modelCreateNameInput) {
+                            modelCreateNameInput.focus();
+                        }
+                    }, 150);
+                });
+            }
+
+            modelCreateCancelButtons.forEach(function (button) {
+                button.addEventListener("click", function () {
+                    closeModal(modelCreateModal);
+                    reopenModelSearch();
+                    if (modelPagination) {
+                        modelPagination.updateRowNumbers();
+                    }
+                });
+            });
+
+            modelCreateCloseButtons.forEach(function (button) {
+                button.addEventListener("click", function () {
+                    reopenModelSearch();
+                    if (modelPagination) {
+                        modelPagination.updateRowNumbers();
+                    }
+                });
+            });
+
+            if (modelCreateSaveButton) {
+                modelCreateSaveButton.addEventListener("click", function () {
+                    if (!modelCreateUrl) {
+                        showToast("No se puede registrar el modelo en este momento.", "error");
+                        return;
+                    }
+                    var nombre = (modelCreateNameInput && modelCreateNameInput.value || "").trim();
+                    if (!nombre) {
+                        showToast("Ingresa el nombre del modelo.", "warning");
+                        if (modelCreateNameInput) {
+                            modelCreateNameInput.focus();
+                        }
+                        return;
+                    }
+                    var marcaId = modelCreateBrandSelect ? modelCreateBrandSelect.value : "";
+                    var activo = modelCreateActiveInput ? modelCreateActiveInput.checked : true;
+                    modelCreateSaveButton.disabled = true;
+                    fetch(modelCreateUrl, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": getCsrfToken() || "",
+                            "Accept": "application/json",
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            nombre: nombre,
+                            marca: marcaId || null,
+                            activo: activo,
+                        }),
+                    })
+                        .then(function (response) {
+                            if (!response.ok) {
+                                return response.json().then(function (data) {
+                                    throw new Error(data && data.error ? data.error : "No se pudo registrar el modelo.");
+                                }).catch(function (error) {
+                                    throw error instanceof Error ? error : new Error("No se pudo registrar el modelo.");
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(function (data) {
+                            addModelRow(data);
+                            addModelOptionToSelects(data);
+                            showToast("Modelo registrado correctamente.", "success");
+                            closeModal(modelCreateModal);
+                            reopenModelSearch();
+                        })
+                        .catch(function (error) {
+                            showToast(error && error.message ? error.message : "No se pudo registrar el modelo.", "error");
+                        })
+                        .finally(function () {
+                            modelCreateSaveButton.disabled = false;
+                        });
+                });
+            }
+        }
+
+        var editModal = document.getElementById("edit-product-modal");
+        if (editModal) {
+            var editButtons = document.querySelectorAll('[data-action="edit"]');
+            var editForm = editModal.querySelector("form");
+            if (editForm) {
+                var fieldMap = {
+                    id: editForm.querySelector("[data-edit-id]"),
+                    name: editForm.querySelector("[data-edit-name]"),
+                    brand: editForm.querySelector("[data-edit-brand]"),
+                    category: editForm.querySelector("[data-edit-category]"),
+                    storage: editForm.querySelector("[data-edit-storage]"),
+                    ram: editForm.querySelector("[data-edit-ram]"),
+                    model: editForm.querySelector("[data-edit-model]"),
+                    imei: editForm.querySelector("[data-edit-imei]"),
+                    colors: editForm.querySelector("[data-edit-colors]"),
+                    description: editForm.querySelector("[data-edit-description]"),
+                    cost: editForm.querySelector("[data-edit-cost]"),
+                    price: editForm.querySelector("[data-edit-price]"),
+                    stock: editForm.querySelector("[data-edit-stock]"),
+                    stockmin: editForm.querySelector("[data-edit-stockmin]"),
+                    active: editForm.querySelector("[data-edit-active]")
+                };
+
+                editButtons.forEach(function (button) {
+                    button.addEventListener("click", function () {
+                        if (fieldMap.id) {
+                            fieldMap.id.value = button.dataset.productId || "";
+                        }
+                        if (fieldMap.name) {
+                            fieldMap.name.value = button.dataset.productName || "";
+                        }
+                        if (fieldMap.brand) {
+                            fieldMap.brand.value = button.dataset.productBrand || "";
+                        }
+                        if (fieldMap.category) {
+                            fieldMap.category.value = button.dataset.productCategory || "";
+                        }
+                        if (fieldMap.model) {
+                            fieldMap.model.value = button.dataset.productModel || "";
+                        }
+                        if (fieldMap.storage) {
+                            fieldMap.storage.value = button.dataset.productStorage || "";
+                        }
+                        if (fieldMap.ram) {
+                            fieldMap.ram.value = button.dataset.productRam || "";
+                        }
+                        if (fieldMap.imei) {
+                            fieldMap.imei.value = button.dataset.productImei || "";
+                        }
+                        if (fieldMap.colors) {
+                            fieldMap.colors.value = button.dataset.productColors || "";
+                        }
+                        if (fieldMap.description) {
+                            fieldMap.description.value = button.dataset.productDescription || "";
+                        }
+                        if (fieldMap.cost) {
+                            fieldMap.cost.value = button.dataset.productCost || "0.00";
+                        }
+                        if (fieldMap.price) {
+                            fieldMap.price.value = button.dataset.productPrice || "0.00";
+                        }
+                        var taxSelect = editForm.querySelector("[data-edit-taxes]");
+                        if (taxSelect) {
+                            taxSelect.value = button.dataset.productTaxId || "";
+                        }
+                        if (fieldMap.stock) {
+                            fieldMap.stock.value = button.dataset.productStock || "0";
+                        }
+                        if (fieldMap.stockmin) {
+                            fieldMap.stockmin.value = button.dataset.productStockmin || "0";
+                        }
+                        if (fieldMap.active) {
+                            fieldMap.active.checked = (button.dataset.productActive === "true");
+                        }
+                        enableNumericFields(editForm);
+                        openModal(editModal, button);
+                    });
+                });
+            }
+        }
+
+        var deleteModal = document.getElementById("delete-product-modal");
+        if (deleteModal) {
+            var deleteButtons = document.querySelectorAll('[data-action="delete"]');
+            var deleteIdInput = deleteModal.querySelector("[data-delete-id]");
+            var deleteNameHolder = deleteModal.querySelector("[data-delete-name]");
+            deleteButtons.forEach(function (button) {
+                button.addEventListener("click", function () {
+                    if (deleteIdInput) {
+                        deleteIdInput.value = button.dataset.productId || "";
+                    }
+                    if (deleteNameHolder) {
+                        deleteNameHolder.textContent = button.dataset.productName || "-";
+                    }
+                    openModal(deleteModal, button);
+                });
+            });
+        }
+
+        // Funcionalidad de filtros
+        var searchInput = document.getElementById('inventory-search');
+        var categoryFilter = document.getElementById('category-filter');
+        var brandFilter = document.getElementById('brand-filter');
+        var statusFilter = document.getElementById('status-filter');
+        var stockFilter = document.getElementById('stock-filter');
+        var applyFiltersBtn = document.getElementById('apply-filters');
+        var clearFiltersBtn = document.getElementById('clear-filters');
+
+        function applyFilters() {
+            var params = new URLSearchParams();
+            
+            if (searchInput && searchInput.value.trim()) {
+                params.set('search', searchInput.value.trim());
+            }
+            if (categoryFilter && categoryFilter.value) {
+                params.set('categoria', categoryFilter.value);
+            }
+            if (brandFilter && brandFilter.value) {
+                params.set('marca', brandFilter.value);
+            }
+            if (statusFilter && statusFilter.value) {
+                params.set('activo', statusFilter.value);
+            }
+            if (stockFilter && stockFilter.value) {
+                params.set('stock', stockFilter.value);
+            }
+            
+            window.location.href = '?' + params.toString();
+        }
+
+        function clearFilters() {
+            if (searchInput) searchInput.value = '';
+            if (categoryFilter) categoryFilter.value = '';
+            if (brandFilter) brandFilter.value = '';
+            if (statusFilter) statusFilter.value = '';
+            if (stockFilter) stockFilter.value = '';
+            window.location.href = window.location.pathname;
+        }
+
+        if (applyFiltersBtn) {
+            applyFiltersBtn.addEventListener('click', applyFilters);
+        }
+
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', clearFilters);
+        }
+
+        // Aplicar filtros al presionar Enter en el campo de búsqueda
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    applyFilters();
+                }
+            });
+        }
+
+        // Cargar valores de filtros desde URL
+        var urlParams = new URLSearchParams(window.location.search);
+        if (searchInput && urlParams.get('search')) {
+            searchInput.value = urlParams.get('search');
+        }
+        if (categoryFilter && urlParams.get('categoria')) {
+            categoryFilter.value = urlParams.get('categoria');
+        }
+        if (brandFilter && urlParams.get('marca')) {
+            brandFilter.value = urlParams.get('marca');
+        }
+        if (statusFilter && urlParams.get('activo')) {
+            statusFilter.value = urlParams.get('activo');
+        }
+        if (stockFilter && urlParams.get('stock')) {
+            stockFilter.value = urlParams.get('stock');
+        }
+    });
+    </script>
+
+    <style>
+        /* Estilos para filtros modernos */
+        .filters-section {
+            margin: 24px 0;
+            background: var(--color-surface-card);
+            border-radius: 16px;
+            border: 1px solid var(--color-border-subtle);
+            overflow: hidden;
+        }
+
+        .filters-container {
+            padding: 20px 24px;
+        }
+
+        .filters-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
+            gap: 16px;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--color-text-main);
+            margin: 0;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+        }
+
+        .filter-input, .filter-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--color-border-subtle);
+            border-radius: 8px;
+            background: var(--color-surface-main);
+            color: var(--color-text-main);
+            font-size: 0.9rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .search-input {
+            padding-right: 40px;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--color-text-muted);
+            font-size: 1.1rem;
+            pointer-events: none;
+        }
+
+        .filter-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.875rem;
+            min-height: auto;
+        }
+
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            .filters-row {
+                grid-template-columns: 2fr 1fr 1fr 1fr auto;
+            }
+            
+            .filter-group:nth-child(5) {
+                grid-column: 1 / -2;
+                margin-top: 12px;
+            }
+            
+            .filter-actions {
+                grid-column: -2 / -1;
+                margin-top: 12px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .filters-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .filter-group:nth-child(5) {
+                grid-column: auto;
+                margin-top: 0;
+            }
+            
+            .filter-actions {
+                grid-column: auto;
+                margin-top: 0;
+                justify-content: stretch;
+            }
+            
+            .filter-actions .btn {
+                flex: 1;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .filters-container {
+                padding: 16px;
+            }
+            
+            .filter-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+    </style>
+{% endblock %}

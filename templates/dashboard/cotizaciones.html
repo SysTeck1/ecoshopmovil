@@ -1,0 +1,1006 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Cotizaciones{% endblock %}
+{% block page_title %}Cotizaciones{% endblock %}
+{% block page_actions %}
+<div class="quotes-actions">
+    <div class="quotes-badge">
+        Cotizaciones en sesión: <span>{{ quotes_count }}</span>
+    </div>
+    <button type="button" class="btn btn-outline btn-icon" data-quote-export>
+        <span class="icon">🗂️</span>
+        Exportar
+    </button>
+    <button type="button" class="btn btn-secondary btn-icon" data-quote-send>
+        <span class="icon">✉️</span>
+        Enviar
+    </button>
+</div>
+{% endblock %}
+{% block content %}
+<section class="quotes-entry">
+    <form class="quotes-entry__form" autocomplete="off" data-quote-form>
+        <div class="quotes-entry__column quotes-entry__column--left">
+            <label class="field">
+                <span class="field__label">Cliente</span>
+                <div class="field__group field__group--full">
+                    <select name="cliente" class="field__control" data-quote-client>
+                        <option value="">Selecciona cliente</option>
+                        {% for cliente in clientes %}
+                            <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" class="btn btn-outline" data-open-client-modal>Buscar</button>
+                </div>
+            </label>
+            <label class="field">
+                <span class="field__label">Código de cotización</span>
+                <input type="text" name="codigo" class="field__control" data-quote-code readonly />
+            </label>
+            <label class="field">
+                <span class="field__label">Producto</span>
+                <div class="field__group field__group--full">
+                    <select name="producto" class="field__control" data-quote-product>
+                        <option value="">Selecciona producto</option>
+                        {% for producto in productos %}
+                            <option value="{{ producto.id }}" data-stock="{{ producto.stock }}" data-price="{{ producto.precio_venta }}">{{ producto.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" class="btn btn-outline" data-open-product-modal>Buscar</button>
+                </div>
+            </label>
+        </div>
+        <div class="quotes-entry__column quotes-entry__column--right">
+            <label class="field">
+                <span class="field__label">Cantidad</span>
+                <input type="number" name="cantidad" class="field__control" min="1" step="1" placeholder="0" data-quote-quantity />
+            </label>
+            <div class="field field--readonly">
+                <span class="field__label">Stock disponible</span>
+                <div class="field__value" data-quote-stock>--</div>
+            </div>
+            <div class="quotes-entry__actions">
+                <button type="button" class="btn btn-secondary" data-quote-action="add">Agregar</button>
+                <button type="button" class="btn btn-outline" data-quote-action="clear">Limpiar</button>
+                <button type="button" class="btn btn-danger" data-quote-action="remove-last">Quitar último</button>
+                <button type="button" class="btn btn-outline" data-open-quotes-modal>Historial</button>
+            </div>
+        </div>
+    </form>
+</section>
+
+<section class="quotes-cart">
+    <div class="quotes-cart__body">
+        <div class="quotes-cart__items">
+            <div class="quotes-cart__header">
+                <h2>Productos cotizados</h2>
+            </div>
+            <div class="quotes-cart__table-wrapper">
+                <table class="quotes-cart__table" data-quote-table>
+                    <thead>
+                        <tr>
+                            <th>Cotización</th>
+                            <th>Cliente</th>
+                            <th>Producto</th>
+                            <th>Precio c/u</th>
+                            <th>Cantidad</th>
+                            <th>Impuesto</th>
+                            <th>Total</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody data-quote-items>
+                        <tr>
+                            <td colspan="8" class="quotes-cart__empty">Agrega un producto para comenzar.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="quotes-cart__summary">
+            <h3>Resumen de cotización</h3>
+            <dl class="quotes-cart__totals">
+                <div class="quotes-cart__row">
+                    <dt>Subtotal</dt>
+                    <dd data-quote-subtotal>RD$ 0.00</dd>
+                </div>
+                <div class="quotes-cart__row">
+                    <dt>Impuestos</dt>
+                    <dd data-quote-tax>RD$ 0.00</dd>
+                </div>
+                <div class="quotes-cart__row quotes-cart__row--highlight">
+                    <dt>Total</dt>
+                    <dd data-quote-total>RD$ 0.00</dd>
+                </div>
+            </dl>
+            <label class="field">
+                <span class="field__label">Observaciones</span>
+                <textarea class="field__control" rows="3" placeholder="Notas adicionales" data-quote-notes></textarea>
+            </label>
+            <div class="quotes-cart__actions">
+                <button type="button" class="btn btn-outline" data-quote-action="clear-all">Cancelar</button>
+                <button type="button" class="btn btn-secondary" data-quote-action="save">Guardar cotización</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="modal" id="quote-client-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="quote-client-modal-title">
+        <div class="modal-header">
+            <h2 id="quote-client-modal-title">Seleccionar cliente</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-client>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="client-search">
+                <input type="text" class="client-search__input" placeholder="Buscar cliente" data-quote-client-search>
+            </div>
+            <ul class="client-list" data-quote-client-list>
+                {% for cliente in clientes %}
+                    <li class="client-list__item" data-client-item data-id="{{ cliente.id }}" data-name="{{ cliente.nombre }}">
+                        <div class="client-list__info">
+                            <span class="client-list__name">{{ cliente.nombre }}</span>
+                            <div class="client-list__meta">
+                                <span class="client-list__label">Código</span>
+                                <span class="client-list__code">{{ cliente.codigo|default:"Sin código" }}</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary" data-quote-select-client>Seleccionar</button>
+                    </li>
+                {% empty %}
+                    <li class="client-list__item">
+                        <span>No hay clientes disponibles.</span>
+                    </li>
+                {% endfor %}
+            </ul>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-close-client>Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="quote-product-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="quote-product-modal-title">
+        <div class="modal-header">
+            <h2 id="quote-product-modal-title">Seleccionar producto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-product>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="client-search">
+                <input type="text" class="client-search__input" placeholder="Buscar producto" data-quote-product-search>
+            </div>
+            <ul class="client-list" data-quote-product-list>
+                {% for producto in productos %}
+                    <li class="client-list__item" data-product-item data-id="{{ producto.id }}" data-name="{{ producto.nombre }}" data-price="{{ producto.precio_venta }}" data-stock="{{ producto.stock }}">
+                        <div class="client-list__info">
+                            <span class="client-list__name">{{ producto.nombre }}</span>
+                            <div class="client-list__meta">
+                                <span class="client-list__label">Stock</span>
+                                <span class="client-list__code">{{ producto.stock }}</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary" data-quote-select-product>Seleccionar</button>
+                    </li>
+                {% empty %}
+                    <li class="client-list__item">
+                        <span>No hay productos disponibles.</span>
+                    </li>
+                {% endfor %}
+            </ul>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-close-product>Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="quotes-history-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="quotes-history-modal-title">
+        <div class="modal-header">
+            <h2 id="quotes-history-modal-title">Historial de cotizaciones</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-quotes>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <p class="quotes-history__empty">Próximamente podrás consultar el historial de cotizaciones.</p>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-close-quotes>Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .quotes-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .quotes-badge span {
+        color: #273c75;
+        font-weight: 700;
+    }
+
+    .btn {
+        border: none;
+        border-radius: 6px;
+        padding: 8px 14px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: none;
+    }
+
+    .btn-secondary {
+        background-color: #273c75;
+        color: #ffffff;
+    }
+
+    .btn-secondary:hover {
+        background-color: #1f2f5c;
+    }
+
+    .btn-outline {
+        border: 1px solid #273c75;
+        background: transparent;
+        color: #273c75;
+    }
+
+    .btn-outline:hover {
+        background: rgba(39, 60, 117, 0.1);
+    }
+
+    .btn-icon {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .btn-icon .icon {
+        font-size: 1rem;
+    }
+
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .field__group {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .field__group--full .field__control {
+        flex: 1;
+    }
+
+    .field__label {
+        font-weight: 600;
+        color: #2f3640;
+    }
+
+    .field__control {
+        border: 1px solid #dcdde1;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 0.95rem;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .field__control:focus {
+        border-color: #0097e6;
+        box-shadow: 0 0 0 2px rgba(0, 151, 230, 0.15);
+    }
+
+    .field--readonly {
+        background-color: #f5f6fa;
+        border-radius: 6px;
+        padding: 8px 12px;
+    }
+
+    .field__value {
+        font-size: 1.4rem;
+        font-weight: 600;
+        color: #273c75;
+    }
+
+    .quotes-entry {
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 24px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    .quotes-entry__form {
+        display: flex;
+        gap: 32px;
+        flex-wrap: wrap;
+    }
+
+    .quotes-entry__column {
+        flex: 1 1 320px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .quotes-entry__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-start;
+    }
+
+    .quotes-cart {
+        margin-top: 32px;
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 24px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    .quotes-cart__body {
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+
+    .quotes-cart__items {
+        flex: 2 1 420px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .quotes-cart__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .quotes-cart__header h2 {
+        margin: 0;
+        font-size: 1.35rem;
+        color: #2f3640;
+    }
+
+    .quotes-cart__table-wrapper {
+        overflow-x: auto;
+    }
+
+    .quotes-cart__table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 720px;
+        font-size: 0.95rem;
+    }
+
+    .quotes-cart__table th,
+    .quotes-cart__table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #ecf0f1;
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .quotes-cart__table thead {
+        background-color: #f5f6fa;
+    }
+
+    .quotes-cart__table tbody tr:hover {
+        background-color: #f1f2f6;
+    }
+
+    .quotes-cart__table td:last-child,
+    .quotes-cart__table th:last-child {
+        text-align: right;
+    }
+
+    .quotes-cart__empty {
+        text-align: center;
+        color: #7f8fa6;
+        font-style: italic;
+    }
+
+    .quotes-cart__summary {
+        flex: 1 1 260px;
+        background-color: #f5f6fa;
+        border-radius: 10px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .quotes-cart__summary h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        color: #2f3640;
+    }
+
+    .quotes-cart__totals {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .quotes-cart__row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 600;
+        color: #2f3640;
+    }
+
+    .quotes-cart__row--highlight {
+        font-size: 1.1rem;
+        color: #0097e6;
+    }
+
+    .quotes-cart__row dt,
+    .quotes-cart__row dd {
+        margin: 0;
+    }
+
+    .quotes-cart__actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+
+    .modal {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.4);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        z-index: 1000;
+    }
+
+    .modal.is-visible {
+        display: flex;
+    }
+
+    .modal-dialog {
+        background-color: #ffffff;
+        border-radius: 10px;
+        max-width: 640px;
+        width: 100%;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        max-height: 90vh;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px;
+        border-bottom: 1px solid #ecf0f1;
+    }
+
+    .modal-close {
+        border: none;
+        background: transparent;
+        font-size: 1.6rem;
+        cursor: pointer;
+        line-height: 1;
+        color: #2f3640;
+    }
+
+    .modal-form {
+        padding: 16px 24px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        overflow-y: auto;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        padding: 16px 24px;
+        border-top: 1px solid #ecf0f1;
+    }
+
+    .client-search {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .client-search__input {
+        width: 100%;
+        border: 1px solid #dcdde1;
+        border-radius: 6px;
+        padding: 10px 14px;
+        font-size: 1rem;
+        outline: none;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .client-search__input:focus {
+        border-color: #0097e6;
+        box-shadow: 0 0 0 2px rgba(0, 151, 230, 0.15);
+    }
+
+    .client-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 360px;
+        overflow-y: auto;
+    }
+
+    .client-list__item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        border: 1px solid #dcdde1;
+        border-radius: 8px;
+        transition: none;
+    }
+
+    .client-list__item:hover {
+        border-color: #0097e6;
+        box-shadow: 0 4px 10px rgba(0, 151, 230, 0.15);
+    }
+
+    .client-list__info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 1;
+    }
+
+    .client-list__meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        font-size: 0.85rem;
+        color: #636e72;
+    }
+
+    .client-list__label {
+        font-weight: 600;
+        color: #2f3640;
+    }
+
+    .client-list__code {
+        font-weight: 600;
+    }
+
+    .quotes-history__empty {
+        text-align: center;
+        color: #7f8fa6;
+        font-style: italic;
+    }
+
+    @media (max-width: 768px) {
+        .quotes-entry__form {
+            flex-direction: column;
+        }
+
+        .quotes-entry__column--right {
+            max-width: none;
+        }
+
+        .quotes-entry__actions {
+            justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .quotes-cart__table {
+            min-width: 100%;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        var quoteForm = document.querySelector('[data-quote-form]');
+        var clientSelect = document.querySelector('[data-quote-client]');
+        var productSelect = document.querySelector('[data-quote-product]');
+        var quantityInput = document.querySelector('[data-quote-quantity]');
+        var quoteCodeInput = document.querySelector('[data-quote-code]');
+        var stockOutput = document.querySelector('[data-quote-stock]');
+        var quoteItemsBody = document.querySelector('[data-quote-items]');
+        var subtotalOutput = document.querySelector('[data-quote-subtotal]');
+        var taxOutput = document.querySelector('[data-quote-tax]');
+        var totalOutput = document.querySelector('[data-quote-total]');
+        var notesInput = document.querySelector('[data-quote-notes]');
+        var actionButtons = document.querySelectorAll('[data-quote-action]');
+        var exportButton = document.querySelector('[data-quote-export]');
+        var sendButton = document.querySelector('[data-quote-send]');
+
+        var clientModal = document.getElementById('quote-client-modal');
+        var productModal = document.getElementById('quote-product-modal');
+        var historyModal = document.getElementById('quotes-history-modal');
+
+        var clientSearchInput = clientModal ? clientModal.querySelector('[data-quote-client-search]') : null;
+        var clientList = clientModal ? clientModal.querySelector('[data-quote-client-list]') : null;
+        var productSearchInput = productModal ? productModal.querySelector('[data-quote-product-search]') : null;
+        var productList = productModal ? productModal.querySelector('[data-quote-product-list]') : null;
+
+        var QUOTE_TAX_RATE = 0.18;
+        var CURRENCY = 'RD$';
+        var cartItems = [];
+        var quoteCode = null;
+
+        function generateQuoteCode() {
+            var now = new Date();
+            return 'COT-' + now.toISOString().replace(/[-:T.Z]/g, '').slice(0, 12);
+        }
+
+        function formatCurrency(value) {
+            var number = Number(value);
+            if (!isFinite(number)) {
+                number = 0;
+            }
+            var formatted = number.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            return CURRENCY + ' ' + formatted;
+        }
+
+        function renderCart() {
+            if (!quoteItemsBody) {
+                return;
+            }
+
+            if (!cartItems.length) {
+                quoteItemsBody.innerHTML = '<tr><td colspan="8" class="quotes-cart__empty">Agrega un producto para comenzar.</td></tr>';
+            } else {
+                var rows = cartItems.map(function (item, index) {
+                    var lineSubtotal = item.price * item.quantity;
+                    var lineTax = lineSubtotal * QUOTE_TAX_RATE;
+                    var lineTotal = lineSubtotal + lineTax;
+                    return [
+                        '<tr>',
+                        '<td>' + (item.code || '-') + '</td>',
+                        '<td>' + item.client + '</td>',
+                        '<td>' + item.product + '</td>',
+                        '<td>' + formatCurrency(item.price) + '</td>',
+                        '<td>' + item.quantity + '</td>',
+                        '<td>' + formatCurrency(lineTax) + '</td>',
+                        '<td>' + formatCurrency(lineTotal) + '</td>',
+                        '<td><button type="button" class="btn btn-outline" data-quote-remove="' + index + '">Quitar</button></td>',
+                        '</tr>'
+                    ].join('');
+                });
+                quoteItemsBody.innerHTML = rows.join('');
+            }
+
+            var subtotal = cartItems.reduce(function (acc, item) {
+                return acc + (item.price * item.quantity);
+            }, 0);
+            var tax = subtotal * QUOTE_TAX_RATE;
+            var total = subtotal + tax;
+
+            if (subtotalOutput) {
+                subtotalOutput.textContent = formatCurrency(subtotal);
+            }
+            if (taxOutput) {
+                taxOutput.textContent = formatCurrency(tax);
+            }
+            if (totalOutput) {
+                totalOutput.textContent = formatCurrency(total);
+            }
+        }
+
+        function resetFormFields() {
+            if (quoteForm) {
+                quoteForm.reset();
+            }
+            if (quoteCodeInput) {
+                quoteCodeInput.value = quoteCode || generateQuoteCode();
+            }
+            if (stockOutput) {
+                stockOutput.textContent = '--';
+            }
+        }
+
+        function handleAddItem() {
+            if (!productSelect || !clientSelect || !quantityInput) {
+                return;
+            }
+
+            var productValue = productSelect.value;
+            var clientValue = clientSelect.value;
+            var quantityValue = parseInt(quantityInput.value, 10);
+
+            if (!clientValue || !productValue) {
+                showToast('Selecciona un cliente y un producto antes de agregar.', 'warning');
+                return;
+            }
+
+            if (!quantityValue || quantityValue <= 0) {
+                showToast('Ingresa una cantidad válida.', 'warning');
+                return;
+            }
+
+            var productOption = productSelect.options[productSelect.selectedIndex];
+            var clientOption = clientSelect.options[clientSelect.selectedIndex];
+            var price = parseFloat(productOption ? productOption.getAttribute('data-price') || '0' : '0');
+
+            if (!price || price <= 0) {
+                showToast('El producto seleccionado no tiene un precio válido.', 'warning');
+                return;
+            }
+
+            cartItems.push({
+                code: quoteCode,
+                client: clientOption ? clientOption.text : '-',
+                product: productOption ? productOption.text : '-',
+                price: price,
+                quantity: quantityValue
+            });
+
+            renderCart();
+            if (quantityInput) {
+                quantityInput.value = '';
+            }
+        }
+
+        function handleClearCart() {
+            cartItems = [];
+            renderCart();
+            resetFormFields();
+            if (notesInput) {
+                notesInput.value = '';
+            }
+        }
+
+        function handleRemoveLast() {
+            cartItems.pop();
+            renderCart();
+        }
+
+        function handleSaveQuote() {
+            if (!cartItems.length) {
+                showToast('Agrega al menos un producto antes de guardar la cotización.', 'warning');
+                return;
+            }
+            showToast('Cotización guardada en memoria local. Pronto podrás persistirla en el sistema.', 'info');
+            handleClearCart();
+        }
+
+        if (quoteItemsBody) {
+            quoteItemsBody.addEventListener('click', function (event) {
+                var removeButton = event.target.closest('[data-quote-remove]');
+                if (!removeButton) {
+                    return;
+                }
+                var index = parseInt(removeButton.dataset.quoteRemove, 10);
+                if (Number.isNaN(index)) {
+                    return;
+                }
+                cartItems.splice(index, 1);
+                renderCart();
+            });
+        }
+
+        if (actionButtons.length) {
+            actionButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var action = button.dataset.quoteAction;
+                    if (action === 'add') {
+                        handleAddItem();
+                    } else if (action === 'clear' || action === 'clear-all') {
+                        handleClearCart();
+                    } else if (action === 'remove-last') {
+                        handleRemoveLast();
+                    } else if (action === 'save') {
+                        handleSaveQuote();
+                    }
+                });
+            });
+        }
+
+        if (exportButton) {
+            exportButton.addEventListener('click', function () {
+                showToast('Exportar cotización aún no está disponible.', 'info');
+            });
+        }
+
+        if (sendButton) {
+            sendButton.addEventListener('click', function () {
+                showToast('Enviar cotización aún no está disponible.', 'info');
+            });
+        }
+
+        quoteCode = generateQuoteCode();
+        if (quoteCodeInput) {
+            quoteCodeInput.value = quoteCode;
+        }
+
+        function updateStock() {
+            if (!productSelect || !stockOutput) {
+                return;
+            }
+            var option = productSelect.options[productSelect.selectedIndex];
+            var stock = option ? option.getAttribute('data-stock') : null;
+            stockOutput.textContent = stock ? stock : '--';
+        }
+
+        if (productSelect) {
+            productSelect.addEventListener('change', updateStock);
+            updateStock();
+        }
+
+        function openModal(modal) {
+            if (!modal) {
+                return;
+            }
+            modal.classList.add('is-visible');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeModal(modal) {
+            if (!modal) {
+                return;
+            }
+            modal.classList.remove('is-visible');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+
+        function filterList(list, queryAttr, query) {
+            if (!list) {
+                return;
+            }
+            var items = list.querySelectorAll('[data-' + queryAttr + ']');
+            var normalized = (query || '').toLowerCase();
+            items.forEach(function (item) {
+                var name = item.dataset.name ? item.dataset.name.toLowerCase() : '';
+                var codeEl = item.querySelector('.client-list__code');
+                var code = codeEl ? codeEl.textContent.toLowerCase() : '';
+                var matches = !normalized || name.includes(normalized) || code.includes(normalized);
+                item.style.display = matches ? '' : 'none';
+            });
+        }
+
+        document.querySelectorAll('[data-open-client-modal]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                openModal(clientModal);
+                if (clientSearchInput) {
+                    clientSearchInput.value = '';
+                    clientSearchInput.focus();
+                }
+                filterList(clientList, 'client-item', '');
+            });
+        });
+
+        document.querySelectorAll('[data-open-product-modal]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                openModal(productModal);
+                if (productSearchInput) {
+                    productSearchInput.value = '';
+                    productSearchInput.focus();
+                }
+                filterList(productList, 'product-item', '');
+            });
+        });
+
+        document.querySelectorAll('[data-open-quotes-modal]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                openModal(historyModal);
+            });
+        });
+
+        document.querySelectorAll('[data-close-client]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                closeModal(clientModal);
+            });
+        });
+
+        document.querySelectorAll('[data-close-product]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                closeModal(productModal);
+            });
+        });
+
+        document.querySelectorAll('[data-close-quotes]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                closeModal(historyModal);
+            });
+        });
+
+        if (clientSearchInput) {
+            clientSearchInput.addEventListener('input', function () {
+                filterList(clientList, 'client-item', clientSearchInput.value);
+            });
+        }
+
+        if (productSearchInput) {
+            productSearchInput.addEventListener('input', function () {
+                filterList(productList, 'product-item', productSearchInput.value);
+            });
+        }
+
+        document.addEventListener('click', function (event) {
+            if (event.target.matches('[data-quote-select-client]')) {
+                var item = event.target.closest('[data-client-item]');
+                if (!item || !clientSelect) {
+                    return;
+                }
+                var clientId = item.dataset.id;
+                var clientName = item.dataset.name;
+                var option = clientSelect.querySelector('option[value="' + clientId + '"]');
+                if (!option) {
+                    option = document.createElement('option');
+                    option.value = clientId;
+                    option.textContent = clientName;
+                    clientSelect.appendChild(option);
+                }
+                clientSelect.value = clientId;
+                closeModal(clientModal);
+            }
+
+            if (event.target.matches('[data-quote-select-product]')) {
+                var productItem = event.target.closest('[data-product-item]');
+                if (!productItem || !productSelect) {
+                    return;
+                }
+                var productId = productItem.dataset.id;
+                var productName = productItem.dataset.name;
+                var productPrice = productItem.dataset.price;
+                var productStock = productItem.dataset.stock;
+
+                var option = productSelect.querySelector('option[value="' + productId + '"]');
+                if (!option) {
+                    option = document.createElement('option');
+                    option.value = productId;
+                    option.textContent = productName || 'Producto';
+                    productSelect.appendChild(option);
+                }
+
+                option.setAttribute('data-price', productPrice || '');
+                option.setAttribute('data-stock', productStock || '');
+
+                productSelect.value = productId;
+                updateStock();
+                closeModal(productModal);
+            }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key !== 'Escape') {
+                return;
+            }
+            if (clientModal && clientModal.classList.contains('is-visible')) {
+                closeModal(clientModal);
+                return;
+            }
+            if (productModal && productModal.classList.contains('is-visible')) {
+                closeModal(productModal);
+                return;
+            }
+            if (historyModal && historyModal.classList.contains('is-visible')) {
+                closeModal(historyModal);
+            }
+        });
+
+        renderCart();
+    });
+</script>
+{% endblock %}

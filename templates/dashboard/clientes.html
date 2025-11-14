@@ -1,0 +1,768 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Clientes{% endblock %}
+{% block page_title %}Clientes{% endblock %}
+{% block content %}
+<section class="clients-section">
+    <div class="clients-header">
+        <p class="clients-description">
+            Administra los clientes del sistema POS. Registra nuevos clientes y consulta su historial rápidamente.
+        </p>
+        <button type="button" class="btn btn-primary" id="open-create-client-modal">Crear cliente</button>
+    </div>
+    
+    <div class="filter-toolbar" data-filter-toolbar>
+        <div class="filter-toolbar__fields">
+            <div class="filter-toolbar__field">
+                <span class="filter-toolbar__label">Buscar</span>
+                <div class="filter-toolbar__control filter-toolbar__control--icon">
+                    <i class="ri-search-line filter-toolbar__icon"></i>
+                    <input type="text" id="clients-search" placeholder="Buscar por nombre, documento, correo...">
+                </div>
+            </div>
+            <div class="filter-toolbar__field">
+                <span class="filter-toolbar__label">Tipo documento</span>
+                <div class="filter-toolbar__control filter-toolbar__control--icon">
+                    <i class="ri-id-card-line filter-toolbar__icon"></i>
+                    <select id="document-type-filter">
+                        <option value="">Todos los tipos</option>
+                        <option value="cedula">Cédula</option>
+                        <option value="rnc">RNC</option>
+                        <option value="pasaporte">Pasaporte</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                    <i class="ri-arrow-down-s-line filter-toolbar__chevron"></i>
+                </div>
+            </div>
+        </div>
+        <div class="filter-toolbar__actions">
+            <button type="button" class="btn btn-outline" id="clear-clients-filters">
+                <i class="ri-refresh-line"></i>
+                Limpiar
+            </button>
+            <button type="button" class="btn btn-secondary" id="apply-clients-filters">
+                <i class="ri-filter-3-line"></i>
+                Filtrar
+            </button>
+        </div>
+    </div>
+    <div class="table-wrapper">
+        <table class="clients-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre completo</th>
+                    <th>Tipo de documento</th>
+                    <th>Documento</th>
+                    <th>Correo</th>
+                    <th>Dirección</th>
+                    <th class="actions-column">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% comment %} Reemplazar por datos reales del contexto (ej. clientes) {% endcomment %}
+                {% for cliente in clientes_page %}
+                    <tr>
+                        <td>{{ cliente.codigo }}</td>
+                        <td>{{ cliente.nombre|default:"-" }}</td>
+                        <td>{{ cliente.get_tipo_documento_display|default:"-" }}</td>
+                        <td>{{ cliente.documento|default:"-" }}</td>
+                        <td>{{ cliente.correo|default:"-" }}</td>
+                        <td>{{ cliente.direccion|default:"-" }}</td>
+                        <td class="actions-column">
+                            <a href="#" class="btn btn-secondary btn-link" aria-disabled="true">Ver perfil</a>
+                            <form method="post" class="inline-form" data-action="edit" data-cliente="{{ cliente.nombre }}">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="edit_modal">
+                                <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
+                                <button type="submit" class="btn btn-secondary">Editar</button>
+                            </form>
+                            <form method="post" class="inline-form delete-form" data-cliente="{{ cliente.nombre }}">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
+                                <button type="submit" class="btn btn-danger">Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" class="empty-state">No hay clientes registrados todavía.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if clientes_page.has_other_pages %}
+        <nav class="pagination" aria-label="Paginación de clientes">
+            <ul class="pagination__list">
+                {% if clientes_page.has_previous %}
+                    <li class="pagination__item">
+                        <a class="pagination__link" href="?page={{ clientes_page.previous_page_number }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}" aria-label="Página anterior">&laquo;</a>
+                    </li>
+                {% else %}
+                    <li class="pagination__item pagination__item--disabled"><span class="pagination__link" aria-hidden="true">&laquo;</span></li>
+                {% endif %}
+
+                {% for num in clientes_page.paginator.page_range %}
+                    {% if num == clientes_page.number %}
+                        <li class="pagination__item pagination__item--active"><span class="pagination__link">{{ num }}</span></li>
+                    {% else %}
+                        <li class="pagination__item">
+                            <a class="pagination__link" href="?page={{ num }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if clientes_page.has_next %}
+                    <li class="pagination__item">
+                        <a class="pagination__link" href="?page={{ clientes_page.next_page_number }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}" aria-label="Página siguiente">&raquo;</a>
+                    </li>
+                {% else %}
+                    <li class="pagination__item pagination__item--disabled"><span class="pagination__link" aria-hidden="true">&raquo;</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+</section>
+
+<div
+    class="modal"
+    id="create-client-modal"
+    aria-hidden="true"
+    data-force-open="{{ force_modal_open|yesno:'true,false' }}"
+    data-mode="{{ modal_mode }}"
+    data-next-codigo="{{ next_codigo }}"
+>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="create-client-title">
+        <div class="modal-header">
+            <h2 id="create-client-title">{% if modal_mode == 'edit' %}Editar cliente{% else %}Crear cliente{% endif %}</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <form method="post" class="modal-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" id="modal-action-input" value="{% if modal_mode == 'edit' %}update{% else %}create{% endif %}">
+            <input type="hidden" name="cliente_id" id="modal-cliente-id-input" value="{{ editing_cliente_id|default:'' }}">
+            {% if form.non_field_errors %}
+                <div class="form-errors">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            <div class="form-grid">
+                <label class="form-field">
+                    <span class="form-label">ID</span>
+                    <input type="text" id="modal-codigo-input" value="{{ modal_codigo }}" readonly>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Nombre completo</span>
+                    {{ form.nombre }}
+                    {% if form.nombre.errors %}
+                        <span class="field-error">{{ form.nombre.errors|join:", " }}</span>
+                    {% endif %}
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Tipo de documento</span>
+                    {{ form.tipo_documento }}
+                    {% if form.tipo_documento.errors %}
+                        <span class="field-error">{{ form.tipo_documento.errors|join:", " }}</span>
+                    {% endif %}
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Documento</span>
+                    {{ form.documento }}
+                    {% if form.documento.errors %}
+                        <span class="field-error">{{ form.documento.errors|join:", " }}</span>
+                    {% endif %}
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Correo electrónico</span>
+                    {{ form.correo }}
+                    {% if form.correo.errors %}
+                        <span class="field-error">{{ form.correo.errors|join:", " }}</span>
+                    {% endif %}
+                </label>
+                <label class="form-field form-field--full">
+                    <span class="form-label">Dirección</span>
+                    {{ form.direccion }}
+                    {% if form.direccion.errors %}
+                        <span class="field-error">{{ form.direccion.errors|join:", " }}</span>
+                    {% endif %}
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-close-modal>Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="modal-submit-button">
+                    {% if modal_mode == 'edit' %}Actualizar cliente{% else %}Guardar cliente{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="confirm-dialog" id="confirm-delete-dialog" aria-hidden="true" role="alertdialog" aria-modal="true" aria-labelledby="confirm-delete-title">
+    <div class="confirm-dialog__panel">
+        <h3 id="confirm-delete-title">Eliminar cliente</h3>
+        <p id="confirm-delete-message">¿Seguro que deseas eliminar a este cliente?</p>
+        <div class="confirm-dialog__actions">
+            <button type="button" class="btn btn-secondary" data-confirm-cancel>Cancelar</button>
+            <button type="button" class="btn btn-danger" data-confirm-accept>Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-link {
+        display: inline-block;
+        text-decoration: none;
+        margin-right: 6px;
+        cursor: not-allowed;
+    }
+
+    .inline-form {
+        display: inline;
+        margin: 0 6px 0 0;
+    }
+
+    .inline-form:last-child {
+        margin-right: 0;
+    }
+
+    .inline-form button {
+        margin: 0;
+    }
+
+    .inline-form.delete-form button {
+        margin-left: 0;
+    }
+
+    .confirm-dialog {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.45);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        z-index: 1050;
+    }
+
+    .confirm-dialog.is-visible {
+        display: flex;
+    }
+
+    .confirm-dialog__panel {
+        background-color: var(--color-surface-card);
+        border-radius: 10px;
+        max-width: 420px;
+        width: 100%;
+        padding: 24px;
+        box-shadow: 0 18px 34px rgba(var(--color-ink-rgb), 0.18);
+    }
+
+    .confirm-dialog__panel h3 {
+        margin-top: 0;
+        margin-bottom: 12px;
+        font-size: 1.25rem;
+        color: var(--color-text-main);
+    }
+
+    .confirm-dialog__panel p {
+        margin: 0 0 18px 0;
+        color: var(--color-text-muted);
+    }
+
+    .confirm-dialog__actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .clients-section {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .clients-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .clients-description {
+        margin: 0;
+        max-width: 520px;
+        color: var(--color-text-muted);
+    }
+
+    .btn {
+        border: none;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: none;
+    }
+
+    .btn-primary {
+        background-color: var(--color-accent-500);
+        color: var(--color-sidebar-text);
+        box-shadow: 0 6px 18px rgba(var(--color-accent-500-rgb), 0.25);
+    }
+
+    .btn-primary:hover {
+        background-color: var(--color-accent-600);
+        box-shadow: 0 10px 22px rgba(var(--color-accent-500-rgb), 0.32);
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background-color: var(--color-surface-muted);
+        color: var(--color-text-main);
+        margin-right: 6px;
+    }
+
+    .btn-secondary:hover {
+        background-color: var(--color-surface-contrast);
+    }
+
+    .btn-danger {
+        background-color: var(--color-danger);
+        border-color: var(--color-danger);
+        color: var(--color-sidebar-text);
+        box-shadow: 0 6px 16px rgba(var(--color-danger-rgb), 0.24);
+    }
+
+    .btn-danger:hover {
+        background-color: var(--color-danger-strong);
+        border-color: var(--color-danger-strong);
+        box-shadow: 0 10px 24px rgba(var(--color-danger-rgb), 0.28);
+        transform: translateY(-1px);
+    }
+
+    .table-wrapper {
+        overflow-x: auto;
+        border-radius: 12px;
+        background: var(--color-surface-card);
+        box-shadow: 0 10px 26px rgba(var(--color-ink-rgb), 0.08);
+    }
+
+    .clients-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .clients-table thead {
+        background: var(--color-accent-deep);
+        color: var(--color-sidebar-text);
+    }
+
+    .clients-table th,
+    .clients-table td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid var(--color-border-divider);
+        font-size: 0.95rem;
+    }
+
+    .clients-table tbody tr:nth-child(even) {
+        background: var(--color-surface-contrast);
+    }
+
+    .clients-table tbody tr:hover {
+        background: rgba(var(--color-accent-500-rgb), 0.08);
+    }
+
+    .actions-column {
+        white-space: nowrap;
+        text-align: right;
+    }
+
+    .empty-state {
+        text-align: center;
+        color: var(--color-text-muted);
+        padding: 24px;
+    }
+
+    .form-errors {
+        background-color: var(--color-danger-bg);
+        color: var(--color-danger-text);
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+        border: 1px solid rgba(var(--color-danger-rgb), 0.25);
+    }
+
+    .field-error {
+        color: var(--color-danger);
+        font-size: 0.85rem;
+    }
+
+    .modal {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.4);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        z-index: 1000;
+    }
+
+    .modal.is-visible {
+        display: flex;
+    }
+
+    .modal-dialog {
+        background: var(--color-surface-card);
+        border-radius: 14px;
+        width: 94vw;
+        max-width: 680px;
+        max-height: 90vh;
+        overflow: hidden;
+        box-shadow: 0 24px 48px rgba(var(--color-ink-rgb), 0.16);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--color-border-divider);
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.4rem;
+        color: var(--color-text-main);
+    }
+
+    .modal-close {
+        border: none;
+        background: none;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        color: var(--color-text-muted);
+    }
+
+    .modal-form {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        background: var(--color-surface-card);
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+    }
+
+    .form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-field--full {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: var(--color-text-main);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .form-field input[type="text"],
+    .form-field input[type="email"],
+    .form-field select,
+    .form-field textarea {
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        background: var(--color-surface-card);
+        transition: none;
+    }
+
+    .form-field input:focus,
+    .form-field select:focus,
+    .form-field textarea:focus {
+        border-color: var(--color-accent-500);
+        box-shadow: 0 0 0 3px rgba(var(--color-accent-500-rgb), 0.15);
+        outline: none;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    @media (max-width: 768px) {
+        .clients-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .actions-column {
+            text-align: left;
+        }
+    }
+
+    @media (max-width: 540px) {
+        .modal {
+            padding: 12px;
+        }
+
+        .modal-dialog {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-actions {
+            flex-direction: column-reverse;
+            align-items: stretch;
+        }
+    }
+</style>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        var openButton = document.getElementById("open-create-client-modal");
+        var modal = document.getElementById("create-client-modal");
+        if (!openButton || !modal) {
+            return;
+        }
+
+        var closeElements = modal.querySelectorAll("[data-close-modal]");
+        var form = modal.querySelector(".modal-form");
+        var actionInput = document.getElementById("modal-action-input");
+        var clienteIdInput = document.getElementById("modal-cliente-id-input");
+        var modalTitle = document.getElementById("create-client-title");
+        var submitButton = document.getElementById("modal-submit-button");
+        var codigoInput = document.getElementById("modal-codigo-input");
+
+        function openModal() {
+            modal.classList.add("is-visible");
+            modal.setAttribute("aria-hidden", "false");
+            var firstInput = modal.querySelector("[data-initial-focus='true']") || modal.querySelector("input[name='nombre']");
+            if (firstInput) {
+                firstInput.focus();
+            }
+            updateDocumentField();
+        }
+
+        function closeModal() {
+            modal.classList.remove("is-visible");
+            modal.setAttribute("aria-hidden", "true");
+            openButton.focus();
+        }
+
+        openButton.addEventListener("click", function () {
+            if (form) {
+                form.reset();
+            }
+            if (actionInput) {
+                actionInput.value = "create";
+            }
+            if (clienteIdInput) {
+                clienteIdInput.value = "";
+            }
+            if (modalTitle) {
+                modalTitle.textContent = "Crear cliente";
+            }
+            if (submitButton) {
+                submitButton.textContent = "Guardar cliente";
+            }
+            if (codigoInput) {
+                codigoInput.value = modal.dataset.nextCodigo || codigoInput.value;
+            }
+            openModal();
+        });
+
+        closeElements.forEach(function (element) {
+            element.addEventListener("click", closeModal);
+        });
+
+        // Evitar que el modal se cierre al hacer clic fuera
+        modal.addEventListener("click", function (event) {
+            var dialog = modal.querySelector(".modal-dialog");
+            if (!dialog.contains(event.target) && !event.target.closest("[data-close-modal]")) {
+                event.stopPropagation();
+            }
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape" && modal.classList.contains("is-visible")) {
+                closeModal();
+            }
+        });
+
+        var documentTypeSelect = modal.querySelector("select[name='tipo_documento']");
+        var documentInput = modal.querySelector("input[name='documento']");
+
+        function updateDocumentField() {
+            if (!documentTypeSelect || !documentInput) {
+                return;
+            }
+
+            var placeholders = {
+                "cedula": "000-0000000-0",
+                "pasaporte": "A0000000",
+                "rnc": "1-01-12345-6",
+                "otro": "Ingrese el documento"
+            };
+
+            var selected = documentTypeSelect.value;
+            documentInput.placeholder = placeholders[selected] || "Ingrese el documento";
+            documentInput.disabled = selected === "";
+            if (selected === "") {
+                documentInput.value = "";
+            }
+        }
+
+        if (documentTypeSelect) {
+            documentTypeSelect.addEventListener("change", updateDocumentField);
+            updateDocumentField();
+        }
+
+        if (modal.dataset.forceOpen === "true") {
+            openModal();
+        }
+
+        var confirmDialog = document.getElementById("confirm-delete-dialog");
+        var confirmMessage = document.getElementById("confirm-delete-message");
+        var confirmAccept = confirmDialog ? confirmDialog.querySelector("[data-confirm-accept]") : null;
+        var confirmCancel = confirmDialog ? confirmDialog.querySelector("[data-confirm-cancel]") : null;
+        var formToSubmit = null;
+
+        function openConfirmDialog(message, form) {
+            formToSubmit = form;
+            if (confirmMessage) {
+                confirmMessage.textContent = message;
+            }
+            if (confirmDialog) {
+                confirmDialog.classList.add("is-visible");
+                confirmDialog.setAttribute("aria-hidden", "false");
+            }
+            if (confirmAccept) {
+                confirmAccept.focus();
+            }
+        }
+
+        function closeConfirmDialog() {
+            if (confirmDialog) {
+                confirmDialog.classList.remove("is-visible");
+                confirmDialog.setAttribute("aria-hidden", "true");
+            }
+            formToSubmit = null;
+        }
+
+        document.querySelectorAll(".delete-form").forEach(function (formElement) {
+            formElement.addEventListener("submit", function (event) {
+                event.preventDefault();
+                var nombre = formElement.dataset.cliente || "este cliente";
+                var mensaje = "¿Seguro que deseas eliminar a " + nombre + "? Esta acción no se puede deshacer.";
+                openConfirmDialog(mensaje, formElement);
+            });
+        });
+
+        if (confirmCancel) {
+            confirmCancel.addEventListener("click", function () {
+                closeConfirmDialog();
+            });
+        }
+
+        if (confirmAccept) {
+            confirmAccept.addEventListener("click", function () {
+                if (formToSubmit) {
+                    formToSubmit.submit();
+                }
+                closeConfirmDialog();
+            });
+        }
+
+        if (confirmDialog) {
+            confirmDialog.addEventListener("click", function (event) {
+                if (event.target === confirmDialog) {
+                    closeConfirmDialog();
+                }
+            });
+        }
+
+        document.querySelectorAll("form[data-action='edit']").forEach(function (formElement) {
+            formElement.addEventListener("submit", function (event) {
+                var nombre = formElement.dataset.cliente || "este cliente";
+                var mensaje = "Editarás los datos de " + nombre + ". Se abrirá el formulario con la información actual.";
+                if (!window.confirm(mensaje)) {
+                    event.preventDefault();
+                }
+            });
+        });
+
+        // Funcionalidad de filtros para clientes
+        var searchInput = document.getElementById('clients-search');
+        var documentTypeFilter = document.getElementById('document-type-filter');
+        var applyFiltersBtn = document.getElementById('apply-clients-filters');
+        var clearFiltersBtn = document.getElementById('clear-clients-filters');
+
+        function applyFilters() {
+            var params = new URLSearchParams();
+            
+            if (searchInput && searchInput.value.trim()) {
+                params.set('search', searchInput.value.trim());
+            }
+            if (documentTypeFilter && documentTypeFilter.value) {
+                params.set('tipo_documento', documentTypeFilter.value);
+            }
+            
+            window.location.href = '?' + params.toString();
+        }
+
+        function clearFilters() {
+            if (searchInput) searchInput.value = '';
+            if (documentTypeFilter) documentTypeFilter.value = '';
+            window.location.href = window.location.pathname;
+        }
+
+        if (applyFiltersBtn) {
+            applyFiltersBtn.addEventListener('click', applyFilters);
+        }
+
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', clearFilters);
+        }
+
+        // Aplicar filtros al presionar Enter en el campo de búsqueda
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    applyFilters();
+                }
+            });
+        }
+
+        // Cargar valores de filtros desde URL
+        var urlParams = new URLSearchParams(window.location.search);
+        if (searchInput && urlParams.get('search')) {
+            searchInput.value = urlParams.get('search');
+        }
+        if (documentTypeFilter && urlParams.get('tipo_documento')) {
+            documentTypeFilter.value = urlParams.get('tipo_documento');
+        }
+    });
+</script>
+{% endblock %}

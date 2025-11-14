@@ -1,0 +1,2177 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+{% block title %}Configuración{% endblock %}
+{% block page_title %}Configuración{% endblock %}
+{% block content %}
+<section class="settings-grid">
+    <header class="settings-grid__header">
+        <h2>Accesos directos</h2>
+        <p>Gestiona rápidamente las configuraciones clave del sistema POS.</p>
+    </header>
+    <div class="settings-grid__content">
+        <div class="settings-grid__main">
+            <div class="settings-grid__items">
+                <button type="button" class="settings-tile" data-open-modal="general-settings">
+                    <span class="settings-tile__icon" aria-hidden="true">⚙️</span>
+                    <span class="settings-tile__label">Configuración general</span>
+                </button>
+                <button type="button" class="settings-tile" data-open-fiscal-xml-card>
+                    <span class="settings-tile__icon" aria-hidden="true">📁</span>
+                    <span class="settings-tile__label">XML DGII adicionales</span>
+                </button>
+                <button type="button" class="settings-tile" data-settings-action="comprobante-fiscal">
+                    <span class="settings-tile__icon" aria-hidden="true">🧾</span>
+                    <span class="settings-tile__label">Comprobante fiscal</span>
+                </button>
+                <button type="button" class="settings-tile" data-settings-action="generar-codigo-barra">
+                    <span class="settings-tile__icon" aria-hidden="true">🏷️</span>
+                    <span class="settings-tile__label">Generar código de barra</span>
+                </button>
+                <button type="button" class="settings-tile" data-settings-action="baja-productos">
+                    <span class="settings-tile__icon" aria-hidden="true">🚫</span>
+                    <span class="settings-tile__label">Baja de productos</span>
+                </button>
+                <button type="button" class="settings-tile" data-settings-action="configurar-stock-minimo">
+                    <span class="settings-tile__icon" aria-hidden="true">📉</span>
+                    <span class="settings-tile__label">Configurar stock mínimo</span>
+                </button>
+                <button type="button" class="settings-tile" data-settings-action="editar-factura">
+                    <span class="settings-tile__icon" aria-hidden="true">🧾</span>
+                    <span class="settings-tile__label">Editar factura</span>
+                </button>
+                <button type="button" class="settings-tile" data-settings-action="eliminar-registro-db">
+                    <span class="settings-tile__icon" aria-hidden="true">🗑️</span>
+                    <span class="settings-tile__label">Eliminar registro DB</span>
+                </button>
+                <button type="button" class="settings-tile" data-settings-action="impresora">
+                    <span class="settings-tile__icon" aria-hidden="true">🖨️</span>
+                    <span class="settings-tile__label">Impresora</span>
+                </button>
+                <button type="button" class="settings-tile" data-open-resource="tax">
+                    <span class="settings-tile__icon" aria-hidden="true">💲</span>
+                    <span class="settings-tile__label">Impuestos</span>
+                </button>
+                <button type="button" class="settings-tile" data-settings-action="importar-producto">
+                    <span class="settings-tile__icon" aria-hidden="true">📥</span>
+                    <span class="settings-tile__label">Importar producto</span>
+                </button>
+                <button type="button" class="settings-tile" data-settings-action="descargar-plantilla">
+                    <span class="settings-tile__icon" aria-hidden="true">⬇️</span>
+                    <span class="settings-tile__label">Descargar plantilla</span>
+                </button>
+                <button type="button" class="settings-tile" data-settings-action="restaurar-bd">
+                    <span class="settings-tile__icon" aria-hidden="true">♻️</span>
+                    <span class="settings-tile__label">Restaurar BD</span>
+                </button>
+                <button type="button" class="settings-tile" data-settings-action="copia-seguridad-db">
+                    <span class="settings-tile__icon" aria-hidden="true">💾</span>
+                    <span class="settings-tile__label">Copia de seguridad DB</span>
+                </button>
+                <button type="button" class="settings-tile" data-open-resource="category">
+                    <span class="settings-tile__icon" aria-hidden="true">📦</span>
+                    <span class="settings-tile__label">Categoría</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+<div class="modal" id="general-settings-modal" aria-hidden="true"{% if force_open_general_settings %} data-force-open{% endif %}>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="general-settings-title">
+        <div class="modal-header">
+            <h2 id="general-settings-title">Configuración general</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-general-settings>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="general-accordion" data-general-accordion>
+                <div class="general-accordion__item">
+                    {% with panel_open=site_logo_panel_open %}
+                    <button type="button" class="general-accordion__trigger" aria-expanded="{{ panel_open|yesno:'true,false' }}">
+                        <span class="general-accordion__label">Pantalla</span>
+                        <span class="general-accordion__icon" aria-hidden="true">▸</span>
+                    </button>
+                    <div class="general-accordion__panel"{% if not panel_open %} hidden{% endif %}>
+                        <form method="post" enctype="multipart/form-data" class="site-logo-form" data-site-logo-form data-initial-logo="{% if site_configuration.logo %}{{ site_configuration.logo.url }}{% endif %}" data-has-initial-logo="{{ site_configuration.logo|yesno:'true,false' }}">
+                            {% csrf_token %}
+                            <input type="hidden" name="resource" value="site_config">
+                            <input type="hidden" name="action" value="update">
+                            <div class="site-logo-form__grid">
+                                <div class="site-logo-form__preview" data-site-logo-preview-area>
+                                    <img src="{{ site_logo_url }}" alt="Logo actual" class="site-logo-form__image" data-site-logo-preview{% if not site_logo_url %} hidden{% endif %}>
+                                    <div class="site-logo-form__placeholder" data-site-logo-placeholder{% if site_logo_url %} hidden{% endif %}>No hay logo configurado.</div>
+                                    <div class="site-logo-form__remove-badge" data-site-logo-remove-badge hidden>El logo se eliminará al guardar.</div>
+                                </div>
+                                <div class="site-logo-form__fields">
+                                    <div class="site-logo-form__field">
+                                        <label class="site-logo-form__label" for="id_logo">Logo del proyecto</label>
+                                        {{ site_logo_form.logo }}
+                                        <p class="site-logo-form__hint">Formatos permitidos: PNG, JPG, SVG, WEBP o GIF. Tamaño máximo 2&nbsp;MB.</p>
+                                        {% if site_logo_form.logo.errors %}
+                                            <div class="field-error">{{ site_logo_form.logo.errors|join:', ' }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <label class="site-logo-form__remove">
+                                        {{ site_logo_form.remove_logo }}
+                                        <span>Eliminar logo actual</span>
+                                    </label>
+                                    {% if site_logo_form.non_field_errors %}
+                                        <div class="form-errors">{{ site_logo_form.non_field_errors|join:', ' }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="site-logo-form__actions">
+                                <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                                <button type="reset" class="btn btn-ghost" data-site-logo-reset>Limpiar selección</button>
+                            </div>
+                        </form>
+                    </div>
+                    {% endwith %}
+                </div>
+                <div class="general-accordion__item">
+                    <button type="button" class="general-accordion__trigger" aria-expanded="false">
+                        <span class="general-accordion__label">Sección 2</span>
+                        <span class="general-accordion__icon" aria-hidden="true">▸</span>
+                    </button>
+                    <div class="general-accordion__panel" hidden>
+                        <p class="general-accordion__placeholder">Contenido pendiente.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-close-general-settings>Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="category-modal" aria-hidden="true"{% if force_open_category %} data-force-open{% endif %}>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
+        <div class="modal-header">
+            <h2 id="category-modal-title">Categorías</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-category-modal>&times;</button>
+        </div>
+        <div class="modal-flex category-modal">
+            <div class="category-modal__toolbar">
+                <label class="category-modal__search">
+                    <span class="category-modal__search-icon" aria-hidden="true">🔎</span>
+                    <input type="search" placeholder="Buscar categoría" data-category-search autocomplete="off">
+                </label>
+                <button type="button" class="btn btn-primary category-modal__register" data-category-register>
+                    <span class="category-modal__register-icon" aria-hidden="true">＋</span>
+                    <span>Registrar</span>
+                </button>
+            </div>
+            <div class="category-modal__table-wrapper">
+                <table class="category-modal__table">
+                    <thead>
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">Categoría</th>
+                        </tr>
+                    </thead>
+                    <tbody data-category-table>
+                        {% if categorias %}
+                            {% for categoria in categorias %}
+                                <tr data-category-row data-id="{{ categoria.id }}" data-name="{{ categoria.nombre|lower }}">
+                                    <td>{{ categoria.id }}</td>
+                                    <td>{{ categoria.nombre }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+                <p class="category-modal__empty" data-category-empty {% if categorias %}hidden{% endif %}>Aún no hay categorías registradas.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="category-register-modal" aria-hidden="true"{% if force_open_category_register %} data-force-open{% endif %}>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="category-register-title">
+        <div class="modal-header">
+            <h2 id="category-register-title">Registrar categoría</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-category-register>&times;</button>
+        </div>
+        <form method="post" class="modal-form category-register__form" data-category-register-form>
+            {% csrf_token %}
+            <input type="hidden" name="resource" value="categoria">
+            <input type="hidden" name="action" value="create">
+            {% if request.GET.open == "categories" %}
+                <input type="hidden" name="open" value="categories">
+            {% endif %}
+            <div class="modal-form__grid category-register__grid">
+                <div class="modal-field">
+                    <label class="modal-field__label" for="category-register-code">Código</label>
+                    <input id="category-register-code" name="codigo" type="text" value="{{ next_categoria_codigo }}" readonly>
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field__label" for="category-register-name">Nombre</label>
+                    {{ categoria_form.nombre }}
+                    {% if categoria_form.nombre.errors %}
+                        <div class="field-error">{{ categoria_form.nombre.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" data-close-category-register>Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="tax-modal" aria-hidden="true"{% if force_open_tax %} data-force-open{% endif %}>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tax-modal-title">
+        <div class="modal-header">
+            <h2 id="tax-modal-title">Impuestos</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-tax-modal>&times;</button>
+        </div>
+        <div class="modal-flex tax-modal">
+            <div class="tax-modal__toolbar">
+                <label class="tax-modal__search">
+                    <span class="tax-modal__search-icon" aria-hidden="true">🔍</span>
+                    <input type="search" placeholder="Buscar impuesto" data-tax-search autocomplete="off">
+                </label>
+                <button type="button" class="btn btn-primary tax-modal__register" data-tax-register>
+                    <span class="tax-modal__register-icon" aria-hidden="true">＋</span>
+                    <span>Registrar</span>
+                </button>
+            </div>
+            <div class="tax-modal__table-wrapper">
+                <table class="tax-modal__table">
+                    <thead>
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">Impuesto</th>
+                            <th scope="col">Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody data-tax-table>
+                        {% if impuestos %}
+                            {% for impuesto in impuestos %}
+                                <tr data-tax-row data-id="{{ impuesto.id }}" data-name="{{ impuesto.nombre|lower }}">
+                                    <td>{{ impuesto.id }}</td>
+                                    <td>{{ impuesto.nombre }}</td>
+                                    <td>{{ impuesto.porcentaje }}%</td>
+                                </tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+                <p class="tax-modal__empty" data-tax-empty {% if impuestos %}hidden{% endif %}>Aún no hay impuestos registrados.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="tax-register-modal" aria-hidden="true"{% if force_open_tax_register %} data-force-open{% endif %}>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tax-register-title">
+        <div class="modal-header">
+            <h2 id="tax-register-title">Registrar impuesto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-tax-register>&times;</button>
+        </div>
+        <form method="post" class="modal-form tax-register__form" data-tax-register-form>
+            {% csrf_token %}
+            <input type="hidden" name="resource" value="impuesto">
+            <input type="hidden" name="action" value="create">
+            {% if request.GET.open == "taxes" %}
+                <input type="hidden" name="open" value="taxes">
+            {% endif %}
+            <div class="modal-form__grid tax-register__grid">
+                <div class="modal-field">
+                    <label class="modal-field__label" for="tax-register-code">Código</label>
+                    <input id="tax-register-code" name="codigo" type="text" value="{{ next_impuesto_codigo }}" readonly>
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field__label" for="tax-register-name">Nombre</label>
+                    {{ impuesto_form.nombre }}
+                    {% if impuesto_form.nombre.errors %}
+                        <div class="field-error">{{ impuesto_form.nombre.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field__label" for="tax-register-rate">Porcentaje (%)</label>
+                    {{ impuesto_form.porcentaje }}
+                    {% if impuesto_form.porcentaje.errors %}
+                        <div class="field-error">{{ impuesto_form.porcentaje.errors|join:", " }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" data-close-tax-register>Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+    <div class="fiscal-xml-overlay" data-fiscal-xml-overlay hidden></div>
+
+<div class="modal" id="fiscal-xml-modal" aria-hidden="true" data-fiscal-xml-panel>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="fiscal-xml-title">
+        <div class="modal-header">
+            <h2 id="fiscal-xml-title">XML DGII adicionales</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-fiscal-xml-modal>&times;</button>
+        </div>
+        <div class="modal-flex">
+            <div class="fiscal-xml-card" data-fiscal-xml-card>
+                <p class="modal-description">Sube y consulta los XML suministrados por la DGII para complementar la emisión de comprobantes fiscales.</p>
+                <form class="fiscal-xml-card__form" enctype="multipart/form-data" data-fiscal-xml-form>
+                    {% csrf_token %}
+                    <div class="fiscal-xml-card__form-grid">
+                        <label class="fiscal-xml-card__field">
+                            <span class="fiscal-xml-card__label">Nombre</span>
+                            {{ fiscal_xml_form.nombre }}
+                            {% if fiscal_xml_form.nombre.errors %}
+                                <span class="field-error">{{ fiscal_xml_form.nombre.errors|join:", " }}</span>
+                            {% endif %}
+                        </label>
+                        <label class="fiscal-xml-card__field">
+                            <span class="fiscal-xml-card__label">Archivo XML</span>
+                            {{ fiscal_xml_form.archivo }}
+                            {% if fiscal_xml_form.archivo.errors %}
+                                <span class="field-error">{{ fiscal_xml_form.archivo.errors|join:", " }}</span>
+                            {% endif %}
+                        </label>
+                    </div>
+                    <div class="fiscal-xml-card__actions">
+                        <button type="submit" class="btn btn-primary" data-fiscal-xml-submit>Subir XML</button>
+                    </div>
+                </form>
+
+                <div class="fiscal-xml-card__list">
+                    <ul class="fiscal-xml-list" data-fiscal-xml-list>
+                        {% if fiscal_xml_templates %}
+                            {% for xml in fiscal_xml_templates %}
+                                <li class="fiscal-xml-item" data-fiscal-xml-item data-template-id="{{ xml.id }}">
+                                    <div class="fiscal-xml-item__main">
+                                        <div>
+                                            <strong class="fiscal-xml-item__name">{{ xml.nombre }}</strong>
+                                            <p class="fiscal-xml-item__meta">Registrado {{ xml.created_at|date:"d/m/Y H:i" }}</p>
+                                            {% if xml.archivo %}
+                                                <a href="{{ xml.archivo.url }}" target="_blank" rel="noopener" class="fiscal-xml-item__link">Descargar</a>
+                                            {% endif %}
+                                        </div>
+                                        <div class="fiscal-xml-item__status">
+                                            <span class="connection-badge connection-badge--{{ xml.estado_conexion }}" data-fiscal-xml-badge>{{ xml.get_estado_conexion_display }}</span>
+                                            <button type="button" class="btn btn-secondary fiscal-xml-item__check" data-fiscal-xml-check>Detectar conexión</button>
+                                        </div>
+                                    </div>
+                                    <p class="fiscal-xml-item__message" data-fiscal-xml-message>
+                                        {% if xml.mensaje %}
+                                            {{ xml.mensaje }}
+                                        {% else %}
+                                            Último intento: {% if xml.ultimo_intento %}{{ xml.ultimo_intento|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+                                        {% endif %}
+                                    </p>
+                                </li>
+                            {% endfor %}
+                        {% else %}
+                            <li class="fiscal-xml-empty" data-fiscal-xml-empty>Aún no se han registrado XML adicionales.</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="fiscal-voucher-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="fiscal-voucher-title">
+        <div class="modal-header">
+            <h2 id="fiscal-voucher-title">Comprobante fiscal</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-fiscal-modal>&times;</button>
+        </div>
+        <div class="modal-flex" data-fiscal-modal-body>
+            <form method="post" action="{% url 'dashboard:fiscal_voucher_config_api' %}" class="modal-form" data-fiscal-config-form>
+                {% csrf_token %}
+                {{ fiscal_config_form.media }}
+
+                <p class="modal-description">Configura aquí la emisión de comprobantes fiscales electrónicos y asegúrate de registrar los XML adicionales proporcionados por la DGII en la tarjeta correspondiente.</p>
+
+                <fieldset class="modal-fieldset">
+                    <legend>Datos del contribuyente</legend>
+                    <div class="modal-form__grid">
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_nombre_contribuyente">Contribuyente</label>
+                            {{ fiscal_config_form.nombre_contribuyente }}
+                            {% if fiscal_config_form.nombre_contribuyente.errors %}
+                                <div class="field-error">{{ fiscal_config_form.nombre_contribuyente.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_rnc">RNC</label>
+                            {{ fiscal_config_form.rnc }}
+                            {% if fiscal_config_form.rnc.errors %}
+                                <div class="field-error">{{ fiscal_config_form.rnc.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_correo_contacto">Correo contacto</label>
+                            {{ fiscal_config_form.correo_contacto }}
+                            {% if fiscal_config_form.correo_contacto.errors %}
+                                <div class="field-error">{{ fiscal_config_form.correo_contacto.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_telefono_contacto">Teléfono contacto</label>
+                            {{ fiscal_config_form.telefono_contacto }}
+                            {% if fiscal_config_form.telefono_contacto.errors %}
+                                <div class="field-error">{{ fiscal_config_form.telefono_contacto.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="modal-fieldset">
+                    <legend>Parámetros de emisión</legend>
+                    <div class="modal-form__grid">
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_tipo_por_defecto">Tipo por defecto</label>
+                            {{ fiscal_config_form.tipo_por_defecto }}
+                            {% if fiscal_config_form.tipo_por_defecto.errors %}
+                                <div class="field-error">{{ fiscal_config_form.tipo_por_defecto.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_serie_por_defecto">Serie por defecto</label>
+                            {{ fiscal_config_form.serie_por_defecto }}
+                            {% if fiscal_config_form.serie_por_defecto.errors %}
+                                <div class="field-error">{{ fiscal_config_form.serie_por_defecto.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_secuencia_siguiente">Secuencia siguiente</label>
+                            {{ fiscal_config_form.secuencia_siguiente }}
+                            {% if fiscal_config_form.secuencia_siguiente.errors %}
+                                <div class="field-error">{{ fiscal_config_form.secuencia_siguiente.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_dias_vencimiento">Días vencimiento</label>
+                            {{ fiscal_config_form.dias_vencimiento }}
+                            {% if fiscal_config_form.dias_vencimiento.errors %}
+                                <div class="field-error">{{ fiscal_config_form.dias_vencimiento.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="modal-form__grid modal-form__grid--split">
+                        <label class="toggle-field">
+                            {{ fiscal_config_form.emitir_automatico }}
+                            <span class="toggle-field__label">Emitir automáticamente</span>
+                        </label>
+                        <label class="toggle-field">
+                            {{ fiscal_config_form.modo_pruebas }}
+                            <span class="toggle-field__label">Modo pruebas</span>
+                        </label>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_api_environment">Entorno</label>
+                            {{ fiscal_config_form.api_environment }}
+                            {% if fiscal_config_form.api_environment.errors %}
+                                <div class="field-error">{{ fiscal_config_form.api_environment.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="modal-fieldset">
+                    <legend>Endpoints DGII</legend>
+                    <div class="modal-form__grid">
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_api_base_url">URL base</label>
+                            {{ fiscal_config_form.api_base_url }}
+                            {% if fiscal_config_form.api_base_url.errors %}
+                                <div class="field-error">{{ fiscal_config_form.api_base_url.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_api_auth_url">Autenticación</label>
+                            {{ fiscal_config_form.api_auth_url }}
+                            {% if fiscal_config_form.api_auth_url.errors %}
+                                <div class="field-error">{{ fiscal_config_form.api_auth_url.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_api_submission_url">Recepción e-CF</label>
+                            {{ fiscal_config_form.api_submission_url }}
+                            {% if fiscal_config_form.api_submission_url.errors %}
+                                <div class="field-error">{{ fiscal_config_form.api_submission_url.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_api_status_url">Consulta estado</label>
+                            {{ fiscal_config_form.api_status_url }}
+                            {% if fiscal_config_form.api_status_url.errors %}
+                                <div class="field-error">{{ fiscal_config_form.api_status_url.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_api_directory_url">Directorio clientes</label>
+                            {{ fiscal_config_form.api_directory_url }}
+                            {% if fiscal_config_form.api_directory_url.errors %}
+                                <div class="field-error">{{ fiscal_config_form.api_directory_url.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_api_void_url">Anulación</label>
+                            {{ fiscal_config_form.api_void_url }}
+                            {% if fiscal_config_form.api_void_url.errors %}
+                                <div class="field-error">{{ fiscal_config_form.api_void_url.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_api_commercial_approval_url">Aprobación comercial</label>
+                            {{ fiscal_config_form.api_commercial_approval_url }}
+                            {% if fiscal_config_form.api_commercial_approval_url.errors %}
+                                <div class="field-error">{{ fiscal_config_form.api_commercial_approval_url.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="modal-fieldset">
+                    <legend>Credenciales y certificados</legend>
+                    <div class="modal-form__grid">
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_api_client_id">Client ID</label>
+                            {{ fiscal_config_form.api_client_id }}
+                            {% if fiscal_config_form.api_client_id.errors %}
+                                <div class="field-error">{{ fiscal_config_form.api_client_id.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_api_client_secret">Client Secret</label>
+                            {{ fiscal_config_form.api_client_secret }}
+                            {% if fiscal_config_form.api_client_secret.errors %}
+                                <div class="field-error">{{ fiscal_config_form.api_client_secret.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_certificado_alias">Alias certificado</label>
+                            {{ fiscal_config_form.certificado_alias }}
+                            {% if fiscal_config_form.certificado_alias.errors %}
+                                <div class="field-error">{{ fiscal_config_form.certificado_alias.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_certificado_path">Ruta certificado (.p12/.pfx)</label>
+                            {{ fiscal_config_form.certificado_path }}
+                            {% if fiscal_config_form.certificado_path.errors %}
+                                <div class="field-error">{{ fiscal_config_form.certificado_path.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="modal-field">
+                            <label class="modal-field__label" for="id_certificado_password">Contraseña certificado</label>
+                            {{ fiscal_config_form.certificado_password }}
+                            {% if fiscal_config_form.certificado_password.errors %}
+                                <div class="field-error">{{ fiscal_config_form.certificado_password.errors|join:", " }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </fieldset>
+
+                <section class="modal-info-card">
+                    <header class="modal-info-card__header">
+                        <h3>Comprobante fiscal (DGII)</h3>
+                        <p>Gestiona toda la información oficial requerida por la DGII para emitir comprobantes y los XML complementarios.</p>
+                    </header>
+                    <div class="modal-info-card__actions">
+                        <button type="button" class="btn btn-primary modal-info-card__action" data-settings-action="comprobante-fiscal">
+                            <span aria-hidden="true">⚙️</span>
+                            <span>Editar parámetros</span>
+                        </button>
+                        <button type="button" class="btn btn-outline modal-info-card__action" data-open-fiscal-xml-card>
+                            <span aria-hidden="true">📁</span>
+                            <span>Administrar XML DGII</span>
+                        </button>
+                    </div>
+                </section>
+
+                <fieldset class="modal-fieldset">
+                    <legend>Observaciones</legend>
+                    <div class="modal-field">
+                        {{ fiscal_config_form.observaciones }}
+                        {% if fiscal_config_form.observaciones.errors %}
+                            <div class="field-error">{{ fiscal_config_form.observaciones.errors|join:", " }}</div>
+                        {% endif %}
+                    </div>
+                </fieldset>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-close-fiscal-modal>Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar configuración</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+</div>
+
+</section>
+
+<style>
+    .settings-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .settings-grid__header h2 {
+        margin: 0;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #2f3640;
+    }
+
+    .settings-grid__header p {
+        margin: 4px 0 0;
+        color: #636e72;
+        font-size: 0.95rem;
+    }
+
+    .settings-grid__content {
+        display: grid;
+        gap: 24px;
+        align-items: start;
+        grid-template-columns: 1fr;
+    }
+
+    .settings-grid__main {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .settings-grid__items {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 18px;
+    }
+
+    .settings-tile {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        aspect-ratio: 1 / 1;
+        border-radius: 18px;
+        border: none;
+        cursor: pointer;
+        background: linear-gradient(135deg, #f5f6fa, #ffffff);
+        box-shadow: 0 10px 30px rgba(47, 54, 64, 0.08);
+        transition: none;
+        padding: 20px;
+        text-align: center;
+        color: #2f3640;
+    }
+
+    .settings-tile:hover,
+    .settings-tile:focus-visible {
+        transform: translateY(-4px);
+        box-shadow: 0 16px 38px rgba(0, 168, 255, 0.22);
+        outline: none;
+    }
+
+    .settings-tile__icon {
+        font-size: 1.8rem;
+    }
+
+    .settings-tile__label {
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .settings-tile--accent {
+        background: linear-gradient(135deg, #1e90ff, #00a8ff);
+        color: #ffffff;
+        box-shadow: 0 16px 32px rgba(30, 144, 255, 0.25);
+    }
+
+    .modal {
+        position: fixed;
+        inset: 0;
+        background-color: rgba(15, 23, 42, 0.45);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        z-index: 1600;
+    }
+
+    .modal.is-visible {
+        display: flex;
+    }
+
+    .modal-dialog {
+        background-color: #ffffff;
+        border-radius: 14px;
+        max-width: 760px;
+        width: 100%;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 18px 24px;
+        border-bottom: 1px solid #ecf0f1;
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: #273c75;
+    }
+
+    .modal-close {
+        border: none;
+        background: transparent;
+        color: #7f8c8d;
+        font-size: 1.6rem;
+        line-height: 1;
+        cursor: pointer;
+        transition: none;
+    }
+
+    .modal-close:hover,
+    .modal-close:focus-visible {
+        color: #2f3640;
+        outline: none;
+    }
+
+    .modal-flex {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    .modal-form {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .modal-fieldset {
+        border: 1px solid #ecf0f1;
+        border-radius: 10px;
+        padding: 16px 18px 20px;
+        margin: 0;
+    }
+
+    .modal-fieldset + .modal-fieldset {
+        margin-top: 10px;
+    }
+
+    .modal-fieldset legend {
+        padding: 0 8px;
+        font-weight: 600;
+        color: #2f3640;
+        font-size: 0.95rem;
+    }
+
+    .modal-form__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+    }
+
+    .modal-form__grid--split {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .modal-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .modal-field__label,
+    .toggle-field__label {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #2f3640;
+    }
+
+    .toggle-field {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .general-accordion {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .general-accordion__item {
+        border: 1px solid #dfe4ea;
+        border-radius: 10px;
+        background: #ffffff;
+        overflow: hidden;
+    }
+
+    .general-accordion__trigger {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #2f3640;
+        transition: none;
+    }
+
+    .general-accordion__trigger:hover,
+    .general-accordion__trigger:focus-visible {
+        background-color: rgba(0, 123, 255, 0.08);
+        outline: none;
+    }
+
+    .general-accordion__icon {
+        transition: none;
+    }
+
+    .general-accordion__trigger[aria-expanded="true"] .general-accordion__icon {
+        transform: rotate(90deg);
+    }
+
+    .general-accordion__panel {
+        padding: 0 16px 16px;
+        color: #57606f;
+        font-size: 0.95rem;
+    }
+
+    .general-accordion__placeholder {
+        margin: 0;
+    }
+
+    .site-logo-form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .site-logo-form__grid {
+        display: grid;
+        grid-template-columns: minmax(220px, 260px) minmax(260px, 1fr);
+        gap: 24px;
+        align-items: start;
+    }
+
+    .site-logo-form__preview {
+        border: 1px dashed #cfd6e0;
+        border-radius: 12px;
+        padding: 16px;
+        background: #f8faff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 160px;
+        position: relative;
+    }
+
+    .site-logo-form__image {
+        max-width: 100%;
+        max-height: 180px;
+        object-fit: contain;
+    }
+
+    .site-logo-form__placeholder {
+        color: #8391a6;
+        font-size: 0.95rem;
+        text-align: center;
+    }
+
+    .site-logo-form__remove-badge {
+        position: absolute;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(231, 76, 60, 0.16);
+        color: #c0392b;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        pointer-events: none;
+        box-shadow: 0 6px 18px rgba(192, 57, 43, 0.12);
+    }
+
+    .site-logo-form__fields {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .site-logo-form__field {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .site-logo-form__label {
+        font-weight: 600;
+        color: #2f3640;
+    }
+
+    .site-logo-form__hint {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #6b7a90;
+    }
+
+    .site-logo-form__remove {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.95rem;
+        color: #2f3640;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .site-logo-form__remove input[type="checkbox"] {
+        accent-color: #007bff;
+    }
+
+    .site-logo-form__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+
+    .form-errors {
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(231, 76, 60, 0.12);
+        color: #c0392b;
+        font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+        .site-logo-form__grid {
+            grid-template-columns: 1fr;
+        }
+
+        .site-logo-form__preview {
+            min-height: 140px;
+        }
+    }
+
+    .modal-description {
+        margin: 0;
+        font-size: 0.95rem;
+        color: #57606f;
+    }
+
+    .modal-info-card {
+        background: #f5f8ff;
+        border: 1px solid rgba(30, 144, 255, 0.18);
+        border-radius: 14px;
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .modal-info-card__header h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        color: #1e90ff;
+    }
+
+    .modal-info-card__header p {
+        margin: 4px 0 0;
+        font-size: 0.9rem;
+        color: #4a6072;
+    }
+
+    .modal-info-card__actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .modal-info-card__action {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    #fiscal-xml-modal .modal-dialog {
+        max-width: 700px;
+    }
+
+    #fiscal-xml-modal .modal-flex {
+        padding: 24px 28px 32px;
+    }
+
+    #fiscal-xml-modal .fiscal-xml-card__list {
+        max-height: 320px;
+        overflow-y: auto;
+    }
+
+    .category-modal {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 24px;
+    }
+
+    .category-modal__toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .category-modal__search {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid #dfe4ea;
+        border-radius: 10px;
+        padding: 8px 12px;
+        background: #f5f6fa;
+        flex: 1 1 260px;
+        max-width: 320px;
+    }
+
+    .category-modal__search input {
+        border: none;
+        background: transparent;
+        width: 100%;
+        font-size: 0.95rem;
+        color: #2f3640;
+    }
+
+    .category-modal__search input:focus {
+        outline: none;
+    }
+
+    .category-modal__table-wrapper {
+        border: 1px solid #ecf0f1;
+        border-radius: 14px;
+        background: #ffffff;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    }
+
+    .category-modal__register {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 10px;
+        padding: 10px 16px;
+        font-weight: 600;
+        box-shadow: 0 10px 24px rgba(30, 144, 255, 0.22);
+    }
+
+    .category-modal__register-icon {
+        font-size: 1.1rem;
+    }
+
+    .category-modal__table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 360px;
+    }
+
+    .category-modal__table thead {
+        background: #f1f6ff;
+    }
+
+    .category-modal__table th,
+    .category-modal__table td {
+        padding: 14px 16px;
+        text-align: left;
+        font-size: 0.95rem;
+        color: #2f3640;
+    }
+
+    .category-modal__table tbody tr:nth-child(even) {
+        background: #ffffff;
+    }
+
+    .category-modal__table tbody tr:nth-child(odd) {
+        background: #fafcff;
+    }
+
+    .category-modal__table tbody tr:hover {
+        background: rgba(30, 144, 255, 0.08);
+    }
+
+    .category-modal__empty {
+        margin: 0;
+        padding: 18px;
+        text-align: center;
+        color: #95a5a6;
+        font-size: 0.95rem;
+    }
+
+    .category-register__form {
+        gap: 20px;
+    }
+
+    .category-register__grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+    }
+
+    .category-register__form input[type="text"] {
+        border: 1px solid #dfe4ea;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .category-register__form input[type="text"]:focus {
+        outline: none;
+        border-color: #1e90ff;
+        box-shadow: 0 0 0 3px rgba(30, 144, 255, 0.15);
+    }
+
+    .category-register__form input[readonly] {
+        background: linear-gradient(135deg, #f5f8ff, #ffffff);
+        font-weight: 600;
+        color: #273c75;
+    }
+
+    .category-register__form .field-error {
+        margin: 0;
+    }
+
+    .category-register__form .modal-actions {
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    @media (max-width: 640px) {
+        .category-register__form .modal-actions {
+            flex-direction: column-reverse;
+            align-items: stretch;
+            gap: 10px;
+        }
+
+        .category-register__form .modal-actions .btn {
+            width: 100%;
+        }
+    }
+
+    .btn.btn-ghost {
+        background: transparent;
+        color: #2f3640;
+        border: 1px solid #dfe4ea;
+        transition: none;
+    }
+
+    .btn.btn-ghost:hover,
+    .btn.btn-ghost:focus-visible {
+        color: #1e90ff;
+        border-color: #1e90ff;
+        box-shadow: 0 0 0 3px rgba(30, 144, 255, 0.12);
+    }
+
+    .tax-modal {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 24px;
+    }
+
+    .tax-modal__toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .tax-modal__search {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid #dfe4ea;
+        border-radius: 10px;
+        padding: 8px 12px;
+        background: #f5f6fa;
+        flex: 1 1 260px;
+        max-width: 320px;
+    }
+
+    .tax-modal__search input {
+        border: none;
+        background: transparent;
+        width: 100%;
+        font-size: 0.95rem;
+        color: #2f3640;
+    }
+
+    .tax-modal__search input:focus {
+        outline: none;
+    }
+
+    .tax-modal__table-wrapper {
+        border: 1px solid #ecf0f1;
+        border-radius: 14px;
+        background: #ffffff;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    }
+
+    .tax-modal__table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 360px;
+    }
+
+    .tax-modal__table thead {
+        background: #f6f9ff;
+    }
+
+    .tax-modal__table th,
+    .tax-modal__table td {
+        padding: 14px 16px;
+        text-align: left;
+        font-size: 0.95rem;
+        color: #2f3640;
+    }
+
+    .tax-modal__table tbody tr:nth-child(even) {
+        background: #ffffff;
+    }
+
+    .tax-modal__table tbody tr:nth-child(odd) {
+        background: #fafcff;
+    }
+
+    .tax-modal__table tbody tr:hover {
+        background: rgba(30, 144, 255, 0.08);
+    }
+
+    .tax-modal__empty {
+        margin: 0;
+        padding: 18px;
+        text-align: center;
+        color: #95a5a6;
+        font-size: 0.95rem;
+    }
+
+    .tax-modal__register {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 10px;
+        padding: 10px 16px;
+        font-weight: 600;
+        box-shadow: 0 10px 24px rgba(30, 144, 255, 0.22);
+    }
+
+    .tax-modal__register-icon {
+        font-size: 1.1rem;
+    }
+
+    .tax-modal__table-wrapper::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .tax-modal__table-wrapper::-webkit-scrollbar-thumb {
+        background-color: rgba(47, 54, 64, 0.25);
+        border-radius: 6px;
+    }
+
+    .tax-register__form {
+        gap: 20px;
+    }
+
+    .tax-register__grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+    }
+
+    .tax-register__form input[type="text"],
+    .tax-register__form input[type="number"] {
+        border: 1px solid #dfe4ea;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .tax-register__form input[type="text"]:focus,
+    .tax-register__form input[type="number"]:focus {
+        outline: none;
+        border-color: #1e90ff;
+        box-shadow: 0 0 0 3px rgba(30, 144, 255, 0.15);
+    }
+
+    .tax-register__form input[readonly] {
+        background: linear-gradient(135deg, #f5f8ff, #ffffff);
+        font-weight: 600;
+        color: #273c75;
+    }
+
+    .tax-register__form .modal-actions {
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .tax-register__form .field-error {
+        margin: 0;
+    }
+
+    @media (max-width: 640px) {
+        .tax-modal__toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .tax-modal__search {
+            max-width: none;
+        }
+
+        .tax-modal__table {
+            min-width: 280px;
+        }
+
+        .tax-modal__register {
+            justify-content: center;
+            width: 100%;
+        }
+
+        .tax-register__form .modal-actions {
+            flex-direction: column-reverse;
+            align-items: stretch;
+            gap: 10px;
+        }
+
+        .tax-register__form .modal-actions .btn {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .category-modal__toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .category-modal__search {
+            max-width: none;
+        }
+
+        .category-modal__table {
+            min-width: 280px;
+        }
+
+        .category-modal__register {
+            justify-content: center;
+            width: 100%;
+        }
+    }
+
+    .fiscal-xml-card {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .fiscal-xml-card__header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .fiscal-xml-card__header h3 {
+        margin: 0;
+        font-size: 1.35rem;
+        color: #273c75;
+    }
+
+    .fiscal-xml-card__header p {
+        margin: 6px 0 0;
+        color: #636e72;
+        font-size: 0.95rem;
+    }
+
+    .fiscal-xml-card__close {
+        border: none;
+        background: transparent;
+        color: #718093;
+        font-size: 1.6rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 6px;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .fiscal-xml-card__close:hover,
+    .fiscal-xml-card__close:focus-visible {
+        background-color: rgba(113, 128, 147, 0.1);
+        color: #2f3640;
+        outline: none;
+    }
+
+    .fiscal-xml-card__form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .fiscal-xml-card__form-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .fiscal-xml-card__field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .fiscal-xml-card__label {
+        font-weight: 600;
+        color: #2f3640;
+        font-size: 0.95rem;
+    }
+
+    .fiscal-xml-card__actions {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .fiscal-xml-card__list {
+        border-top: 1px solid #ecf0f1;
+        padding-top: 20px;
+    }
+
+    .fiscal-xml-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .fiscal-xml-item {
+        border: 1px solid #dfe4ea;
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: #fafbff;
+    }
+
+    .fiscal-xml-item__main {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .fiscal-xml-item__name {
+        font-size: 1.05rem;
+        color: #2f3640;
+    }
+
+    .fiscal-xml-item__meta {
+        margin: 4px 0;
+        color: #8391a6;
+        font-size: 0.9rem;
+    }
+
+    .fiscal-xml-item__link {
+        font-size: 0.9rem;
+        color: #0097e6;
+        text-decoration: none;
+    }
+
+    .fiscal-xml-item__link:hover {
+        text-decoration: underline;
+    }
+
+    .fiscal-xml-item__status {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .fiscal-xml-item__message {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #57606f;
+    }
+
+    .fiscal-xml-empty {
+        border: 1px dashed #dfe4ea;
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+        color: #95a5a6;
+    }
+
+    .connection-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    .connection-badge--sin_conexion {
+        background: rgba(231, 76, 60, 0.15);
+        color: #e74c3c;
+    }
+
+    .connection-badge--buscando {
+        background: rgba(241, 196, 15, 0.2);
+        color: #f39c12;
+    }
+
+    .connection-badge--conectado {
+        background: rgba(46, 213, 115, 0.18);
+        color: #2ecc71;
+    }
+
+    .fiscal-xml-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(23, 32, 42, 0.45);
+        z-index: 1400;
+        display: none;
+    }
+
+    .fiscal-xml-overlay.is-active {
+        display: block;
+    }
+
+    @media (max-width: 768px) {
+        .settings-grid__items {
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        }
+    }
+</style>
+
+
+<script>
+        (function () {
+            var openButtons = document.querySelectorAll('[data-open-fiscal-xml-card]');
+            var modal = document.getElementById('fiscal-xml-modal');
+            var overlay = document.querySelector('[data-fiscal-xml-overlay]');
+            if (!modal || !overlay || !openButtons.length) {
+                return;
+            }
+
+            var closeButton = modal.querySelector('[data-close-fiscal-xml-modal]');
+            var firstFocusable = modal.querySelector('input, select, textarea, button, [tabindex]:not([tabindex="-1"])');
+            var lastTrigger = null;
+
+            function openModalXml(trigger) {
+                lastTrigger = trigger || null;
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('is-visible');
+                overlay.hidden = false;
+                overlay.classList.add('is-active');
+                if (firstFocusable && typeof firstFocusable.focus === 'function') {
+                    firstFocusable.focus();
+                }
+            }
+
+            function closeModalXml() {
+                modal.setAttribute('aria-hidden', 'true');
+                modal.classList.remove('is-visible');
+                overlay.classList.remove('is-active');
+                overlay.hidden = true;
+                if (modal.contains(document.activeElement)) {
+                    document.activeElement.blur();
+                }
+                if (lastTrigger && typeof lastTrigger.focus === 'function') {
+                    lastTrigger.focus();
+                }
+            }
+
+            openButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    openModalXml(button);
+                });
+            });
+
+            if (closeButton) {
+                closeButton.addEventListener('click', function () {
+                    closeModalXml();
+                });
+            }
+
+            overlay.addEventListener('click', function () {
+                closeModalXml();
+            });
+
+            window.addEventListener('keyup', function (event) {
+                if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
+                    closeModalXml();
+                }
+            });
+        })();
+
+        (function () {
+            var generalModal = document.getElementById('general-settings-modal');
+            if (!generalModal) {
+                return;
+            }
+
+            var generalOverlay = document.querySelector('[data-fiscal-xml-overlay]');
+            var generalTriggers = document.querySelectorAll('[data-open-modal="general-settings"]');
+            var closeButtons = generalModal.querySelectorAll('[data-close-general-settings]');
+            var lastTrigger = null;
+            var accordion = generalModal.querySelector('[data-general-accordion]');
+
+            function openGeneralModal() {
+                generalModal.setAttribute('aria-hidden', 'false');
+                generalModal.classList.add('is-visible');
+                if (generalOverlay) {
+                    generalOverlay.hidden = false;
+                    generalOverlay.classList.add('is-active');
+                }
+            }
+
+            function closeGeneralModal() {
+                generalModal.setAttribute('aria-hidden', 'true');
+                generalModal.classList.remove('is-visible');
+                if (generalOverlay) {
+                    generalOverlay.classList.remove('is-active');
+                    generalOverlay.hidden = true;
+                }
+                if (lastTrigger && typeof lastTrigger.focus === 'function') {
+                    lastTrigger.focus();
+                }
+            }
+
+            generalTriggers.forEach(function (trigger) {
+                trigger.addEventListener('click', function () {
+                    lastTrigger = trigger;
+                    openGeneralModal();
+                });
+            });
+
+            closeButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    closeGeneralModal();
+                });
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && generalModal.classList.contains('is-visible')) {
+                    closeGeneralModal();
+                }
+            });
+
+            if (generalOverlay) {
+                generalOverlay.addEventListener('click', function () {
+                    if (generalModal.classList.contains('is-visible')) {
+                        closeGeneralModal();
+                    }
+                });
+            }
+
+            if (accordion) {
+                var accordionItems = accordion.querySelectorAll('.general-accordion__item');
+
+                accordionItems.forEach(function (item) {
+                    var trigger = item.querySelector('.general-accordion__trigger');
+                    var panel = item.querySelector('.general-accordion__panel');
+                    if (!trigger || !panel) {
+                        return;
+                    }
+
+                    trigger.addEventListener('click', function () {
+                        var isOpen = trigger.getAttribute('aria-expanded') === 'true';
+                        trigger.setAttribute('aria-expanded', String(!isOpen));
+                        panel.hidden = isOpen;
+                    });
+                });
+            }
+
+            var siteLogoForm = generalModal.querySelector('[data-site-logo-form]');
+            if (siteLogoForm) {
+                var fileInput = siteLogoForm.querySelector('[data-site-logo-input="true"]');
+                var previewImage = siteLogoForm.querySelector('[data-site-logo-preview]');
+                var placeholder = siteLogoForm.querySelector('[data-site-logo-placeholder]');
+                var removeCheckbox = siteLogoForm.querySelector('input[name="remove_logo"]');
+                var removeBadge = siteLogoForm.querySelector('[data-site-logo-remove-badge]');
+                var resetButton = siteLogoForm.querySelector('[data-site-logo-reset]');
+                var initialLogoUrl = siteLogoForm.getAttribute('data-initial-logo') || '';
+                var defaultPreviewUrl = previewImage && !previewImage.hidden ? previewImage.getAttribute('src') : '';
+                var uploadedPreviewUrl = null;
+
+                function setPreview(url) {
+                    if (!previewImage) {
+                        return;
+                    }
+
+                    if (url) {
+                        previewImage.src = url;
+                        previewImage.hidden = false;
+                        if (placeholder) {
+                            placeholder.hidden = true;
+                        }
+                    } else {
+                        previewImage.src = '';
+                        previewImage.hidden = true;
+                        if (placeholder) {
+                            placeholder.hidden = false;
+                        }
+                    }
+                }
+
+                function toggleRemoveBadge(visible) {
+                    if (!removeBadge) {
+                        return;
+                    }
+                    removeBadge.hidden = !visible;
+                }
+
+                function resetToCurrentLogo() {
+                    uploadedPreviewUrl = null;
+                    if (fileInput) {
+                        fileInput.value = '';
+                    }
+                    if (removeCheckbox) {
+                        removeCheckbox.checked = false;
+                    }
+                    toggleRemoveBadge(false);
+                    setPreview(initialLogoUrl || defaultPreviewUrl);
+                }
+
+                function handleFileSelection(file) {
+                    if (!file) {
+                        uploadedPreviewUrl = null;
+                        setPreview(initialLogoUrl || defaultPreviewUrl);
+                        return;
+                    }
+
+                    if (typeof FileReader === 'undefined') {
+                        return;
+                    }
+
+                    var reader = new FileReader();
+                    reader.onload = function (event) {
+                        uploadedPreviewUrl = event && event.target ? event.target.result : null;
+                        if (uploadedPreviewUrl) {
+                            setPreview(uploadedPreviewUrl);
+                            toggleRemoveBadge(false);
+                            if (removeCheckbox) {
+                                removeCheckbox.checked = false;
+                            }
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                }
+
+                if (fileInput) {
+                    fileInput.addEventListener('change', function () {
+                        var file = fileInput.files && fileInput.files.length ? fileInput.files[0] : null;
+                        handleFileSelection(file);
+                    });
+                }
+
+                if (removeCheckbox) {
+                    removeCheckbox.addEventListener('change', function () {
+                        var shouldRemove = removeCheckbox.checked;
+                        if (shouldRemove) {
+                            if (fileInput) {
+                                fileInput.value = '';
+                            }
+                            uploadedPreviewUrl = null;
+                            toggleRemoveBadge(true);
+                            setPreview(initialLogoUrl || defaultPreviewUrl);
+                        } else {
+                            toggleRemoveBadge(false);
+                            if (uploadedPreviewUrl) {
+                                setPreview(uploadedPreviewUrl);
+                            } else {
+                                setPreview(initialLogoUrl || defaultPreviewUrl);
+                            }
+                        }
+                    });
+                }
+
+                siteLogoForm.addEventListener('reset', function (event) {
+                    event.preventDefault();
+                    resetToCurrentLogo();
+                });
+
+                if (resetButton) {
+                    resetButton.addEventListener('click', function (event) {
+                        event.preventDefault();
+                        resetToCurrentLogo();
+                    });
+                }
+            }
+        })();
+
+        (function () {
+            var taxModal = document.getElementById('tax-modal');
+            var registerModal = document.getElementById('tax-register-modal');
+            if (!taxModal || !registerModal) {
+                return;
+            }
+
+            var registerButton = taxModal.querySelector('[data-tax-register]');
+            if (!registerButton) {
+                return;
+            }
+
+            var closeButtons = registerModal.querySelectorAll('[data-close-tax-register]');
+            var form = registerModal.querySelector('[data-tax-register-form]');
+            var focusField = registerModal.querySelector('[data-initial-focus="true"]') || registerModal.querySelector('input:not([type="hidden"])');
+
+            function openRegisterModal() {
+                registerModal.setAttribute('aria-hidden', 'false');
+                registerModal.classList.add('is-visible');
+                if (focusField && typeof focusField.focus === 'function') {
+                    focusField.focus();
+                }
+            }
+
+            function closeRegisterModal() {
+                registerModal.setAttribute('aria-hidden', 'true');
+                registerModal.classList.remove('is-visible');
+                if (registerModal.contains(document.activeElement)) {
+                    document.activeElement.blur();
+                }
+                if (typeof registerButton.focus === 'function') {
+                    registerButton.focus();
+                }
+            }
+
+            registerButton.addEventListener('click', function (event) {
+                event.preventDefault();
+                openRegisterModal();
+            });
+
+            closeButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    closeRegisterModal();
+                });
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && registerModal.classList.contains('is-visible')) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    closeRegisterModal();
+                }
+            }, true);
+
+            if (form) {
+                form.addEventListener('submit', function () {
+                    closeRegisterModal();
+                    taxModal.dispatchEvent(new CustomEvent('tax:refresh'));
+                });
+            }
+
+            if (registerModal.hasAttribute('data-force-open')) {
+                openRegisterModal();
+            }
+        })();
+
+        (function () {
+            function initResourceModal(options) {
+                var trigger = document.querySelector(options.triggerSelector);
+                var modal = document.getElementById(options.modalId);
+                if (!trigger || !modal) {
+                    return;
+                }
+
+                var closeButton = modal.querySelector(options.closeSelector);
+
+                function openModal() {
+                    modal.setAttribute('aria-hidden', 'false');
+                    modal.classList.add('is-visible');
+                }
+
+                function closeModal() {
+                    modal.setAttribute('aria-hidden', 'true');
+                    modal.classList.remove('is-visible');
+                }
+
+                trigger.addEventListener('click', openModal);
+                if (closeButton) {
+                    closeButton.addEventListener('click', closeModal);
+                }
+                modal.addEventListener('click', function (event) {
+                    if (event.target === modal) {
+                        closeModal();
+                    }
+                });
+                document.addEventListener('keydown', function (event) {
+                    if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
+                        closeModal();
+                    }
+                });
+
+                var searchInput = options.searchSelector ? modal.querySelector(options.searchSelector) : null;
+                var emptyState = options.emptySelector ? modal.querySelector(options.emptySelector) : null;
+
+                function applyFilter(term) {
+                    if (!options.rowSelector) {
+                        return;
+                    }
+                    var rows = modal.querySelectorAll(options.rowSelector);
+                    var normalized = (term || '').toLowerCase().trim();
+                    var visible = 0;
+                    rows.forEach(function (row) {
+                        var name = row.getAttribute(options.nameAttribute || 'data-name') || '';
+                        var matches = !normalized || name.indexOf(normalized) !== -1;
+                        row.style.display = matches ? '' : 'none';
+                        if (matches) {
+                            visible += 1;
+                        }
+                    });
+                    if (emptyState) {
+                        emptyState.hidden = rows.length === 0 ? false : visible > 0;
+                    }
+                }
+
+                if (searchInput) {
+                    searchInput.addEventListener('input', function (event) {
+                        applyFilter(event.target.value);
+                    });
+                    applyFilter(searchInput.value || '');
+                }
+
+                if (options.refreshEvent) {
+                    modal.addEventListener(options.refreshEvent, function () {
+                        var term = searchInput ? searchInput.value : '';
+                        applyFilter(term);
+                    });
+                }
+
+                if (modal.hasAttribute('data-force-open')) {
+                    openModal();
+                }
+            }
+
+            initResourceModal({
+                triggerSelector: '[data-open-resource="category"]',
+                modalId: 'category-modal',
+                closeSelector: '[data-close-category-modal]',
+                searchSelector: '[data-category-search]',
+                rowSelector: '[data-category-row]',
+                nameAttribute: 'data-name',
+                emptySelector: '[data-category-empty]',
+                refreshEvent: 'category:refresh'
+            });
+
+            initResourceModal({
+                triggerSelector: '[data-open-resource="tax"]',
+                modalId: 'tax-modal',
+                closeSelector: '[data-close-tax-modal]',
+                searchSelector: '[data-tax-search]',
+                rowSelector: '[data-tax-row]',
+                nameAttribute: 'data-name',
+                emptySelector: '[data-tax-empty]',
+                refreshEvent: 'tax:refresh'
+            });
+        })();
+
+        (function () {
+            var categoryModal = document.getElementById('category-modal');
+            var registerModal = document.getElementById('category-register-modal');
+            if (!categoryModal || !registerModal) {
+                return;
+            }
+
+            var registerButton = categoryModal.querySelector('[data-category-register]');
+            if (!registerButton) {
+                return;
+            }
+
+            var closeButtons = registerModal.querySelectorAll('[data-close-category-register]');
+            var form = registerModal.querySelector('[data-category-register-form]');
+            var focusField = registerModal.querySelector('[data-initial-focus="true"]') || registerModal.querySelector('input:not([type="hidden"])');
+
+            function openRegisterModal() {
+                registerModal.setAttribute('aria-hidden', 'false');
+                registerModal.classList.add('is-visible');
+                if (focusField && typeof focusField.focus === 'function') {
+                    focusField.focus();
+                }
+            }
+
+            function closeRegisterModal() {
+                registerModal.setAttribute('aria-hidden', 'true');
+                registerModal.classList.remove('is-visible');
+                if (registerModal.contains(document.activeElement)) {
+                    document.activeElement.blur();
+                }
+                if (typeof registerButton.focus === 'function') {
+                    registerButton.focus();
+                }
+            }
+
+            registerButton.addEventListener('click', function (event) {
+                event.preventDefault();
+                openRegisterModal();
+            });
+
+            closeButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    closeRegisterModal();
+                });
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && registerModal.classList.contains('is-visible')) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    closeRegisterModal();
+                }
+            }, true);
+
+            if (form) {
+                form.addEventListener('submit', function () {
+                    closeRegisterModal();
+                });
+            }
+
+            var shouldOpenCategory = categoryModal && categoryModal.hasAttribute('data-force-open');
+            var shouldOpenRegister = registerModal && registerModal.hasAttribute('data-force-open');
+
+            if (shouldOpenCategory) {
+                categoryModal.setAttribute('aria-hidden', 'false');
+                categoryModal.classList.add('is-visible');
+            }
+
+            if (shouldOpenRegister) {
+                openRegisterModal();
+            }
+        })();
+
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="comprobante-fiscal"]');
+            var modal = document.getElementById('fiscal-voucher-modal');
+            if (!trigger || !modal) {
+                return;
+            }
+
+            var closeButtons = modal.querySelectorAll('[data-close-fiscal-modal]');
+            var form = modal.querySelector('[data-fiscal-config-form]');
+
+            function openModal() {
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('is-visible');
+                var focusTarget = modal.querySelector('[data-initial-focus="true"]') || modal.querySelector('[data-close-fiscal-modal]');
+                if (focusTarget) {
+                    focusTarget.focus();
+                }
+            }
+
+            function closeModal() {
+                modal.setAttribute('aria-hidden', 'true');
+                modal.classList.remove('is-visible');
+                if (modal.contains(document.activeElement)) {
+                    document.activeElement.blur();
+                }
+                trigger.focus();
+            }
+
+            trigger.addEventListener('click', function () {
+                openModal();
+            });
+
+            closeButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    closeModal();
+                });
+            });
+
+            modal.addEventListener('click', function (event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
+                    closeModal();
+                }
+            });
+
+            if (form) {
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault();
+
+                    var formData = new FormData(form);
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                    })
+                        .then(function (response) {
+                            if (response.ok) {
+                                return response.json();
+                            }
+                            throw response;
+                        })
+                        .then(function (data) {
+                            if (data && data.success) {
+                                alert('Configuración guardada correctamente.');
+                                closeModal();
+                            } else if (data && data.errors) {
+                                alert('Debes completar los datos requeridos antes de guardar.');
+                            } else {
+                                alert('No fue posible guardar la configuración. Intenta nuevamente.');
+                            }
+                        })
+                        .catch(function (errorResponse) {
+                            if (errorResponse instanceof Response) {
+                                errorResponse.json().then(function (data) {
+                                    var message = (data && data.errors) ? 'Debes completar los datos requeridos antes de guardar.' : 'No fue posible procesar la solicitud. Verifica los datos e inténtalo de nuevo.';
+                                    alert(message);
+                                }).catch(function () {
+                                    alert('Debes completar los datos requeridos antes de guardar.');
+                                });
+                            } else {
+                                alert('Debes completar los datos requeridos antes de guardar.');
+                            }
+                        });
+                });
+            }
+        })();
+</script>
+{% endblock %}
