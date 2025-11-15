@@ -1,0 +1,54 @@
+<div class="report-modal" id="report-inventory-cost-modal" data-report-modal-type="inventory-cost" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="report-modal__dialog">
+        <div class="report-modal__header">
+            <h2>Costo inventario disponible</h2>
+            <button type="button" class="report-modal__close" data-report-close aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="report-modal__body">
+            <div class="report-summary" data-summary-container>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Valor total</span>
+                    <span class="report-summary__value" data-summary="value">—</span>
+                </div>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Productos con stock</span>
+                    <span class="report-summary__value" data-summary="products">—</span>
+                </div>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Unidades disponibles</span>
+                    <span class="report-summary__value" data-summary="stock">—</span>
+                </div>
+            </div>
+
+            <div class="report-modal__actions" data-actions-only>
+                <button type="button" class="btn btn-primary" data-primary-action data-report-run="inventory-cost">
+                    <span>Actualizar inventario</span>
+                    <span class="report-spinner" aria-hidden="true"></span>
+                </button>
+                <button type="button" class="btn btn-secondary" data-report-close>Cerrar</button>
+            </div>
+
+            <div class="report-table-wrapper">
+                <table class="report-table" aria-describedby="report-inventory-cost-modal">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Categoría</th>
+                            <th>Proveedor</th>
+                            <th>Precio compra</th>
+                            <th>Stock</th>
+                            <th>Costo total</th>
+                        </tr>
+                    </thead>
+                    <tbody data-table-body>
+                        <tr>
+                            <td colspan="6" class="report-empty-state">Presiona “Actualizar inventario” para consultar el reporte.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="report-empty-state" data-empty hidden>No se encontraron productos con stock disponible.</p>
+        </div>
+    </div>
+</div>

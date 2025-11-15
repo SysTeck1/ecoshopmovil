@@ -1,0 +1,64 @@
+<div class="report-modal" id="report-sales-cost-modal" data-report-modal-type="sales-cost" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="report-modal__dialog">
+        <div class="report-modal__header">
+            <h2>Costo total de ventas</h2>
+            <button type="button" class="report-modal__close" data-report-close aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="report-modal__body">
+            <div class="report-summary" data-summary-container>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Costo total</span>
+                    <span class="report-summary__value" data-summary="cost">—</span>
+                </div>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Unidades vendidas</span>
+                    <span class="report-summary__value" data-summary="units">—</span>
+                </div>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Facturas</span>
+                    <span class="report-summary__value" data-summary="invoices">—</span>
+                </div>
+            </div>
+
+            <div class="report-modal__filters" data-filters>
+                <label>
+                    <span>Desde</span>
+                    <input type="date" data-filter="start">
+                </label>
+                <label>
+                    <span>Hasta</span>
+                    <input type="date" data-filter="end">
+                </label>
+            </div>
+
+            <div class="report-modal__actions">
+                <button type="button" class="btn btn-secondary" data-report-close>Cancelar</button>
+                <button type="button" class="btn btn-primary" data-primary-action data-report-run="sales-cost">
+                    <span>Generar reporte</span>
+                    <span class="report-spinner" aria-hidden="true"></span>
+                </button>
+            </div>
+
+            <div class="report-table-wrapper">
+                <table class="report-table" aria-describedby="report-sales-cost-modal">
+                    <thead>
+                        <tr>
+                            <th>Factura</th>
+                            <th>Cliente</th>
+                            <th>Fecha</th>
+                            <th>Unidades</th>
+                            <th>Costo total</th>
+                        </tr>
+                    </thead>
+                    <tbody data-table-body>
+                        <tr>
+                            <td colspan="5" class="report-empty-state">Ejecuta el reporte para ver resultados.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="report-empty-state" data-empty hidden>No se encontraron registros para los filtros seleccionados.</p>
+        </div>
+    </div>
+</div>

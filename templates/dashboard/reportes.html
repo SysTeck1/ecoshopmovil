@@ -1,2779 +1,602 @@
 {% extends "dashboard/base.html" %}
+{% load static %}
 {% block title %}Reportes{% endblock %}
 {% block page_title %}Reportes{% endblock %}
+
 {% block content %}
-<section class="settings-grid">
-    <header class="settings-grid__header">
-        <h2>Reportes disponibles</h2>
-        <p>Accede rápidamente a los distintos módulos de reportes del sistema POS.</p>
-    </header>
-    <div class="settings-grid__items">
-        <button type="button" class="settings-tile" data-report-action="ventas-totales">
-            <span class="settings-tile__icon" aria-hidden="true">📊</span>
-            <span class="settings-tile__label">Reporte ventas totales</span>
-        </button>
-        <button type="button" class="settings-tile" data-report-action="ganancias-periodo">
-            <span class="settings-tile__icon" aria-hidden="true">📈</span>
-            <span class="settings-tile__label">Ganancia por día/mes/año</span>
-        </button>
-        <button type="button" class="settings-tile" data-report-action="costo-inventario">
-            <span class="settings-tile__icon" aria-hidden="true">📦</span>
-            <span class="settings-tile__label">Costo total inventario</span>
-        </button>
-        <button type="button" class="settings-tile" data-report-action="costo-ventas">
-            <span class="settings-tile__icon" aria-hidden="true">🧾</span>
-            <span class="settings-tile__label">Costo total ventas</span>
-        </button>
-        <button type="button" class="settings-tile" data-report-action="caja">
-            <span class="settings-tile__icon" aria-hidden="true">💰</span>
-            <span class="settings-tile__label">Reporte de caja</span>
-        </button>
-        <button type="button" class="settings-tile" data-report-action="ventas-periodo">
-            <span class="settings-tile__icon" aria-hidden="true">📆</span>
-            <span class="settings-tile__label">Ventas por día/mes/año</span>
-        </button>
-        <button type="button" class="settings-tile" data-report-action="categorias">
-            <span class="settings-tile__icon" aria-hidden="true">🏷️</span>
-            <span class="settings-tile__label">Reporte por categorías</span>
-        </button>
-        <button type="button" class="settings-tile" data-report-modal="report-payment-method-modal">
-            <span class="settings-tile__icon" aria-hidden="true">💳</span>
-            <span class="settings-tile__label">Reporte medio de pago</span>
-        </button>
-        <button type="button" class="settings-tile" data-report-modal="report-expenses-period-modal">
-            <span class="settings-tile__icon" aria-hidden="true">💸</span>
-            <span class="settings-tile__label">Gastos por día/mes/año</span>
-        </button>
-        <button type="button" class="settings-tile" data-report-action="ventas-producto">
-            <span class="settings-tile__icon" aria-hidden="true">🛍️</span>
-            <span class="settings-tile__label">Ventas por producto</span>
-        </button>
-        <button type="button" class="settings-tile" data-report-modal="report-low-stock-modal">
-            <span class="settings-tile__icon" aria-hidden="true">⚠️</span>
-            <span class="settings-tile__label">Productos bajo stock</span>
-        </button>
-        <button type="button" class="settings-tile" data-report-modal="report-sales-customer-modal">
-            <span class="settings-tile__icon" aria-hidden="true">👥</span>
-            <span class="settings-tile__label">Ventas por cliente</span>
-        </button>
-        <button type="button" class="settings-tile" data-report-modal="report-profit-product-modal">
-            <span class="settings-tile__icon" aria-hidden="true">💼</span>
-            <span class="settings-tile__label">Ganancia por producto</span>
-        </button>
-        <button type="button" class="settings-tile" data-report-modal="report-credit-installments-modal">
-            <span class="settings-tile__icon" aria-hidden="true">📋</span>
-            <span class="settings-tile__label">Reporte de cuotas</span>
-        </button>
-    </div>
-</section>
-<div class="modal" id="report-cash-modal" aria-hidden="true">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="report-cash-title">
-        <div class="modal-header">
-            <h2 id="report-cash-title">Reporte de caja</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-cash>&times;</button>
-        </div>
-        <div class="modal-form modal-form--static">
-            <div class="modal-form__grid">
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-cash-start">Desde</label>
-                    <input id="report-cash-start" type="date" data-report-cash-start>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-cash-end">Hasta</label>
-                    <input id="report-cash-end" type="date" data-report-cash-end>
-                </div>
-            </div>
-            <div class="modal-table-wrapper" data-report-cash-table-wrapper hidden>
-                <table class="cash-report-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Fecha apertura</th>
-                            <th>Monto inicial</th>
-                            <th>Total en caja</th>
-                            <th>Estado</th>
-                            <th>Total venta</th>
-                            <th>Fecha cierre</th>
-                            <th>Impuesto</th>
-                            <th>Descuento</th>
-                            <th>Venta crédito</th>
-                        </tr>
-                    </thead>
-                    <tbody data-report-cash-table-body>
-                        <tr>
-                            <td colspan="10">Sin registros disponibles.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="modal-pagination" data-report-cash-pagination hidden>
-                <span class="modal-pagination__info" data-report-cash-page>1 / 1</span>
-            </div>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-cash>Cerrar</button>
-            <button type="button" class="btn btn-primary" data-run-report-cash>Aplicar filtros</button>
-        </div>
-    </div>
-</div>
-<div class="modal" id="report-inventory-cost-modal" aria-hidden="true">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="report-inventory-cost-title">
-        <div class="modal-header">
-            <h2 id="report-inventory-cost-title">Costo total de inventario</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-inventory-cost>&times;</button>
-        </div>
-        <div class="modal-form modal-form--static">
-            <div class="modal-form__grid">
-                <div class="modal-field">
-                    <label class="modal-field__label">Valor inventario</label>
-                    <span class="modal-field__value" data-report-inventory-cost-total>—</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Productos con stock</label>
-                    <span class="modal-field__value" data-report-inventory-cost-products>0</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Unidades disponibles</label>
-                    <span class="modal-field__value" data-report-inventory-cost-stock>0</span>
-                </div>
-            </div>
-            <div class="modal-table-wrapper" data-report-inventory-cost-table hidden>
-                <table class="report-total-sales-table report-inventory-cost-table">
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>Categoría</th>
-                            <th>Proveedor</th>
-                            <th>Precio compra</th>
-                            <th>Stock</th>
-                            <th>Costo total</th>
-                        </tr>
-                    </thead>
-                    <tbody data-report-inventory-cost-table-body>
-                        <tr>
-                            <td colspan="6">Sin resultados disponibles.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <p class="report-inventory-cost-empty" data-report-inventory-cost-empty hidden>
-                No se encontraron productos con stock disponible.
-            </p>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-inventory-cost>Cerrar</button>
-            <button type="button" class="btn btn-primary" data-run-report-inventory-cost>Actualizar</button>
-        </div>
-    </div>
-</div>
-<div class="modal" id="report-sales-cost-modal" aria-hidden="true">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="report-sales-cost-title">
-        <div class="modal-header">
-            <h2 id="report-sales-cost-title">Costo total de ventas</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-sales-cost>&times;</button>
-        </div>
-        <div class="modal-form modal-form--static">
-            <div class="modal-form__grid">
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-sales-cost-start">Desde</label>
-                    <input id="report-sales-cost-start" type="date" data-report-sales-cost-start>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-sales-cost-end">Hasta</label>
-                    <input id="report-sales-cost-end" type="date" data-report-sales-cost-end>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Costo total</label>
-                    <span class="modal-field__value" data-report-sales-cost-total>—</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Ventas contabilizadas</label>
-                    <span class="modal-field__value" data-report-sales-cost-sales>0</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Unidades vendidas</label>
-                    <span class="modal-field__value" data-report-sales-cost-units>0</span>
-                </div>
-            </div>
-            <div class="modal-table-wrapper" data-report-sales-cost-table hidden>
-                <table class="report-total-sales-table report-sales-cost-table">
-                    <thead>
-                        <tr>
-                            <th>Factura</th>
-                            <th>Cliente</th>
-                            <th>Fecha</th>
-                            <th>Unidades</th>
-                            <th>Costo total</th>
-                        </tr>
-                    </thead>
-                    <tbody data-report-sales-cost-table-body>
-                        <tr>
-                            <td colspan="5">Sin resultados disponibles.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <p class="report-sales-cost-empty" data-report-sales-cost-empty hidden>
-                No se encontraron ventas para los filtros seleccionados.
-            </p>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-sales-cost>Cerrar</button>
-            <button type="button" class="btn btn-primary" data-run-report-sales-cost>Aplicar filtros</button>
-        </div>
-    </div>
-</div>
-<div class="modal" id="report-sales-period-modal" aria-hidden="true">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="report-sales-period-title">
-        <div class="modal-header">
-            <h2 id="report-sales-period-title">Ventas por día/mes/año</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-sales-period>&times;</button>
-        </div>
-        <div class="modal-form modal-form--static">
-            <div class="modal-form__grid">
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-sales-period-start">Desde</label>
-                    <input id="report-sales-period-start" type="date" data-report-sales-period-start>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-sales-period-end">Hasta</label>
-                    <input id="report-sales-period-end" type="date" data-report-sales-period-end>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-sales-period-select">Agrupar por</label>
-                    <select id="report-sales-period-select" data-report-sales-period-select>
-                        <option value="day">Día</option>
-                        <option value="month">Mes</option>
-                        <option value="year">Año</option>
-                    </select>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Ventas contabilizadas</label>
-                    <span class="modal-field__value" data-report-sales-period-sales>0</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Total vendido</label>
-                    <span class="modal-field__value" data-report-sales-period-total>—</span>
-                </div>
-            </div>
-            <div class="modal-table-wrapper" data-report-sales-period-table hidden>
-                <table class="report-total-sales-table report-sales-period-table">
-                    <thead>
-                        <tr>
-                            <th>Periodo</th>
-                            <th>Ventas</th>
-                            <th>Total vendido</th>
-                        </tr>
-                    </thead>
-                    <tbody data-report-sales-period-table-body>
-                        <tr>
-                            <td colspan="3">Sin resultados disponibles.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <p class="report-sales-period-empty" data-report-sales-period-empty hidden>
-                No se encontraron ventas para los filtros seleccionados.
-            </p>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-sales-period>Cerrar</button>
-            <button type="button" class="btn btn-primary" data-run-report-sales-period>Aplicar filtros</button>
-        </div>
-    </div>
-</div>
-<div class="modal" id="report-profit-period-modal" aria-hidden="true">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="report-profit-period-title">
-        <div class="modal-header">
-            <h2 id="report-profit-period-title">Ganancia por día/mes/año</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-profit-period>&times;</button>
-        </div>
-        <div class="modal-form modal-form--static">
-            <div class="modal-form__grid">
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-profit-period-start">Desde</label>
-                    <input id="report-profit-period-start" type="date" data-report-profit-period-start>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-profit-period-end">Hasta</label>
-                    <input id="report-profit-period-end" type="date" data-report-profit-period-end>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-profit-period-select">Agrupar por</label>
-                    <select id="report-profit-period-select" data-report-profit-period-select>
-                        <option value="day">Día</option>
-                        <option value="month">Mes</option>
-                        <option value="year">Año</option>
-                    </select>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Total vendido</label>
-                    <span class="modal-field__value" data-report-profit-period-sales>—</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Costo productos</label>
-                    <span class="modal-field__value" data-report-profit-period-cost>—</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Ganancia neta</label>
-                    <span class="modal-field__value" data-report-profit-period-profit>—</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Ventas contabilizadas</label>
-                    <span class="modal-field__value" data-report-profit-period-count>0</span>
-                </div>
-            </div>
-            <div class="modal-table-wrapper" data-report-profit-period-table hidden>
-                <table class="report-total-sales-table report-profit-period-table">
-                    <thead>
-                        <tr>
-                            <th>Periodo</th>
-                            <th>Ventas</th>
-                            <th>Total vendido</th>
-                            <th>Costo productos</th>
-                            <th>Ganancia</th>
-                        </tr>
-                    </thead>
-                    <tbody data-report-profit-period-table-body>
-                        <tr>
-                            <td colspan="5">Sin resultados disponibles.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <p class="report-profit-period-empty" data-report-profit-period-empty hidden>
-                No se encontraron ganancias para los filtros seleccionados.
-            </p>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-profit-period>Cerrar</button>
-            <button type="button" class="btn btn-primary" data-run-report-profit-period>Aplicar filtros</button>
-        </div>
-    </div>
-</div>
-<div class="modal" id="report-payment-method-modal" aria-hidden="true">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="report-payment-method-title">
-        <div class="modal-header">
-            <h2 id="report-payment-method-title">Reporte medio de pago</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-modal>&times;</button>
-        </div>
-        <div class="modal-form modal-form--static">
-            <p class="modal-placeholder">Este reporte estará disponible próximamente.</p>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-modal>Cerrar</button>
-        </div>
-    </div>
-</div>
-<div class="modal" id="report-expenses-period-modal" aria-hidden="true">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="report-expenses-period-title">
-        <div class="modal-header">
-            <h2 id="report-expenses-period-title">Gastos por día/mes/año</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-modal>&times;</button>
-        </div>
-        <div class="modal-form modal-form--static">
-            <p class="modal-placeholder">Este reporte estará disponible próximamente.</p>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-modal>Cerrar</button>
-        </div>
-    </div>
-</div>
-<div class="modal" id="report-sales-product-modal" aria-hidden="true">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="report-sales-product-title">
-        <div class="modal-header">
-            <h2 id="report-sales-product-title">Ventas por producto</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-sales-product>&times;</button>
-        </div>
-        <div class="modal-form modal-form--static">
-            <div class="modal-form__grid">
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-sales-product-start">Desde</label>
-                    <input id="report-sales-product-start" type="date" data-report-sales-product-start>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-sales-product-end">Hasta</label>
-                    <input id="report-sales-product-end" type="date" data-report-sales-product-end>
-                </div>
-                <div class="modal-field modal-field--full">
-                    <label class="modal-field__label" for="report-sales-product-search">Buscar marca, modelo o producto</label>
-                    <input id="report-sales-product-search" type="search" placeholder="Ej. Samsung, Galaxy, cargador" data-report-sales-product-search>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Productos agrupados</label>
-                    <span class="modal-field__value" data-report-sales-product-count>0</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Total general</label>
-                    <span class="modal-field__value" data-report-sales-product-total>RD$ 0.00</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Cantidad vendida total</label>
-                    <span class="modal-field__value" data-report-sales-product-quantity>0</span>
-                </div>
-            </div>
-            <div class="modal-table-wrapper" data-report-sales-product-table hidden>
-                <table class="report-sales-product-table">
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>Marca</th>
-                            <th>Modelo</th>
-                            <th>Cantidad vendida</th>
-                            <th>Total vendido</th>
-                        </tr>
-                    </thead>
-                    <tbody data-report-sales-product-table-body>
-                        <tr>
-                            <td colspan="5">Sin resultados disponibles.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <p class="report-sales-product-empty" data-report-sales-product-empty hidden>
-                No se encontraron ventas para los filtros aplicados.
-            </p>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-sales-product>Cerrar</button>
-            <button type="button" class="btn btn-primary" data-run-report-sales-product>Aplicar filtros</button>
-        </div>
-    </div>
-</div>
-<div class="modal" id="report-low-stock-modal" aria-hidden="true">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="report-low-stock-title">
-        <div class="modal-header">
-            <h2 id="report-low-stock-title">Productos bajo stock</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-modal>&times;</button>
-        </div>
-        <div class="modal-form modal-form--static">
-            <p class="modal-placeholder">Este reporte estará disponible próximamente.</p>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-modal>Cerrar</button>
-        </div>
-    </div>
-</div>
-<div class="modal" id="report-sales-customer-modal" aria-hidden="true">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="report-sales-customer-title">
-        <div class="modal-header">
-            <h2 id="report-sales-customer-title">Ventas por cliente</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-modal>&times;</button>
-        </div>
-        <div class="modal-form modal-form--static">
-            <p class="modal-placeholder">Este reporte estará disponible próximamente.</p>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-modal>Cerrar</button>
-        </div>
-    </div>
-</div>
-<div class="modal" id="report-profit-product-modal" aria-hidden="true">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="report-profit-product-title">
-        <div class="modal-header">
-            <h2 id="report-profit-product-title">Ganancia por producto</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-modal>&times;</button>
-        </div>
-        <div class="modal-form modal-form--static">
-            <p class="modal-placeholder">Este reporte estará disponible próximamente.</p>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-modal>Cerrar</button>
-        </div>
-    </div>
-</div>
-<div class="modal" id="report-category-modal" aria-hidden="true">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="report-category-title">
-        <div class="modal-header">
-            <h2 id="report-category-title">Reporte por categorías</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-category>&times;</button>
-        </div>
-        <div class="modal-form modal-form--static">
-            <div class="modal-form__grid">
-                <div class="modal-field modal-field--full">
-                    <label class="modal-field__label" for="report-category-search">Filtrar por categoría o marca</label>
-                    <input id="report-category-search" type="search" placeholder="Ej. accesorios, samsung" data-report-category-search>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Categorías analizadas</label>
-                    <span class="modal-field__value" data-report-category-total-categories>0</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Grupos categoría/marca</label>
-                    <span class="modal-field__value" data-report-category-total-groups>0</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Productos registrados</label>
-                    <span class="modal-field__value" data-report-category-total-products>0</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Stock disponible</label>
-                    <span class="modal-field__value" data-report-category-total-stock>0</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Valor inventario</label>
-                    <span class="modal-field__value" data-report-category-total-value>RD$ 0.00</span>
-                </div>
-            </div>
-            <div class="modal-table-wrapper" data-report-category-table hidden>
-                <table class="report-category-table">
-                    <thead>
-                        <tr>
-                            <th>Categoría</th>
-                            <th>Marca</th>
-                            <th>Productos</th>
-                            <th>Stock total</th>
-                            <th>Valor inventario</th>
-                        </tr>
-                    </thead>
-                    <tbody data-report-category-table-body>
-                        <tr>
-                            <td colspan="5">Sin registros disponibles.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <p class="report-category-empty" data-report-category-empty hidden>
-                No se encontraron resultados para el filtro aplicado.
-            </p>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-category>Cerrar</button>
-            <button type="button" class="btn btn-primary" data-run-report-category>Aplicar filtro</button>
-        </div>
-    </div>
-</div>
-<div class="modal" id="report-total-sales-modal" aria-hidden="true">
-    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="report-total-sales-title">
-        <div class="modal-header">
-            <h2 id="report-total-sales-title">Reporte de ventas totales</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-total-sales>&times;</button>
-        </div>
-        <div class="modal-form modal-form--static">
-            <div class="modal-form__grid">
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-total-sales-start">Desde</label>
-                    <input id="report-total-sales-start" type="date" data-report-total-sales-start>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-total-sales-end">Hasta</label>
-                    <input id="report-total-sales-end" type="date" data-report-total-sales-end>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Total vendido</label>
-                    <span class="modal-field__value" data-report-total-sales-total>—</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Costo total</label>
-                    <span class="modal-field__value" data-report-total-sales-cost>—</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Ganancia</label>
-                    <span class="modal-field__value" data-report-total-sales-profit>—</span>
-                </div>
-                <div class="modal-field">
-                    <label class="modal-field__label">Cantidad de facturas</label>
-                    <span class="modal-field__value" data-report-total-sales-invoices>—</span>
-                </div>
-            </div>
-            <div class="modal-table-wrapper" data-report-total-sales-table hidden>
-                <table class="report-total-sales-table">
-                    <thead>
-                        <tr>
-                            <th>Factura</th>
-                            <th>Cliente</th>
-                            <th>Fecha</th>
-                            <th>Subtotal</th>
-                            <th>ITBIS</th>
-                            <th>Total</th>
-                            <th>Costo</th>
-                            <th>Ganancia</th>
-                            <th>Medio de pago</th>
-                        </tr>
-                    </thead>
-                    <tbody data-report-total-sales-table-body>
-                        <tr>
-                            <td colspan="9">Sin resultados disponibles.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <p class="report-total-sales__empty" data-report-total-sales-empty hidden>
-                No se encontraron ventas para los filtros seleccionados.
-            </p>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-total-sales>Cerrar</button>
-            <button type="button" class="btn btn-primary" data-run-report-total-sales>Aplicar filtros</button>
-        </div>
-    </div>
-</div>
 <style>
-    .settings-grid {
+    .report-hub {
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: 32px;
     }
 
-    .settings-grid__header h2 {
-        margin: 0;
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: var(--color-text-main);
-    }
-
-    .settings-grid__header p {
-        margin: 4px 0 0;
-        color: var(--color-text-muted);
-        font-size: 0.95rem;
-    }
-
-    .settings-grid__items {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 18px;
-    }
-
-    .settings-tile {
+    .report-hub__header {
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        aspect-ratio: 1 / 1;
-        border-radius: 18px;
-        border: none;
-        cursor: pointer;
-        background: linear-gradient(135deg, var(--color-surface-contrast), var(--color-surface-card));
-        box-shadow: 0 10px 30px rgba(var(--color-ink-rgb), 0.08);
-        transition: none;
-        padding: 20px;
-        text-align: center;
-    }
-
-    .settings-tile:hover,
-    .settings-tile:focus-visible {
-        transform: translateY(-4px);
-        box-shadow: 0 16px 38px rgba(var(--color-info-rgb), 0.22);
-        outline: none;
-    }
-
-    .settings-tile__icon {
-        font-size: 2.4rem;
-        line-height: 1;
-    }
-
-    .settings-tile__label {
-        font-weight: 600;
-        color: var(--color-text-main);
-        font-size: 0.95rem;
-    }
-
-    .modal {
-        position: fixed;
-        inset: 0;
-        background-color: rgba(0, 0, 0, 0.4);
-        display: none;
-        align-items: flex-start;
-        justify-content: center;
-        padding: 40px 24px;
-        z-index: 1000;
-        overflow-y: auto;
-    }
-
-    .modal.is-visible {
-        display: flex;
-    }
-
-    .modal-dialog {
-        background-color: var(--color-surface-card);
-        border-radius: 12px;
-        width: min(1000px, 98vw);
-        box-shadow: 0 12px 30px rgba(var(--color-ink-rgb), 0.12);
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        margin: auto;
-    }
-
-    .modal-header {
-        display: flex;
-        align-items: center;
+        flex-wrap: wrap;
         justify-content: space-between;
-        padding: 18px 24px;
-        border-bottom: 1px solid var(--color-border-divider);
+        gap: 20px;
+        align-items: flex-end;
     }
 
-    .modal-header h2 {
+    .report-hub__intro h2 {
         margin: 0;
-        font-size: 1.25rem;
+        font-size: 2rem;
         font-weight: 700;
         color: var(--color-text-main);
     }
 
-    .modal-close {
-        border: none;
-        background: transparent;
-        font-size: 1.6rem;
-        line-height: 1;
-        cursor: pointer;
-        color: var(--color-text-main);
+    .report-hub__intro p {
+        margin: 6px 0 0;
+        color: var(--color-text-subtle);
+        max-width: 520px;
     }
 
-    .modal-form {
-        padding: 24px;
+    .report-range-picker {
         display: flex;
-        flex-direction: column;
-        gap: 18px;
-        overflow: visible;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-end;
+        background: var(--color-surface-card);
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 16px 32px rgba(var(--color-ink-rgb), 0.08);
     }
 
-    .modal-form__grid {
-        display: grid;
-        gap: 16px;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    }
-
-    .modal-field {
+    .report-range-picker__field {
         display: flex;
         flex-direction: column;
         gap: 6px;
     }
 
-    .modal-field--full {
-        grid-column: 1 / -1;
+    .report-range-picker__field label {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: var(--color-text-subtle);
     }
 
-    .modal-field__label {
-        font-weight: 600;
-        color: var(--color-text-main);
+    .report-range-picker__field input {
+        min-width: 180px;
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 10px;
+        padding: 10px 14px;
         font-size: 0.95rem;
+        color: var(--color-text-main);
+        background: var(--color-surface-soft);
     }
 
-    .modal-field__value {
+    .btn.btn-outline {
+        border: 1px solid var(--color-accent-500);
+        color: var(--color-accent-500);
+        background: transparent;
         font-weight: 600;
+        padding: 10px 18px;
+        border-radius: 999px;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .btn.btn-outline:hover {
+        background: var(--color-accent-soft);
+        color: var(--color-accent-600);
+    }
+
+    .report-hub__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+    }
+
+    .report-card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        padding: 22px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, var(--color-surface-card), var(--color-surface-contrast));
+        border: 1px solid var(--color-border-subtle);
+        box-shadow: 0 20px 40px rgba(var(--color-ink-rgb), 0.08);
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        overflow: hidden;
+    }
+
+    .report-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at top right, rgba(var(--color-accent-500-rgb), 0.18), transparent 55%);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+    }
+
+    .report-card:hover,
+    .report-card:focus {
+        transform: translateY(-4px);
+        box-shadow: 0 24px 48px rgba(var(--color-ink-rgb), 0.12);
+    }
+
+    .report-card:hover::after,
+    .report-card:focus::after {
+        opacity: 1;
+    }
+
+    .report-card--accent {
+        background: linear-gradient(135deg, rgba(var(--color-accent-500-rgb), 0.16), rgba(var(--color-accent-deep-rgb), 0.2));
+        border-color: rgba(var(--color-accent-deep-rgb), 0.45);
+        color: var(--color-text-main);
+    }
+
+    .report-card__icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        font-size: 1.8rem;
+        color: var(--color-accent-500);
+        background: rgba(var(--color-accent-500-rgb), 0.12);
+    }
+
+    .report-card--accent .report-card__icon {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.18);
+    }
+
+    .report-card__body h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: inherit;
+    }
+
+    .report-card__body p {
+        margin: 6px 0 0;
+        color: var(--color-text-subtle);
+    }
+
+    .report-card__meta {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        color: var(--color-text-subtle);
+    }
+
+    .report-card__value {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--color-text-main);
+    }
+
+    .report-card__label {
+        font-size: 0.9rem;
+    }
+
+    .report-modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: clamp(16px, 4vw, 48px);
+        background: rgba(15, 23, 42, 0.42);
+        z-index: 1200;
+    }
+
+    .report-modal.is-visible {
+        display: flex;
+    }
+
+    .report-modal__dialog {
+        position: relative;
+        width: min(1100px, 98vw);
+        max-height: 92vh;
+        background: #fff;
+        border-radius: 22px;
+        box-shadow: 0 28px 60px rgba(15, 23, 42, 0.22);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .report-modal__header {
+        padding: 22px clamp(20px, 4vw, 32px);
+        border-bottom: 1px solid var(--color-border-divider);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .report-modal__header h2 {
+        margin: 0;
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--color-text-main);
+    }
+
+    .report-modal__close {
+        border: none;
+        background: rgba(var(--color-ink-rgb), 0.05);
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 1.2rem;
+        cursor: pointer;
+        color: var(--color-text-main);
+    }
+
+    .report-modal__body {
+        padding: clamp(20px, 4vw, 32px);
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+    }
+
+    .report-modal__filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+    }
+
+    .report-modal__filters label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--color-text-subtle);
+    }
+
+    .report-modal__filters input,
+    .report-modal__filters select,
+    .report-modal__filters textarea {
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        background: var(--color-surface-soft);
+        color: var(--color-text-main);
+    }
+
+    .report-modal__actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .report-modal__actions .btn,
+    .report-modal__close,
+    .report-modal__filters button,
+    [data-actions-only] .btn {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        border: none;
+    }
+
+    .report-modal__actions .btn:focus,
+    .report-modal__close:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(var(--color-accent-500-rgb), 0.28);
+    }
+
+    .report-modal__actions .btn:hover:not(:disabled),
+    .report-modal__close:hover:not(:disabled) {
+        transform: translateY(-1px);
+    }
+
+    .report-modal__actions .btn.btn-primary {
+        background: linear-gradient(135deg, var(--color-accent-500), var(--color-accent-400));
+        color: #fff;
+        box-shadow: 0 14px 28px rgba(var(--color-accent-500-rgb), 0.22);
+    }
+
+    .report-modal__actions .btn.btn-primary:hover {
+        box-shadow: 0 18px 34px rgba(var(--color-accent-500-rgb), 0.32);
+    }
+
+    .report-modal__actions .btn.btn-secondary {
+        background: rgba(var(--color-accent-deep-rgb), 0.08);
         color: var(--color-accent-deep);
     }
 
-    .modal-field input,
-    .modal-field select {
-        border: 1px solid var(--color-border-subtle);
-        border-radius: 8px;
-        padding: 10px 12px;
-        font-size: 1rem;
-        background-color: var(--color-surface-card);
-        transition: none;
-    }
-
-    .modal-field select {
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%230097e6' d='M1.41.59 6 5.17 10.59.59 12 2l-6 6-6-6z'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 12px center;
-        background-size: 14px;
-        padding-right: 36px;
-        cursor: pointer;
-    }
-
-    .modal-field input:focus,
-    .modal-field select:focus {
-        border-color: var(--color-info);
-        box-shadow: 0 0 0 2px rgba(var(--color-info-rgb), 0.15);
-        outline: none;
-    }
-
-    .modal-field select:hover {
-        border-color: var(--color-accent-400);
-    }
-
-    .modal-actions {
-        display: flex;
-        gap: 10px;
-        justify-content: flex-end;
-        padding: 0 24px 24px;
-    }
-
-    .modal-table-wrapper {
-        border: 1px solid var(--color-border-divider);
-        border-radius: 10px;
-        overflow-x: auto;
-        background-color: var(--color-surface-card);
-    }
-
-    .cash-report-table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 820px;
-    }
-
-    .cash-report-table thead {
-        background-color: var(--color-surface-contrast);
-        position: sticky;
-        top: 0;
-        z-index: 1;
-    }
-
-    .cash-report-table th,
-    .cash-report-table td {
-        padding: 12px 16px;
-        text-align: left;
-        border-bottom: 1px solid var(--color-border-divider);
-        font-size: 0.95rem;
-        white-space: nowrap;
-    }
-
-    .cash-report-table tbody tr:nth-child(even) {
-        background-color: transparent;
-    }
-
-    .cash-report-table tbody tr:hover {
-        background-color: rgba(var(--color-info-rgb), 0.08);
-    }
-
-    /* Estilos para reporte de cuotas */
-    .credit-report-table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 900px;
-    }
-
-    .credit-report-table thead {
-        background-color: var(--color-surface-contrast);
-        position: sticky;
-        top: 0;
-        z-index: 1;
-    }
-
-    .credit-report-table th,
-    .credit-report-table td {
-        padding: 12px 16px;
-        text-align: left;
-        border-bottom: 1px solid var(--color-border-divider);
-        font-size: 0.9rem;
-        white-space: nowrap;
-    }
-
-    .credit-report-table tbody tr:hover {
-        background-color: rgba(var(--color-primary-rgb), 0.08);
+    .report-modal__actions .btn.btn-secondary:hover {
+        background: rgba(var(--color-accent-deep-rgb), 0.16);
     }
 
     .report-summary {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 16px;
-        margin: 20px 0;
-        padding: 20px;
-        background: var(--color-surface-soft);
-        border-radius: 12px;
-        border: 1px solid var(--color-border-subtle);
     }
 
-    .report-summary-item {
+    .report-summary__card {
+        border-radius: 16px;
+        padding: 16px;
+        background: rgba(var(--color-accent-500-rgb), 0.08);
+        border: 1px solid rgba(var(--color-accent-500-rgb), 0.2);
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        text-align: center;
+        gap: 6px;
     }
 
-    .report-summary-label {
-        font-size: 0.85rem;
-        color: var(--color-text-subtle);
-        font-weight: 500;
+    .report-summary__label {
+        font-size: 0.8rem;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+        color: var(--color-text-subtle);
+        font-weight: 600;
     }
 
-    .report-summary-value {
+    .report-summary__value {
         font-size: 1.25rem;
         font-weight: 700;
         color: var(--color-text-main);
     }
 
-    .report-empty {
-        text-align: center;
-        padding: 40px 20px;
-        color: var(--color-text-muted);
-        font-style: italic;
+    .report-table-wrapper {
+        border: 1px solid var(--color-border-divider);
+        border-radius: 16px;
+        background: #fff;
+        max-height: min(420px, 60vh);
+        max-width: 100%;
+        overflow-y: auto;
+        overflow-x: auto;
     }
 
-    .report-total-sales-table {
+    .report-table {
         width: 100%;
         border-collapse: collapse;
-        min-width: 780px;
+        min-width: 680px;
     }
 
-    .report-total-sales-table th,
-    .report-total-sales-table td {
+    .report-table th,
+    .report-table td {
         padding: 12px 16px;
         border-bottom: 1px solid var(--color-border-divider);
-        font-size: 0.95rem;
         text-align: left;
-        white-space: nowrap;
-    }
-
-    .report-total-sales-table thead,
-    .report-sales-cost-table thead,
-    .report-sales-period-table thead {
-        background-color: var(--color-surface-contrast);
-    }
-
-    .report-total-sales-table tbody tr:hover,
-    .report-sales-cost-table tbody tr:hover,
-    .report-sales-period-table tbody tr:hover {
-        background-color: rgba(var(--color-info-rgb), 0.08);
-    }
-
-    .report-sales-product-table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 760px;
-    }
-
-    .report-sales-product-table th,
-    .report-sales-product-table td {
-        padding: 12px 16px;
-        border-bottom: 1px solid var(--color-border-divider);
         font-size: 0.95rem;
-        text-align: left;
-        white-space: nowrap;
     }
 
-    .report-sales-product-table thead {
-        background-color: var(--color-surface-contrast);
-    }
-
-    .report-sales-product-table tbody tr:hover {
-        background-color: rgba(var(--color-info-rgb), 0.08);
-    }
-
-    .report-sales-cost-table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 780px;
-    }
-
-    .report-sales-cost-table th,
-    .report-sales-cost-table td {
-        padding: 12px 16px;
-        border-bottom: 1px solid var(--color-border-divider);
-        font-size: 0.95rem;
-        text-align: left;
-        white-space: nowrap;
-    }
-
-    .report-category-table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 700px;
-    }
-
-    .report-category-table th,
-    .report-category-table td {
-        padding: 12px 18px;
-        border-bottom: 1px solid var(--color-border-divider);
-        font-size: 0.95rem;
-        text-align: left;
-        white-space: nowrap;
-    }
-
-    .status-tag {
-        display: inline-flex;
-        align-items: center;
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 0.8rem;
+    .report-table th {
+        background: var(--color-surface-muted);
         font-weight: 600;
-        text-transform: capitalize;
-    }
-
-    .status-tag--open {
-        background-color: rgba(var(--color-success-rgb), 0.15);
-        color: var(--color-success);
-    }
-
-    .status-tag--closed {
-        background-color: rgba(var(--color-danger-rgb), 0.15);
-        color: var(--color-danger);
-    }
-
-    .modal-placeholder {
-        margin: 0;
-        font-size: 0.95rem;
-        color: var(--color-text-muted);
-        text-align: center;
-    }
-
-    .report-total-sales__empty,
-    .report-inventory-cost-empty,
-    .report-sales-cost-empty,
-    .report-sales-period-empty,
-    .report-profit-period-empty {
-        margin: 0;
-        font-size: 0.95rem;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
         color: var(--color-text-subtle);
     }
 
-    .btn {
-        border: none;
-        border-radius: 6px;
-        padding: 10px 18px;
-        font-size: 0.95rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: none;
+    .report-table tbody tr:hover {
+        background: rgba(var(--color-accent-500-rgb), 0.08);
     }
 
-    .btn:disabled {
-        opacity: 0.7;
-        cursor: not-allowed;
+    .report-empty-state {
+        border: 1px dashed var(--color-border-subtle);
+        border-radius: 16px;
+        padding: 32px;
+        text-align: center;
+        color: var(--color-text-subtle);
+        background: rgba(var(--color-accent-500-rgb), 0.08);
     }
 
-    .btn-primary {
-        background: linear-gradient(135deg, var(--color-accent-500), var(--color-accent-400));
-        color: var(--color-sidebar-text);
+    .report-spinner {
+        display: none;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 3px solid rgba(var(--color-accent-500-rgb), 0.2);
+        border-top-color: var(--color-accent-500);
+        animation: spin 0.9s linear infinite;
     }
 
-    .btn-primary:hover:not(:disabled) {
-        filter: brightness(0.95);
+    .report-modal[data-loading="true"] .report-spinner {
+        display: inline-block;
     }
 
-    .btn-secondary {
-        background-color: var(--color-accent-deep);
-        color: var(--color-sidebar-text);
+    .report-modal[data-loading="true"] [data-primary-action] {
+        pointer-events: none;
+        opacity: 0.6;
     }
 
-    .btn-secondary:hover:not(:disabled) {
-        filter: brightness(0.92);
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
     }
 
-    @media (max-width: 640px) {
-        .settings-grid__items {
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 14px;
+    @media (max-width: 720px) {
+        .report-range-picker {
+            width: 100%;
+            justify-content: center;
         }
 
-        .settings-tile {
-            border-radius: 14px;
+        .report-card {
+            padding: 18px;
         }
 
-        .settings-tile__icon {
-            font-size: 2rem;
+        .report-modal__dialog {
+            border-radius: 18px;
         }
     }
 </style>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        setupTotalSalesReportModal();
-        setupInventoryCostReportModal();
-        setupSalesCostReportModal();
-        setupSalesPeriodReportModal();
-        setupProfitPeriodReportModal();
-        setupCashReportModal();
-        setupCategoryReportModal();
-        setupProductSalesReportModal();
-        setupPlaceholderReportModals();
-    });
-
-    function setupProductSalesReportModal() {
-        var openButton = document.querySelector('[data-report-action="ventas-producto"]');
-        var modal = document.getElementById('report-sales-product-modal');
-        if (!openButton || !modal) {
-            return;
-        }
-
-        var closeButtons = modal.querySelectorAll('[data-close-report-sales-product]');
-        var runButton = modal.querySelector('[data-run-report-sales-product]');
-        var startInput = modal.querySelector('[data-report-sales-product-start]');
-        var endInput = modal.querySelector('[data-report-sales-product-end]');
-        var searchInput = modal.querySelector('[data-report-sales-product-search]');
-        var countNode = modal.querySelector('[data-report-sales-product-count]');
-        var quantityNode = modal.querySelector('[data-report-sales-product-quantity]');
-        var totalNode = modal.querySelector('[data-report-sales-product-total]');
-        var tableWrapper = modal.querySelector('[data-report-sales-product-table]');
-        var tableBody = modal.querySelector('[data-report-sales-product-table-body]');
-        var emptyNode = modal.querySelector('[data-report-sales-product-empty]');
-        var lastTrigger = null;
-
-        function openModal() {
-            lastTrigger = document.activeElement;
-            modal.classList.add('is-visible');
-            modal.setAttribute('aria-hidden', 'false');
-            if (startInput) {
-                startInput.focus();
-            }
-        }
-
-        function closeModal() {
-            modal.classList.remove('is-visible');
-            modal.setAttribute('aria-hidden', 'true');
-            if (lastTrigger && typeof lastTrigger.focus === 'function') {
-                lastTrigger.focus();
-            }
-        }
-
-        function setLoadingState(isLoading) {
-            if (!runButton) {
-                return;
-            }
-            runButton.disabled = isLoading;
-            runButton.textContent = isLoading ? 'Consultando...' : 'Aplicar filtros';
-        }
-
-        function resetResults() {
-            if (tableBody) {
-                tableBody.innerHTML = '<tr><td colspan="5">Sin resultados disponibles.</td></tr>';
-            }
-            if (tableWrapper) {
-                tableWrapper.hidden = true;
-            }
-            if (emptyNode) {
-                emptyNode.hidden = false;
-            }
-            if (countNode) {
-                countNode.textContent = '0';
-            }
-            if (quantityNode) {
-                quantityNode.textContent = '0';
-            }
-            if (totalNode) {
-                totalNode.textContent = 'RD$ 0.00';
-            }
-        }
-
-        function renderRows(rows) {
-            if (!tableBody) {
-                return;
-            }
-            tableBody.innerHTML = '';
-
-            if (!rows.length) {
-                var emptyRow = document.createElement('tr');
-                var emptyCell = document.createElement('td');
-                emptyCell.colSpan = 5;
-                emptyCell.textContent = 'Sin resultados disponibles.';
-                emptyRow.appendChild(emptyCell);
-                tableBody.appendChild(emptyRow);
-                return;
-            }
-
-            rows.forEach(function (row) {
-                var tr = document.createElement('tr');
-                [
-                    row.producto,
-                    row.marca,
-                    row.modelo,
-                    row.cantidad_display || row.cantidad,
-                    row.total_display || row.subtotal_display,
-                ].forEach(function (value) {
-                    var td = document.createElement('td');
-                    td.textContent = value || '—';
-                    tr.appendChild(td);
-                });
-                tableBody.appendChild(tr);
-            });
-        }
-
-        function updateResults(data) {
-            if (!data || typeof data !== 'object') {
-                resetResults();
-                return;
-            }
-
-            var rows = Array.isArray(data.rows) ? data.rows : [];
-            var totals = data.totals || {};
-            var hasRows = rows.length > 0;
-
-            if (tableWrapper) {
-                tableWrapper.hidden = !hasRows;
-            }
-            if (emptyNode) {
-                emptyNode.hidden = hasRows;
-            }
-
-            if (countNode) {
-                countNode.textContent = typeof totals.productos_display !== 'undefined' ? totals.productos_display : (totals.productos || 0);
-            }
-            if (quantityNode) {
-                quantityNode.textContent = totals.cantidad_display || (totals.cantidad || 0);
-            }
-            if (totalNode) {
-                totalNode.textContent = totals.venta_display || 'RD$ 0.00';
-            }
-
-            renderRows(rows);
-        }
-
-        function runReport() {
-            setLoadingState(true);
-
-            var params = new URLSearchParams();
-            if (startInput && startInput.value) {
-                params.append('fecha_inicio', startInput.value);
-            }
-            if (endInput && endInput.value) {
-                params.append('fecha_fin', endInput.value);
-            }
-            if (searchInput && searchInput.value.trim()) {
-                params.append('q', searchInput.value.trim());
-            }
-
-            var url = new URL(window.location.origin + '{% url "dashboard:report_product_sales_api" %}');
-            if (params.toString()) {
-                url.search = params.toString();
-            }
-
-            fetch(url.toString(), {
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        throw new Error('Error consultando el reporte de ventas por producto.');
-                    }
-                    return response.json();
-                })
-                .then(function (data) {
-                    if (data && data.filters) {
-                        if (startInput) {
-                            startInput.value = data.filters.fecha_inicio || '';
-                        }
-                        if (endInput) {
-                            endInput.value = data.filters.fecha_fin || '';
-                        }
-                        if (searchInput) {
-                            searchInput.value = data.filters.q || '';
-                        }
-                    }
-                    updateResults(data || {});
-                })
-                .catch(function () {
-                    showToast('No fue posible recuperar el reporte de ventas por producto. Intenta nuevamente.', 'error');
-                })
-                .finally(function () {
-                    setLoadingState(false);
-                });
-        }
-
-        openButton.addEventListener('click', function () {
-            openModal();
-            resetResults();
-            runReport();
-        });
-
-        closeButtons.forEach(function (button) {
-            button.addEventListener('click', closeModal);
-        });
-
-        if (runButton) {
-            runButton.addEventListener('click', runReport);
-        }
-
-        if (searchInput) {
-            var debounceTimer = null;
-            searchInput.addEventListener('input', function () {
-                if (debounceTimer) {
-                    clearTimeout(debounceTimer);
-                }
-                debounceTimer = setTimeout(function () {
-                    runReport();
-                }, 500);
-            });
-        }
-
-        [startInput, endInput].forEach(function (input) {
-            if (!input) {
-                return;
-            }
-            input.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    runReport();
-                }
-            });
-        });
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
-                closeModal();
-            }
-        });
-    }
-
-
-    function setupPlaceholderReportModals() {
-        var placeholderButtons = document.querySelectorAll('[data-report-modal]');
-        var lastTrigger = null;
-
-        placeholderButtons.forEach(function (button) {
-            var modalId = button.getAttribute('data-report-modal');
-            var modal = modalId ? document.getElementById(modalId) : null;
-            if (!modal) {
-                return;
-            }
-            button.addEventListener('click', function () {
-                lastTrigger = button;
-                modal.classList.add('is-visible');
-                modal.setAttribute('aria-hidden', 'false');
-                var focusable = modal.querySelector('button, [href], input, select, textarea');
-                if (focusable) {
-                    focusable.focus();
-                }
-            });
-
-        });
-
-        function closeModal(modal) {
-            modal.classList.remove('is-visible');
-            modal.setAttribute('aria-hidden', 'true');
-            if (lastTrigger) {
-                lastTrigger.focus();
-            }
-        }
-
-        document.querySelectorAll('[data-close-report-modal]').forEach(function (button) {
-            var modal = button.closest('.modal');
-            if (!modal) {
-                return;
-            }
-            button.addEventListener('click', function () {
-                closeModal(modal);
-            });
-        });
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key !== 'Escape') {
-                return;
-            }
-            var visibleModal = Array.prototype.find.call(document.querySelectorAll('[data-report-modal]'), function (button) {
-                var modalId = button.getAttribute('data-report-modal');
-                var modal = modalId ? document.getElementById(modalId) : null;
-                return modal && modal.classList.contains('is-visible');
-            });
-            if (!visibleModal) {
-                return;
-            }
-            var targetModal = document.getElementById(visibleModal.getAttribute('data-report-modal'));
-            if (targetModal) {
-                closeModal(targetModal);
-            }
-        });
-    }
-
-
-    function setupTotalSalesReportModal() {
-        var openButton = document.querySelector('[data-report-action="ventas-totales"]');
-        var modal = document.getElementById('report-total-sales-modal');
-        if (!openButton || !modal) {
-            return;
-        }
-
-        var closeButtons = modal.querySelectorAll('[data-close-report-total-sales]');
-        var runButton = modal.querySelector('[data-run-report-total-sales]');
-        var startInput = modal.querySelector('[data-report-total-sales-start]');
-        var endInput = modal.querySelector('[data-report-total-sales-end]');
-        var totalNode = modal.querySelector('[data-report-total-sales-total]');
-        var costNode = modal.querySelector('[data-report-total-sales-cost]');
-        var profitNode = modal.querySelector('[data-report-total-sales-profit]');
-        var emptyNode = modal.querySelector('[data-report-total-sales-empty]');
-        var invoicesNode = modal.querySelector('[data-report-total-sales-invoices]');
-        var tableWrapper = modal.querySelector('[data-report-total-sales-table]');
-        var tableBody = modal.querySelector('[data-report-total-sales-table-body]');
-
-        function openModal() {
-            modal.classList.add('is-visible');
-            modal.setAttribute('aria-hidden', 'false');
-            if (startInput) {
-                startInput.focus();
-            }
-        }
-
-        function closeModal() {
-            modal.classList.remove('is-visible');
-            modal.setAttribute('aria-hidden', 'true');
-        }
-
-        function setLoadingState(isLoading) {
-            if (!runButton) {
-                return;
-            }
-            runButton.disabled = isLoading;
-            runButton.textContent = isLoading ? 'Consultando...' : 'Aplicar filtros';
-        }
-
-        function updateResults(data) {
-            if (!data || typeof data !== 'object') {
-                return;
-            }
-            var hasSales = data.ventas && data.ventas > 0;
-            if (emptyNode) {
-                emptyNode.hidden = hasSales;
-            }
-            if (tableWrapper) {
-                tableWrapper.hidden = !hasSales;
-            }
-            if (totalNode) {
-                totalNode.textContent = data.total_sales_display || 'RD$ 0.00';
-            }
-            if (costNode) {
-                costNode.textContent = data.total_cost_display || 'RD$ 0.00';
-            }
-            if (profitNode) {
-                profitNode.textContent = data.total_profit_display || 'RD$ 0.00';
-            }
-            if (invoicesNode) {
-                var invoicesValue = typeof data.ventas_display !== 'undefined' ? data.ventas_display : data.ventas;
-                invoicesNode.textContent = typeof invoicesValue === 'number' ? invoicesValue : '0';
-            }
-            if (tableBody) {
-                tableBody.innerHTML = '';
-                var rows = Array.isArray(data.rows) ? data.rows : [];
-                if (!rows.length) {
-                    var emptyRow = document.createElement('tr');
-                    var emptyCell = document.createElement('td');
-                    emptyCell.colSpan = 9;
-                    emptyCell.textContent = 'Sin resultados disponibles.';
-                    emptyRow.appendChild(emptyCell);
-                    tableBody.appendChild(emptyRow);
-                } else {
-                    rows.forEach(function (row) {
-                        var tr = document.createElement('tr');
-                        var cols = [
-                            row.factura,
-                            row.cliente,
-                            row.fecha_display,
-                            row.subtotal_display,
-                            row.itbis_display,
-                            row.total_display,
-                            row.costo_display,
-                            row.ganancia_display,
-                            row.metodo_pago,
-                        ];
-                        cols.forEach(function (value) {
-                            var td = document.createElement('td');
-                            td.textContent = value || '—';
-                            tr.appendChild(td);
-                        });
-                        tableBody.appendChild(tr);
-                    });
-                }
-            }
-        }
-
-        function runReport() {
-            setLoadingState(true);
-            var params = new URLSearchParams();
-            if (startInput && startInput.value) {
-                params.append('fecha_inicio', startInput.value);
-            }
-            if (endInput && endInput.value) {
-                params.append('fecha_fin', endInput.value);
-            }
-
-            var url = new URL(window.location.origin + '{% url "dashboard:report_total_sales_api" %}');
-            if (params.toString()) {
-                url.search = params.toString();
-            }
-
-            fetch(url.toString(), {
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        throw new Error('Error consultando el reporte.');
-                    }
-                    return response.json();
-                })
-                .then(function (data) {
-                    updateResults(data);
-                })
-                .catch(function () {
-                    showToast('No fue posible recuperar el reporte de ventas totales. Intenta nuevamente.', 'error');
-                })
-                .finally(function () {
-                    setLoadingState(false);
-                });
-        }
-
-        openButton.addEventListener('click', function () {
-            openModal();
-            runReport();
-        });
-
-        closeButtons.forEach(function (button) {
-            button.addEventListener('click', closeModal);
-        });
-
-        if (runButton) {
-            runButton.addEventListener('click', runReport);
-        }
-
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
-                closeModal();
-            }
-        });
-    }
-
-    function setupInventoryCostReportModal() {
-        var openButton = document.querySelector('[data-report-action="costo-inventario"]');
-        var modal = document.getElementById('report-inventory-cost-modal');
-        if (!openButton || !modal) {
-            return;
-        }
-
-        var closeButtons = modal.querySelectorAll('[data-close-report-inventory-cost]');
-        var runButton = modal.querySelector('[data-run-report-inventory-cost]');
-        var totalNode = modal.querySelector('[data-report-inventory-cost-total]');
-        var productsNode = modal.querySelector('[data-report-inventory-cost-products]');
-        var stockNode = modal.querySelector('[data-report-inventory-cost-stock]');
-        var tableWrapper = modal.querySelector('[data-report-inventory-cost-table]');
-        var tableBody = modal.querySelector('[data-report-inventory-cost-table-body]');
-        var emptyNode = modal.querySelector('[data-report-inventory-cost-empty]');
-        var lastTrigger = null;
-
-        function openModal() {
-            lastTrigger = document.activeElement;
-            modal.classList.add('is-visible');
-            modal.setAttribute('aria-hidden', 'false');
-        }
-
-        function closeModal() {
-            modal.classList.remove('is-visible');
-            modal.setAttribute('aria-hidden', 'true');
-            if (lastTrigger && typeof lastTrigger.focus === 'function') {
-                lastTrigger.focus();
-            }
-        }
-
-        function setLoadingState(isLoading) {
-            if (!runButton) {
-                return;
-            }
-            runButton.disabled = isLoading;
-            runButton.textContent = isLoading ? 'Consultando...' : 'Actualizar';
-        }
-
-        function updateResults(data) {
-            if (!data || typeof data !== 'object') {
-                return;
-            }
-
-            if (totalNode) {
-                totalNode.textContent = data.total_cost_display || 'RD$ 0.00';
-            }
-            if (productsNode) {
-                var productsValue = typeof data.products_count !== 'undefined' ? data.products_count : '0';
-                productsNode.textContent = typeof productsValue === 'number' ? productsValue : '0';
-            }
-            if (stockNode) {
-                var stockValue = typeof data.total_stock !== 'undefined' ? data.total_stock : '0';
-                stockNode.textContent = typeof stockValue === 'number' ? stockValue : '0';
-            }
-
-            var rows = Array.isArray(data.rows) ? data.rows : [];
-            var hasRows = rows.length > 0;
-
-            if (tableWrapper) {
-                tableWrapper.hidden = !hasRows;
-            }
-            if (emptyNode) {
-                emptyNode.hidden = hasRows;
-            }
-
-            if (tableBody) {
-                tableBody.innerHTML = '';
-                if (!hasRows) {
-                    var emptyRow = document.createElement('tr');
-                    var emptyCell = document.createElement('td');
-                    emptyCell.colSpan = 6;
-                    emptyCell.textContent = 'Sin resultados disponibles.';
-                    emptyRow.appendChild(emptyCell);
-                    tableBody.appendChild(emptyRow);
-                } else {
-                    rows.forEach(function (row) {
-                        var tr = document.createElement('tr');
-                        [
-                            row.producto,
-                            row.categoria,
-                            row.proveedor,
-                            row.precio_compra_display,
-                            typeof row.stock === 'number' ? row.stock : '0',
-                            row.costo_total_display
-                        ].forEach(function (value) {
-                            var td = document.createElement('td');
-                            td.textContent = value || '—';
-                            tr.appendChild(td);
-                        });
-                        tableBody.appendChild(tr);
-                    });
-                }
-            }
-        }
-
-        function runReport() {
-            setLoadingState(true);
-
-            var url = new URL(window.location.origin + '{% url "dashboard:report_inventory_cost_api" %}');
-
-            fetch(url.toString(), {
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        throw new Error('Error consultando el costo de inventario.');
-                    }
-                    return response.json();
-                })
-                .then(function (data) {
-                    updateResults(data);
-                })
-                .catch(function () {
-                    showToast('No fue posible recuperar el costo total del inventario. Intenta nuevamente.', 'error');
-                })
-                .finally(function () {
-                    setLoadingState(false);
-                });
-        }
-
-        openButton.addEventListener('click', function () {
-            openModal();
-            runReport();
-        });
-
-        closeButtons.forEach(function (button) {
-            button.addEventListener('click', closeModal);
-        });
-
-        if (runButton) {
-            runButton.addEventListener('click', runReport);
-        }
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
-                closeModal();
-            }
-        });
-    }
-
-    function setupSalesCostReportModal() {
-        var openButton = document.querySelector('[data-report-action="costo-ventas"]');
-        var modal = document.getElementById('report-sales-cost-modal');
-        if (!openButton || !modal) {
-            return;
-        }
-
-        var closeButtons = modal.querySelectorAll('[data-close-report-sales-cost]');
-        var runButton = modal.querySelector('[data-run-report-sales-cost]');
-        var startInput = modal.querySelector('[data-report-sales-cost-start]');
-        var endInput = modal.querySelector('[data-report-sales-cost-end]');
-        var totalNode = modal.querySelector('[data-report-sales-cost-total]');
-        var unitsNode = modal.querySelector('[data-report-sales-cost-units]');
-        var salesNode = modal.querySelector('[data-report-sales-cost-sales]');
-        var tableWrapper = modal.querySelector('[data-report-sales-cost-table]');
-        var tableBody = modal.querySelector('[data-report-sales-cost-table-body]');
-        var emptyNode = modal.querySelector('[data-report-sales-cost-empty]');
-        var lastTrigger = null;
-
-        function openModal() {
-            lastTrigger = document.activeElement;
-            modal.classList.add('is-visible');
-            modal.setAttribute('aria-hidden', 'false');
-            if (startInput) {
-                startInput.focus();
-            }
-        }
-
-        function closeModal() {
-            modal.classList.remove('is-visible');
-            modal.setAttribute('aria-hidden', 'true');
-            if (lastTrigger && typeof lastTrigger.focus === 'function') {
-                lastTrigger.focus();
-            }
-        }
-
-        function setLoadingState(isLoading) {
-            if (!runButton) {
-                return;
-            }
-            runButton.disabled = isLoading;
-            runButton.textContent = isLoading ? 'Consultando...' : 'Aplicar filtros';
-        }
-
-        function updateResults(data) {
-            if (!data || typeof data !== 'object') {
-                return;
-            }
-
-            var filters = data.filters || {};
-            if (startInput) {
-                startInput.value = filters.fecha_inicio || '';
-            }
-            if (endInput) {
-                endInput.value = filters.fecha_fin || '';
-            }
-
-            if (totalNode) {
-                totalNode.textContent = data.total_cost_display || 'RD$ 0.00';
-            }
-            if (unitsNode) {
-                var unitsValue = typeof data.total_units !== 'undefined' ? data.total_units : '0';
-                unitsNode.textContent = typeof unitsValue === 'number' ? unitsValue : '0';
-            }
-            if (salesNode) {
-                var salesValue = typeof data.ventas !== 'undefined' ? data.ventas : '0';
-                salesNode.textContent = typeof salesValue === 'number' ? salesValue : '0';
-            }
-
-            var rows = Array.isArray(data.rows) ? data.rows : [];
-            var hasRows = rows.length > 0;
-
-            if (tableWrapper) {
-                tableWrapper.hidden = !hasRows;
-            }
-            if (emptyNode) {
-                emptyNode.hidden = hasRows;
-            }
-
-            if (tableBody) {
-                tableBody.innerHTML = '';
-                if (!hasRows) {
-                    var emptyRow = document.createElement('tr');
-                    var emptyCell = document.createElement('td');
-                    emptyCell.colSpan = 5;
-                    emptyCell.textContent = 'Sin resultados disponibles.';
-                    emptyRow.appendChild(emptyCell);
-                    tableBody.appendChild(emptyRow);
-                } else {
-                    rows.forEach(function (row) {
-                        var tr = document.createElement('tr');
-                        [
-                            row.factura,
-                            row.cliente,
-                            row.fecha_display,
-                            row.unidades_display,
-                            row.costo_total_display
-                        ].forEach(function (value) {
-                            var td = document.createElement('td');
-                            td.textContent = value || '—';
-                            tr.appendChild(td);
-                        });
-                        tableBody.appendChild(tr);
-                    });
-                }
-            }
-        }
-
-        function runReport() {
-            setLoadingState(true);
-            var params = new URLSearchParams();
-            if (startInput && startInput.value) {
-                params.append('fecha_inicio', startInput.value);
-            }
-            if (endInput && endInput.value) {
-                params.append('fecha_fin', endInput.value);
-            }
-
-            var url = new URL(window.location.origin + '{% url "dashboard:report_sales_cost_api" %}');
-            if (params.toString()) {
-                url.search = params.toString();
-            }
-
-            fetch(url.toString(), {
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        throw new Error('Error consultando el costo de ventas.');
-                    }
-                    return response.json();
-                })
-                .then(function (data) {
-                    updateResults(data);
-                })
-                .catch(function () {
-                    showToast('No fue posible recuperar el costo total de ventas. Intenta nuevamente.', 'error');
-                })
-                .finally(function () {
-                    setLoadingState(false);
-                });
-        }
-
-        openButton.addEventListener('click', function () {
-            openModal();
-            runReport();
-        });
-
-        closeButtons.forEach(function (button) {
-            button.addEventListener('click', closeModal);
-        });
-
-        if (runButton) {
-            runButton.addEventListener('click', runReport);
-        }
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
-                closeModal();
-            }
-        });
-    }
-
-    function setupSalesPeriodReportModal() {
-        var openButton = document.querySelector('[data-report-action="ventas-periodo"]');
-        var modal = document.getElementById('report-sales-period-modal');
-        if (!openButton || !modal) {
-            return;
-        }
-
-        var closeButtons = modal.querySelectorAll('[data-close-report-sales-period]');
-        var runButton = modal.querySelector('[data-run-report-sales-period]');
-        var startInput = modal.querySelector('[data-report-sales-period-start]');
-        var endInput = modal.querySelector('[data-report-sales-period-end]');
-        var periodSelect = modal.querySelector('[data-report-sales-period-select]');
-        var totalNode = modal.querySelector('[data-report-sales-period-total]');
-        var salesNode = modal.querySelector('[data-report-sales-period-sales]');
-        var tableWrapper = modal.querySelector('[data-report-sales-period-table]');
-        var tableBody = modal.querySelector('[data-report-sales-period-table-body]');
-        var emptyNode = modal.querySelector('[data-report-sales-period-empty]');
-        var lastTrigger = null;
-
-        function openModal() {
-            lastTrigger = document.activeElement;
-            modal.classList.add('is-visible');
-            modal.setAttribute('aria-hidden', 'false');
-            if (startInput) {
-                startInput.focus();
-            }
-        }
-
-        function closeModal() {
-            modal.classList.remove('is-visible');
-            modal.setAttribute('aria-hidden', 'true');
-            if (lastTrigger && typeof lastTrigger.focus === 'function') {
-                lastTrigger.focus();
-            }
-        }
-
-        function setLoadingState(isLoading) {
-            if (!runButton) {
-                return;
-            }
-            runButton.disabled = isLoading;
-            runButton.textContent = isLoading ? 'Consultando...' : 'Aplicar filtros';
-        }
-
-        function updateResults(data) {
-            if (!data || typeof data !== 'object') {
-                return;
-            }
-
-            var filters = data.filters || {};
-            if (startInput) {
-                startInput.value = filters.fecha_inicio || '';
-            }
-            if (endInput) {
-                endInput.value = filters.fecha_fin || '';
-            }
-            if (periodSelect) {
-                periodSelect.value = filters.period || 'day';
-            }
-
-            if (totalNode) {
-                totalNode.textContent = data.total_sales_display || 'RD$ 0.00';
-            }
-            if (salesNode) {
-                var salesValue = typeof data.ventas !== 'undefined' ? data.ventas : '0';
-                salesNode.textContent = typeof salesValue === 'number' ? salesValue : '0';
-            }
-
-            var rows = Array.isArray(data.rows) ? data.rows : [];
-            var hasRows = rows.length > 0;
-
-            if (tableWrapper) {
-                tableWrapper.hidden = !hasRows;
-            }
-            if (emptyNode) {
-                emptyNode.hidden = hasRows;
-            }
-
-            if (tableBody) {
-                tableBody.innerHTML = '';
-                if (!hasRows) {
-                    var emptyRow = document.createElement('tr');
-                    var emptyCell = document.createElement('td');
-                    emptyCell.colSpan = 3;
-                    emptyCell.textContent = 'Sin resultados disponibles.';
-                    emptyRow.appendChild(emptyCell);
-                    tableBody.appendChild(emptyRow);
-                } else {
-                    rows.forEach(function (row) {
-                        var tr = document.createElement('tr');
-                        [
-                            row.period_display,
-                            row.ventas_display,
-                            row.total_display
-                        ].forEach(function (value) {
-                            var td = document.createElement('td');
-                            td.textContent = value || '—';
-                            tr.appendChild(td);
-                        });
-                        tableBody.appendChild(tr);
-                    });
-                }
-            }
-        }
-
-        function runReport() {
-            setLoadingState(true);
-            var params = new URLSearchParams();
-            if (startInput && startInput.value) {
-                params.append('fecha_inicio', startInput.value);
-            }
-            if (endInput && endInput.value) {
-                params.append('fecha_fin', endInput.value);
-            }
-            if (periodSelect && periodSelect.value) {
-                params.append('period', periodSelect.value);
-            }
-
-            var url = new URL(window.location.origin + '{% url "dashboard:report_sales_period_api" %}');
-            if (params.toString()) {
-                url.search = params.toString();
-            }
-
-            fetch(url.toString(), {
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        throw new Error('Error consultando las ventas por periodo.');
-                    }
-                    return response.json();
-                })
-                .then(function (data) {
-                    updateResults(data);
-                })
-                .catch(function () {
-                    showToast('No fue posible recuperar las ventas agrupadas. Intenta nuevamente.', 'error');
-                })
-                .finally(function () {
-                    setLoadingState(false);
-                });
-        }
-
-        openButton.addEventListener('click', function () {
-            openModal();
-            runReport();
-        });
-
-        closeButtons.forEach(function (button) {
-            button.addEventListener('click', closeModal);
-        });
-
-        if (runButton) {
-            runButton.addEventListener('click', runReport);
-        }
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
-                closeModal();
-            }
-        });
-    }
-
-    function setupProfitPeriodReportModal() {
-        var openButton = document.querySelector('[data-report-action="ganancias-periodo"]');
-        var modal = document.getElementById('report-profit-period-modal');
-        if (!openButton || !modal) {
-            return;
-        }
-
-        var closeButtons = modal.querySelectorAll('[data-close-report-profit-period]');
-        var runButton = modal.querySelector('[data-run-report-profit-period]');
-        var startInput = modal.querySelector('[data-report-profit-period-start]');
-        var endInput = modal.querySelector('[data-report-profit-period-end]');
-        var periodSelect = modal.querySelector('[data-report-profit-period-select]');
-        var totalSalesNode = modal.querySelector('[data-report-profit-period-sales]');
-        var totalCostNode = modal.querySelector('[data-report-profit-period-cost]');
-        var totalProfitNode = modal.querySelector('[data-report-profit-period-profit]');
-        var countNode = modal.querySelector('[data-report-profit-period-count]');
-        var tableWrapper = modal.querySelector('[data-report-profit-period-table]');
-        var tableBody = modal.querySelector('[data-report-profit-period-table-body]');
-        var emptyNode = modal.querySelector('[data-report-profit-period-empty]');
-        var lastTrigger = null;
-
-        function openModal() {
-            lastTrigger = document.activeElement;
-            modal.classList.add('is-visible');
-            modal.setAttribute('aria-hidden', 'false');
-            if (startInput) {
-                startInput.focus();
-            }
-        }
-
-        function closeModal() {
-            modal.classList.remove('is-visible');
-            modal.setAttribute('aria-hidden', 'true');
-            if (lastTrigger && typeof lastTrigger.focus === 'function') {
-                lastTrigger.focus();
-            }
-        }
-
-        function setLoadingState(isLoading) {
-            if (!runButton) {
-                return;
-            }
-            runButton.disabled = isLoading;
-            runButton.textContent = isLoading ? 'Consultando...' : 'Aplicar filtros';
-        }
-
-        function updateResults(data) {
-            if (!data || typeof data !== 'object') {
-                return;
-            }
-
-            var filters = data.filters || {};
-            if (startInput) {
-                startInput.value = filters.fecha_inicio || '';
-            }
-            if (endInput) {
-                endInput.value = filters.fecha_fin || '';
-            }
-            if (periodSelect) {
-                periodSelect.value = filters.period || 'day';
-            }
-
-            if (totalSalesNode) {
-                totalSalesNode.textContent = data.total_sales_display || 'RD$ 0.00';
-            }
-            if (totalCostNode) {
-                totalCostNode.textContent = data.total_cost_display || 'RD$ 0.00';
-            }
-            if (totalProfitNode) {
-                totalProfitNode.textContent = data.total_profit_display || 'RD$ 0.00';
-            }
-            if (countNode) {
-                var countValue = typeof data.ventas !== 'undefined' ? data.ventas : '0';
-                countNode.textContent = typeof countValue === 'number' ? countValue : '0';
-            }
-
-            var rows = Array.isArray(data.rows) ? data.rows : [];
-            var hasRows = rows.length > 0;
-
-            if (tableWrapper) {
-                tableWrapper.hidden = !hasRows;
-            }
-            if (emptyNode) {
-                emptyNode.hidden = hasRows;
-            }
-
-            if (tableBody) {
-                tableBody.innerHTML = '';
-                if (!hasRows) {
-                    var emptyRow = document.createElement('tr');
-                    var emptyCell = document.createElement('td');
-                    emptyCell.colSpan = 5;
-                    emptyCell.textContent = 'Sin resultados disponibles.';
-                    emptyRow.appendChild(emptyCell);
-                    tableBody.appendChild(emptyRow);
-                } else {
-                    rows.forEach(function (row) {
-                        var tr = document.createElement('tr');
-                        [
-                            row.period_display,
-                            row.ventas_display,
-                            row.total_sales_display,
-                            row.total_cost_display,
-                            row.total_profit_display
-                        ].forEach(function (value) {
-                            var td = document.createElement('td');
-                            td.textContent = value || '—';
-                            tr.appendChild(td);
-                        });
-                        tableBody.appendChild(tr);
-                    });
-                }
-            }
-        }
-
-        function runReport() {
-            setLoadingState(true);
-            var params = new URLSearchParams();
-            if (startInput && startInput.value) {
-                params.append('fecha_inicio', startInput.value);
-            }
-            if (endInput && endInput.value) {
-                params.append('fecha_fin', endInput.value);
-            }
-            if (periodSelect && periodSelect.value) {
-                params.append('period', periodSelect.value);
-            }
-
-            var url = new URL(window.location.origin + '{% url "dashboard:report_profit_period_api" %}');
-            if (params.toString()) {
-                url.search = params.toString();
-            }
-
-            fetch(url.toString(), {
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        throw new Error('Error consultando el reporte de ganancias por periodo.');
-                    }
-                    return response.json();
-                })
-                .then(function (data) {
-                    updateResults(data);
-                })
-                .catch(function () {
-                    showToast('No fue posible recuperar las ganancias agrupadas. Intenta nuevamente.', 'error');
-                })
-                .finally(function () {
-                    setLoadingState(false);
-                });
-        }
-
-        openButton.addEventListener('click', function () {
-            openModal();
-            runReport();
-        });
-
-        closeButtons.forEach(function (button) {
-            button.addEventListener('click', closeModal);
-        });
-
-        if (runButton) {
-            runButton.addEventListener('click', runReport);
-        }
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
-                closeModal();
-            }
-        });
-    }
-
-    function setupCashReportModal() {
-        var openButton = document.querySelector('[data-report-action="caja"]');
-        var modal = document.getElementById('report-cash-modal');
-        if (!openButton || !modal) {
-            return;
-        }
-
-        var closeButtons = modal.querySelectorAll('[data-close-report-cash]');
-        var runButton = modal.querySelector('[data-run-report-cash]');
-        var startInput = modal.querySelector('[data-report-cash-start]');
-        var endInput = modal.querySelector('[data-report-cash-end]');
-        var tableWrapper = modal.querySelector('[data-report-cash-table-wrapper]');
-        var tableBody = modal.querySelector('[data-report-cash-table-body]');
-
-        var DASH = '—';
-        var lastTrigger = null;
-
-        function openModal() {
-            lastTrigger = document.activeElement;
-            modal.classList.add('is-visible');
-            modal.setAttribute('aria-hidden', 'false');
-            if (startInput) {
-                startInput.focus();
-            }
-        }
-
-        function closeModal() {
-            modal.classList.remove('is-visible');
-            modal.setAttribute('aria-hidden', 'true');
-            if (lastTrigger && typeof lastTrigger.focus === 'function') {
-                lastTrigger.focus();
-            }
-        }
-
-        function createCell(value) {
-            var cell = document.createElement('td');
-            cell.textContent = value || DASH;
-            return cell;
-        }
-
-        function setLoadingState(isLoading) {
-            if (!runButton) {
-                return;
-            }
-            runButton.disabled = isLoading;
-            runButton.textContent = isLoading ? 'Consultando...' : 'Aplicar filtros';
-        }
-
-        function renderRows(sessions) {
-            if (!tableBody) {
-                return;
-            }
-
-            tableBody.innerHTML = '';
-
-            if (!sessions || !sessions.length) {
-                var emptyRow = document.createElement('tr');
-                var emptyCell = document.createElement('td');
-                emptyCell.colSpan = 10;
-                emptyCell.textContent = 'No hay sesiones registradas.';
-                emptyRow.appendChild(emptyCell);
-                tableBody.appendChild(emptyRow);
-                return;
-            }
-
-            sessions.forEach(function (session) {
-                var row = document.createElement('tr');
-                var totals = session.totals || {};
-                var isClosed = session.estado === 'cerrada';
-
-                row.appendChild(createCell(session.id != null ? session.id : DASH));
-                row.appendChild(createCell(session.apertura_display || DASH));
-                row.appendChild(createCell(session.monto_inicial_display || 'RD$ 0.00'));
-
-                var totalCajaDisplay = isClosed
-                    ? (totals.total_en_caja_display || session.total_en_caja_registrado_display || 'RD$ 0.00')
-                    : DASH;
-                row.appendChild(createCell(totalCajaDisplay));
-
-                if (isClosed) {
-                    var statusCell = document.createElement('td');
-                    var statusTag = document.createElement('span');
-                    statusTag.className = 'status-tag status-tag--closed';
-                    statusTag.textContent = session.estado_display || 'Cerrada';
-                    statusCell.appendChild(statusTag);
-                    row.appendChild(statusCell);
-                } else {
-                    row.appendChild(createCell(DASH));
-                }
-
-                row.appendChild(createCell(isClosed ? (totals.total_display || 'RD$ 0.00') : DASH));
-
-                var cierreDisplay = session.cierre_display && session.cierre_display !== '--' ? session.cierre_display : DASH;
-                row.appendChild(createCell(isClosed ? cierreDisplay : DASH));
-                row.appendChild(createCell(isClosed ? (totals.impuestos_display || 'RD$ 0.00') : DASH));
-                row.appendChild(createCell(isClosed ? (totals.descuento_display || 'RD$ 0.00') : DASH));
-                row.appendChild(createCell(isClosed ? (totals.total_credito_display || 'RD$ 0.00') : DASH));
-
-                tableBody.appendChild(row);
-            });
-        }
-
-        function updateResults(payload) {
-            var sessions = payload && payload.sessions ? payload.sessions : [];
-
-            var hasSessions = sessions.length > 0;
-
-            if (tableWrapper) {
-                tableWrapper.hidden = !hasSessions;
-            }
-            renderRows(sessions);
-        }
-
-        function runReport() {
-            setLoadingState(true);
-
-            var params = new URLSearchParams();
-            if (startInput && startInput.value) {
-                params.append('fecha_inicio', startInput.value);
-            }
-            if (endInput && endInput.value) {
-                params.append('fecha_fin', endInput.value);
-            }
-
-            var url = new URL(window.location.origin + '{% url "dashboard:cash_session_report_api" %}');
-            if (params.toString()) {
-                url.search = params.toString();
-            }
-
-            fetch(url.toString(), {
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        throw new Error('Error consultando el reporte de caja.');
-                    }
-                    return response.json();
-                })
-                .then(function (data) {
-                    if (startInput && data.filters) {
-                        startInput.value = data.filters.fecha_inicio || '';
-                    }
-                    if (endInput && data.filters) {
-                        endInput.value = data.filters.fecha_fin || '';
-                    }
-                    updateResults(data || {});
-                })
-                .catch(function () {
-                    showToast('No fue posible recuperar el reporte de caja. Intenta nuevamente.', 'error');
-                })
-                .finally(function () {
-                    setLoadingState(false);
-                });
-        }
-
-        openButton.addEventListener('click', openModal);
-
-        function resetResults() {
-            if (tableBody) {
-                tableBody.innerHTML = '<tr><td colspan="10">Sin registros disponibles.</td></tr>';
-            }
-            if (tableWrapper) {
-                tableWrapper.hidden = false;
-            }
-        }
-
-        closeButtons.forEach(function (button) {
-            button.addEventListener('click', closeModal);
-        });
-
-        openButton.addEventListener('click', function () {
-            resetResults();
-            runReport();
-        });
-
-        if (runButton) {
-            runButton.addEventListener('click', runReport);
-        }
-
-        if (startInput) {
-            startInput.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    runReport();
-                }
-            });
-        }
-
-        if (endInput) {
-            endInput.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    runReport();
-                }
-            });
-        }
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
-                closeModal();
-            }
-        });
-    }
-
-    function setupCategoryReportModal() {
-        var openButton = document.querySelector('[data-report-action="categorias"]');
-        var modal = document.getElementById('report-category-modal');
-        if (!openButton || !modal) {
-            return;
-        }
-
-        var closeButtons = modal.querySelectorAll('[data-close-report-category]');
-        var runButton = modal.querySelector('[data-run-report-category]');
-        var searchInput = modal.querySelector('[data-report-category-search]');
-        var totalCategoriesNode = modal.querySelector('[data-report-category-total-categories]');
-        var totalGroupsNode = modal.querySelector('[data-report-category-total-groups]');
-        var totalProductsNode = modal.querySelector('[data-report-category-total-products]');
-        var totalStockNode = modal.querySelector('[data-report-category-total-stock]');
-        var totalValueNode = modal.querySelector('[data-report-category-total-value]');
-        var tableWrapper = modal.querySelector('[data-report-category-table]');
-        var tableBody = modal.querySelector('[data-report-category-table-body]');
-        var emptyNode = modal.querySelector('[data-report-category-empty]');
-        var lastTrigger = null;
-
-        function openModal() {
-            lastTrigger = document.activeElement;
-            modal.classList.add('is-visible');
-            modal.setAttribute('aria-hidden', 'false');
-            if (searchInput) {
-                searchInput.focus();
-            }
-        }
-
-        function closeModal() {
-            modal.classList.remove('is-visible');
-            modal.setAttribute('aria-hidden', 'true');
-            if (lastTrigger && typeof lastTrigger.focus === 'function') {
-                lastTrigger.focus();
-            }
-        }
-
-        function setLoadingState(isLoading) {
-            if (!runButton) {
-                return;
-            }
-            runButton.disabled = isLoading;
-            runButton.textContent = isLoading ? 'Consultando...' : 'Aplicar filtro';
-        }
-
-        function updateTotals(totals) {
-            if (totalCategoriesNode) {
-                var categoriesValue = totals && (typeof totals.categorias_display !== 'undefined' ? totals.categorias_display : totals.categorias);
-                totalCategoriesNode.textContent = typeof categoriesValue === 'number' ? categoriesValue : 0;
-            }
-            if (totalGroupsNode) {
-                var groupsValue = totals && (typeof totals.grupos_display !== 'undefined' ? totals.grupos_display : totals.grupos);
-                totalGroupsNode.textContent = typeof groupsValue === 'number' ? groupsValue : 0;
-            }
-            if (totalProductsNode) {
-                var productsValue = totals && (typeof totals.productos_display !== 'undefined' ? totals.productos_display : totals.productos);
-                totalProductsNode.textContent = typeof productsValue === 'number' ? productsValue : 0;
-            }
-            if (totalStockNode) {
-                var stockValue = totals && (typeof totals.stock_display !== 'undefined' ? totals.stock_display : totals.stock);
-                totalStockNode.textContent = typeof stockValue === 'number' ? stockValue : 0;
-            }
-            if (totalValueNode) {
-                totalValueNode.textContent = totals && totals.valor_display ? totals.valor_display : 'RD$ 0.00';
-            }
-        }
-
-        function renderRows(rows) {
-            if (!tableBody) {
-                return;
-            }
-
-            tableBody.innerHTML = '';
-
-            if (!rows || !rows.length) {
-                var emptyRow = document.createElement('tr');
-                var emptyCell = document.createElement('td');
-                emptyCell.colSpan = 5;
-                emptyCell.textContent = 'Sin registros disponibles.';
-                emptyRow.appendChild(emptyCell);
-                tableBody.appendChild(emptyRow);
-                if (tableWrapper) {
-                    tableWrapper.hidden = true;
-                }
-                if (emptyNode) {
-                    emptyNode.hidden = false;
-                }
-                return;
-            }
-
-            if (tableWrapper) {
-                tableWrapper.hidden = false;
-            }
-            if (emptyNode) {
-                emptyNode.hidden = true;
-            }
-
-            rows.forEach(function (row) {
-                var tr = document.createElement('tr');
-                [
-                    row.categoria,
-                    row.marca,
-                    row.productos_display || row.productos,
-                    row.stock_display || row.stock,
-                    row.valor_display || row.valor,
-                ].forEach(function (value) {
-                    var td = document.createElement('td');
-                    td.textContent = value || '—';
-                    tr.appendChild(td);
-                });
-                tableBody.appendChild(tr);
-            });
-        }
-
-        function runReport() {
-            setLoadingState(true);
-
-            var params = new URLSearchParams();
-            if (searchInput && searchInput.value) {
-                params.append('q', searchInput.value);
-            }
-
-            var url = new URL(window.location.origin + '{% url "dashboard:report_category_analysis_api" %}');
-            if (params.toString()) {
-                url.search = params.toString();
-            }
-
-            fetch(url.toString(), {
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        throw new Error('Error consultando el análisis por categoría.');
-                    }
-                    return response.json();
-                })
-                .then(function (data) {
-                    if (searchInput && data.filters) {
-                        searchInput.value = data.filters.q || '';
-                    }
-                    updateTotals(data.totals || {});
-                    renderRows(data.rows || []);
-                })
-                .catch(function () {
-                    showToast('No fue posible recuperar el reporte por categoría. Intenta nuevamente.', 'error');
-                })
-                .finally(function () {
-                    setLoadingState(false);
-                });
-        }
-
-        openButton.addEventListener('click', function () {
-            openModal();
-            runReport();
-        });
-
-        if (runButton) {
-            runButton.addEventListener('click', runReport);
-        }
-
-        if (searchInput) {
-            searchInput.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    runReport();
-                }
-            });
-        }
-
-        closeButtons.forEach(function (button) {
-            button.addEventListener('click', closeModal);
-        });
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
-                closeModal();
-            }
-        });
-    }
-
-    // Reporte de cuotas
-    var creditInstallmentsModal = document.getElementById('report-credit-installments-modal');
-    var creditInstallmentsOpenButton = document.querySelector('[data-report-modal="report-credit-installments-modal"]');
-    
-    if (creditInstallmentsModal && creditInstallmentsOpenButton) {
-        initCreditInstallmentsReport(creditInstallmentsModal, creditInstallmentsOpenButton);
-    }
-
-    function initCreditInstallmentsReport(modal, openButton) {
-        var closeButtons = modal.querySelectorAll('[data-close-report-credit-installments]');
-        var runButton = modal.querySelector('[data-run-report-credit-installments]');
-        var startDateInput = modal.querySelector('[data-report-credit-start]');
-        var endDateInput = modal.querySelector('[data-report-credit-end]');
-        var statusFilter = modal.querySelector('[data-report-credit-status]');
-        var tableWrapper = modal.querySelector('[data-report-credit-table-wrapper]');
-        var tableBody = modal.querySelector('[data-report-credit-table-body]');
-        var emptyNode = modal.querySelector('[data-report-credit-empty]');
-        var summaryContainer = modal.querySelector('[data-report-credit-summary]');
-
-        function openModal() {
-            modal.classList.add('is-visible');
-            modal.setAttribute('aria-hidden', 'false');
-        }
-
-        function closeModal() {
-            modal.classList.remove('is-visible');
-            modal.setAttribute('aria-hidden', 'true');
-        }
-
-        function setLoadingState(isLoading) {
-            if (runButton) {
-                runButton.disabled = isLoading;
-                runButton.textContent = isLoading ? 'Generando...' : 'Generar reporte';
-            }
-        }
-
-        function updateSummary(data) {
-            if (!summaryContainer || !data) return;
-            
-            summaryContainer.innerHTML = [
-                '<div class="report-summary-item">',
-                '    <span class="report-summary-label">Total créditos activos</span>',
-                '    <span class="report-summary-value">' + (data.total_creditos || 0) + '</span>',
-                '</div>',
-                '<div class="report-summary-item">',
-                '    <span class="report-summary-label">Monto total pendiente</span>',
-                '    <span class="report-summary-value">' + (data.total_pendiente_display || 'RD$ 0.00') + '</span>',
-                '</div>',
-                '<div class="report-summary-item">',
-                '    <span class="report-summary-label">Cuotas vencidas</span>',
-                '    <span class="report-summary-value">' + (data.cuotas_vencidas || 0) + '</span>',
-                '</div>',
-                '<div class="report-summary-item">',
-                '    <span class="report-summary-label">Próximos vencimientos</span>',
-                '    <span class="report-summary-value">' + (data.proximos_vencimientos || 0) + '</span>',
-                '</div>'
-            ].join('');
-        }
-
-        function renderRows(rows) {
-            if (!tableBody) return;
-            
-            tableBody.innerHTML = '';
-            
-            if (!rows.length) {
-                if (emptyNode) emptyNode.hidden = false;
-                if (tableWrapper) tableWrapper.hidden = true;
-                return;
-            }
-
-            if (tableWrapper) tableWrapper.hidden = false;
-            if (emptyNode) emptyNode.hidden = true;
-
-            rows.forEach(function (row) {
-                var tr = document.createElement('tr');
-                [
-                    row.factura || '—',
-                    row.cliente || '—',
-                    row.progreso_cuotas || '—',
-                    row.frecuencia_display || '—',
-                    row.total_credito_display || '—',
-                    row.saldo_pendiente_display || '—',
-                    row.fecha_venta_display || '—',
-                    row.estado_display || '—'
-                ].forEach(function (value) {
-                    var td = document.createElement('td');
-                    td.textContent = value;
-                    tr.appendChild(td);
-                });
-                tableBody.appendChild(tr);
-            });
-        }
-
-        function runReport() {
-            setLoadingState(true);
-
-            var params = new URLSearchParams();
-            if (startDateInput && startDateInput.value) {
-                params.append('fecha_inicio', startDateInput.value);
-            }
-            if (endDateInput && endDateInput.value) {
-                params.append('fecha_fin', endDateInput.value);
-            }
-            if (statusFilter && statusFilter.value) {
-                params.append('estado', statusFilter.value);
-            }
-
-            var url = new URL(window.location.origin + '/app/reportes/cuotas/');
-            if (params.toString()) {
-                url.search = params.toString();
-            }
-
-            fetch(url.toString(), {
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-                .then(function (response) {
-                    if (!response.ok) {
-                        throw new Error('Error consultando el reporte de cuotas.');
-                    }
-                    return response.json();
-                })
-                .then(function (data) {
-                    updateSummary(data.summary || {});
-                    renderRows(data.creditos || []);
-                })
-                .catch(function () {
-                    showToast('No fue posible recuperar el reporte de cuotas. Intenta nuevamente.', 'error');
-                })
-                .finally(function () {
-                    setLoadingState(false);
-                });
-        }
-
-        openButton.addEventListener('click', function () {
-            openModal();
-            runReport();
-        });
-
-        if (runButton) {
-            runButton.addEventListener('click', runReport);
-        }
-
-        closeButtons.forEach(function (button) {
-            button.addEventListener('click', closeModal);
-        });
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
-                closeModal();
-            }
-        });
-    }
-
-</script>
-
-<!-- Modal de reporte de cuotas -->
-<div class="modal" id="report-credit-installments-modal" aria-hidden="true">
-    <div class="modal-dialog modal-dialog--wide" role="dialog" aria-modal="true" aria-labelledby="report-credit-title">
-        <div class="modal-header">
-            <h2 id="report-credit-title">Reporte de cuotas</h2>
-            <button type="button" class="modal-close" aria-label="Cerrar" data-close-report-credit-installments>&times;</button>
+<section class="report-hub">
+    <header class="report-hub__header">
+        <div class="report-hub__intro">
+            <h2>Panel de reportes</h2>
+            <p>Analiza resultados de ventas, inventario y cuotas en un solo lugar.</p>
         </div>
-        <div class="modal-form modal-form--static">
-            <div class="modal-form__grid">
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-credit-start">Desde</label>
-                    <input id="report-credit-start" type="date" data-report-credit-start>
+        <div class="report-hub__filters">
+            <div class="report-range-picker">
+                <div class="report-range-picker__field">
+                    <label for="report-range-start">Desde</label>
+                    <input id="report-range-start" type="date" data-report-range-start>
                 </div>
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-credit-end">Hasta</label>
-                    <input id="report-credit-end" type="date" data-report-credit-end>
+                <div class="report-range-picker__field">
+                    <label for="report-range-end">Hasta</label>
+                    <input id="report-range-end" type="date" data-report-range-end>
                 </div>
-                <div class="modal-field">
-                    <label class="modal-field__label" for="report-credit-status">Estado</label>
-                    <select id="report-credit-status" data-report-credit-status>
-                        <option value="">Todos los estados</option>
-                        <option value="pendiente">Pendiente</option>
-                        <option value="pagado">Pagado</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="report-summary" data-report-credit-summary>
-                <!-- Resumen dinámico -->
-            </div>
-
-            <div class="modal-table-wrapper" data-report-credit-table-wrapper hidden>
-                <table class="credit-report-table">
-                    <thead>
-                        <tr>
-                            <th>Factura</th>
-                            <th>Cliente</th>
-                            <th>Progreso</th>
-                            <th>Frecuencia</th>
-                            <th>Total crédito</th>
-                            <th>Saldo pendiente</th>
-                            <th>Fecha venta</th>
-                            <th>Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody data-report-credit-table-body>
-                        <tr>
-                            <td colspan="8">Sin registros disponibles.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="report-empty" data-report-credit-empty hidden>
-                <p>No se encontraron créditos con cuotas para el período seleccionado.</p>
+                <button type="button" class="btn btn-outline" data-report-range-apply>Aplicar</button>
             </div>
         </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" data-close-report-credit-installments>Cerrar</button>
-            <button type="button" class="btn btn-primary" data-run-report-credit-installments>Generar reporte</button>
-        </div>
+    </header>
+
+    <div class="report-hub__grid">
+        <article class="report-card" data-report-trigger="total-sales">
+            <div class="report-card__icon">
+                <i class="ri-bar-chart-2-line"></i>
+            </div>
+            <div class="report-card__body">
+                <h3>Ventas totales</h3>
+                <p>Ingresos, descuentos y trade-in por período.</p>
+            </div>
+            <div class="report-card__meta" data-report-card-summary="total-sales">
+                <span class="report-card__value" data-summary-value>—</span>
+                <span class="report-card__label">Total vendido</span>
+            </div>
+        </article>
+
+        <article class="report-card" data-report-trigger="sales-cost">
+            <div class="report-card__icon">
+                <i class="ri-scan-2-line"></i>
+            </div>
+            <div class="report-card__body">
+                <h3>Costo de ventas</h3>
+                <p>Valida el costo de las unidades vendidas y las ganancias.</p>
+            </div>
+            <div class="report-card__meta" data-report-card-summary="sales-cost">
+                <span class="report-card__value" data-summary-value>—</span>
+                <span class="report-card__label">Costo total</span>
+            </div>
+        </article>
+
+        <article class="report-card" data-report-trigger="inventory-cost">
+            <div class="report-card__icon">
+                <i class="ri-archive-line"></i>
+            </div>
+            <div class="report-card__body">
+                <h3>Costo inventario</h3>
+                <p>Valor total del stock que permanece en inventario.</p>
+            </div>
+            <div class="report-card__meta" data-report-card-summary="inventory-cost">
+                <span class="report-card__value" data-summary-value>—</span>
+                <span class="report-card__label">Valor inventario</span>
+            </div>
+        </article>
+
+        <article class="report-card" data-report-trigger="sales-period">
+            <div class="report-card__icon">
+                <i class="ri-calendar-line"></i>
+            </div>
+            <div class="report-card__body">
+                <h3>Ventas por periodo</h3>
+                <p>Compara ingresos agrupados por día, mes o año.</p>
+            </div>
+            <div class="report-card__meta" data-report-card-summary="sales-period">
+                <span class="report-card__value" data-summary-value>—</span>
+                <span class="report-card__label">Ventas registradas</span>
+            </div>
+        </article>
+
+        <article class="report-card" data-report-trigger="profit-period">
+            <div class="report-card__icon">
+                <i class="ri-money-dollar-circle-line"></i>
+            </div>
+            <div class="report-card__body">
+                <h3>Ganancias por periodo</h3>
+                <p>Monitorea ingresos y márgenes en cada intervalo.</p>
+            </div>
+            <div class="report-card__meta" data-report-card-summary="profit-period">
+                <span class="report-card__value" data-summary-value>—</span>
+                <span class="report-card__label">Ganancia neta</span>
+            </div>
+        </article>
+
+        <article class="report-card" data-report-trigger="product-sales">
+            <div class="report-card__icon">
+                <i class="ri-shopping-basket-2-line"></i>
+            </div>
+            <div class="report-card__body">
+                <h3>Ventas por producto</h3>
+                <p>Productos más vendidos, unidades y montos.</p>
+            </div>
+            <div class="report-card__meta" data-report-card-summary="product-sales">
+                <span class="report-card__value" data-summary-value>—</span>
+                <span class="report-card__label">Productos</span>
+            </div>
+        </article>
+
+        <article class="report-card" data-report-trigger="category-analysis">
+            <div class="report-card__icon">
+                <i class="ri-pie-chart-2-line"></i>
+            </div>
+            <div class="report-card__body">
+                <h3>Análisis por categoría</h3>
+                <p>Inventario y ventas agrupadas por categoría y marca.</p>
+            </div>
+            <div class="report-card__meta" data-report-card-summary="category-analysis">
+                <span class="report-card__value" data-summary-value>—</span>
+                <span class="report-card__label">Categorías</span>
+            </div>
+        </article>
+
+        <article class="report-card" data-report-trigger="cash-status">
+            <div class="report-card__icon">
+                <i class="ri-hand-coin-line"></i>
+            </div>
+            <div class="report-card__body">
+                <h3>Estado de caja</h3>
+                <p>Sesiones abiertas, montos y diferencias reportadas.</p>
+            </div>
+            <div class="report-card__meta" data-report-card-summary="cash-status">
+                <span class="report-card__value" data-summary-value>—</span>
+                <span class="report-card__label">Sesiones</span>
+            </div>
+        </article>
+
+        <article class="report-card report-card--accent" data-report-trigger="credit-installments">
+            <div class="report-card__icon">
+                <i class="ri-file-list-3-line"></i>
+            </div>
+            <div class="report-card__body">
+                <h3>Créditos (Cuotas)</h3>
+                <p>Seguimiento de cuentas a crédito, vencimientos y saldos.</p>
+            </div>
+            <div class="report-card__meta" data-report-card-summary="credit-installments">
+                <span class="report-card__value" data-summary-value>—</span>
+                <span class="report-card__label">Créditos activos</span>
+            </div>
+        </article>
     </div>
-</div>
+</section>
 
+{% include "dashboard/reportes/partials/modal_total_sales.html" %}
+{% include "dashboard/reportes/partials/modal_sales_cost.html" %}
+{% include "dashboard/reportes/partials/modal_inventory_cost.html" %}
+{% include "dashboard/reportes/partials/modal_sales_period.html" %}
+{% include "dashboard/reportes/partials/modal_profit_period.html" %}
+{% include "dashboard/reportes/partials/modal_product_sales.html" %}
+{% include "dashboard/reportes/partials/modal_category_analysis.html" %}
+{% include "dashboard/reportes/partials/modal_cash_status.html" %}
+{% include "dashboard/reportes/partials/modal_credit_installments.html" %}
+{% endblock %}
+
+{% block custom_scripts %}
+<script src="{% static 'js/reportes-dashboard.js' %}"></script>
 {% endblock %}

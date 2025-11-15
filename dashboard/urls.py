@@ -97,8 +97,10 @@ urlpatterns = [
         views.fiscal_voucher_xml_check_api,
         name="fiscal_voucher_xml_check_api",
     ),
+    path("tradeins/validate/", views.tradein_validate_api, name="tradein_validate_api"),
     path("cotizaciones/", views.CotizacionesView.as_view(), name="cotizaciones"),
     path("inventario/", views.InventarioView.as_view(), name="inventario"),
+    path("inventario/recibir/", views.RecibirProductoView.as_view(), name="recibir_producto"),
     path("inventario/<int:producto_id>/", views.ProductoDetailView.as_view(), name="producto_detail"),
     path(
         "inventario/marcas/<int:brand_id>/toggle/",

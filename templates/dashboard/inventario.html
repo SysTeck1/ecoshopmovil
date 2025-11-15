@@ -117,21 +117,23 @@
                                 <button type="button" class="btn btn-secondary" data-action="edit"
                                     data-product-id="{{ producto.id }}"
                                     data-product-name="{{ producto.nombre }}"
+                                    data-product-category="{{ producto.categoria_id|default:'' }}"
                                     data-product-brand="{{ producto.marca_id|default:'' }}"
                                     data-product-model="{{ producto.modelo_id|default:'' }}"
                                     data-product-storage="{{ producto.almacenamiento|default:'' }}"
                                     data-product-ram="{{ producto.memoria_ram|default:'' }}"
-                                    data-product-cost="{{ producto.precio_compra|default:'0.00' }}"
-                                    data-product-price="{{ producto.precio_venta|default:'0.00' }}"
+                                    data-product-cost="{{ producto.precio_compra|default_if_none:0|floatformat:2 }}"
+                                    data-product-price="{{ producto.precio_venta|default_if_none:0|floatformat:2 }}"
                                     data-product-tax-id="{{ producto.impuesto_id|default:'' }}"
-                                    data-product-stock="{{ producto.stock|default:'0' }}"
-                                    data-product-stockmin="{{ producto.stock_minimo|default:'0' }}"
+                                    data-product-stock="{{ producto.stock|default_if_none:0 }}"
+                                    data-product-stockmin="{{ producto.stock_minimo|default_if_none:0 }}"
                                     data-product-imei="{{ producto.imei|default:'' }}"
                                     data-product-colors="{{ producto.colores_disponibles|default:'' }}"
                                     data-product-proveedor="{% if producto.proveedor %}{{ producto.proveedor.nombre }}{% endif %}"
                                     data-product-proveedor-id="{{ producto.proveedor_id|default:'' }}"
                                     data-product-image="{{ producto.imagen_principal|default:'' }}"
-                                    data-product-description="{{ producto.descripcion|default:'Sin descripción disponible.' }}">
+                                    data-product-description="{{ producto.descripcion|default:'' }}"
+                                    data-product-active="{{ producto.activo|yesno:'true,false' }}">
                                     Editar
                                 </button>
                                 <button type="button" class="btn btn-danger" data-action="delete"
@@ -479,7 +481,7 @@
             <div class="form-grid">
                 <label class="form-field form-field--full">
                     <span class="form-label">Título</span>
-                    <input type="text" name="nombre" data-edit-name>
+                    <input type="text" name="nombre" data-edit-name required>
                 </label>
                 <label class="form-field form-field--full">
                     <span class="form-label">Marca</span>
@@ -557,11 +559,46 @@
                 </label>
                 <label class="form-field">
                     <span class="form-label">Colores disponibles</span>
-                    <input type="text" name="colores_disponibles" data-edit-colors>
+                    <input type="text" name="colores_disponibles" data-edit-colors placeholder="Negro, Azul, Dorado">
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Precio de costo</span>
+                    <input type="number" name="precio_compra" min="0" step="0.01" data-edit-cost placeholder="0.00">
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Precio de venta</span>
+                    <input type="number" name="precio_venta" min="0" step="0.01" data-edit-price placeholder="0.00">
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Impuesto aplicado</span>
+                    <select name="impuesto" data-edit-taxes class="select-control">
+                        <option value="">Sin impuesto</option>
+                        {% for impuesto in impuestos_catalogo %}
+                            <option value="{{ impuesto.id }}">{{ impuesto.nombre }} ({{ impuesto.porcentaje }}%)</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Stock actual</span>
+                    <input type="number" name="stock" min="0" step="1" data-edit-stock placeholder="0">
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Alerta de stock mínimo</span>
+                    <input type="number" name="stock_minimo" min="0" step="1" data-edit-stockmin placeholder="Ej. 5">
                 </label>
                 <label class="form-field form-field--full">
                     <span class="form-label">Descripción</span>
                     <textarea name="descripcion" rows="3" data-edit-description></textarea>
+                </label>
+                <label class="form-field form-field--full form-field--checkbox">
+                    <span class="form-label">Estado del producto</span>
+                    <label class="checkbox-toggle">
+                        <input type="checkbox" name="activo" data-edit-active>
+                        <span class="checkbox-toggle__track">
+                            <span class="checkbox-toggle__thumb"></span>
+                        </span>
+                        <span class="checkbox-toggle__label">Activo</span>
+                    </label>
                 </label>
             </div>
             <div class="modal-actions">
@@ -1965,6 +2002,7 @@
                     name: editForm.querySelector("[data-edit-name]"),
                     brand: editForm.querySelector("[data-edit-brand]"),
                     category: editForm.querySelector("[data-edit-category]"),
+                    provider: editForm.querySelector("[data-edit-provider]"),
                     storage: editForm.querySelector("[data-edit-storage]"),
                     ram: editForm.querySelector("[data-edit-ram]"),
                     model: editForm.querySelector("[data-edit-model]"),
@@ -1977,6 +2015,21 @@
                     stockmin: editForm.querySelector("[data-edit-stockmin]"),
                     active: editForm.querySelector("[data-edit-active]")
                 };
+
+                function setNumericValue(input, rawValue, decimals) {
+                    if (!input) {
+                        return;
+                    }
+                    var number = parseFloat(rawValue);
+                    if (Number.isNaN(number)) {
+                        number = 0;
+                    }
+                    if (typeof decimals === "number") {
+                        input.value = number.toFixed(decimals);
+                    } else {
+                        input.value = String(number);
+                    }
+                }
 
                 editButtons.forEach(function (button) {
                     button.addEventListener("click", function () {
@@ -1991,6 +2044,9 @@
                         }
                         if (fieldMap.category) {
                             fieldMap.category.value = button.dataset.productCategory || "";
+                        }
+                        if (fieldMap.provider) {
+                            fieldMap.provider.value = button.dataset.productProveedorId || "";
                         }
                         if (fieldMap.model) {
                             fieldMap.model.value = button.dataset.productModel || "";
@@ -2010,22 +2066,14 @@
                         if (fieldMap.description) {
                             fieldMap.description.value = button.dataset.productDescription || "";
                         }
-                        if (fieldMap.cost) {
-                            fieldMap.cost.value = button.dataset.productCost || "0.00";
-                        }
-                        if (fieldMap.price) {
-                            fieldMap.price.value = button.dataset.productPrice || "0.00";
-                        }
+                        setNumericValue(fieldMap.cost, button.dataset.productCost, 2);
+                        setNumericValue(fieldMap.price, button.dataset.productPrice, 2);
                         var taxSelect = editForm.querySelector("[data-edit-taxes]");
                         if (taxSelect) {
                             taxSelect.value = button.dataset.productTaxId || "";
                         }
-                        if (fieldMap.stock) {
-                            fieldMap.stock.value = button.dataset.productStock || "0";
-                        }
-                        if (fieldMap.stockmin) {
-                            fieldMap.stockmin.value = button.dataset.productStockmin || "0";
-                        }
+                        setNumericValue(fieldMap.stock, button.dataset.productStock, 0);
+                        setNumericValue(fieldMap.stockmin, button.dataset.productStockmin, 0);
                         if (fieldMap.active) {
                             fieldMap.active.checked = (button.dataset.productActive === "true");
                         }

@@ -9,7 +9,20 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction, IntegrityError
-from django.db.models import F, Q, Sum, ProtectedError
+from django.db.models import (
+    F,
+    Q,
+    Sum,
+    ProtectedError,
+    OuterRef,
+    Subquery,
+    IntegerField,
+    Value,
+    Case,
+    When,
+    Count,
+)
+from django.db.models.functions import Coalesce
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
@@ -30,6 +43,7 @@ from ventas.forms import (
     ProveedorForm,
     FiscalVoucherConfigForm,
     FiscalVoucherXMLForm,
+    TradeInCreditForm,
 )
 from ventas.dgii import (
     DGIIVoucherService,
@@ -58,6 +72,7 @@ from ventas.models import (
     FiscalVoucherLine,
     FiscalVoucherXML,
     Compra,
+    TradeInCredit,
 )
 
 from .forms import SiteConfigurationLogoForm
@@ -88,6 +103,7 @@ def compute_sale_totals(venta: Venta) -> dict[str, Decimal]:
     subtotal = Decimal("0")
     impuestos = Decimal("0")
     discount_total = Decimal("0")
+    trade_in_total = Decimal("0")
 
     for detalle in venta.detalles.all():
         precio_unitario = detalle.precio_unitario or Decimal("0")
@@ -109,10 +125,12 @@ def compute_sale_totals(venta: Venta) -> dict[str, Decimal]:
     impuestos = impuestos.quantize(TWO_PLACES)
     discount_total = discount_total.quantize(TWO_PLACES)
     total = (subtotal + impuestos).quantize(TWO_PLACES)
+    trade_in_total = (venta.trade_in_monto or Decimal("0")).quantize(TWO_PLACES)
     return {
         "subtotal": subtotal,
         "impuestos": impuestos,
         "descuento": discount_total,
+        "trade_in": trade_in_total,
         "total": total,
     }
 
@@ -143,20 +161,28 @@ def aggregate_cash_session(session: CashSession) -> dict[str, Decimal | int]:
     subtotal_sum = Decimal("0")
     impuestos_sum = Decimal("0")
     descuento_sum = Decimal("0")
+    trade_in_sum = Decimal("0")
     total_sum = Decimal("0")
     total_credito = Decimal("0")
     total_cost = Decimal("0")
+    total_discount = Decimal("0")
+    total_trade_in = Decimal("0")
 
     for venta in ventas_iterable:
         totales = compute_sale_totals(venta)
         subtotal_sum += totales["subtotal"]
         impuestos_sum += totales["impuestos"]
         descuento_sum += totales["descuento"]
+        trade_in_sum += totales["trade_in"]
         total_sum += totales["total"]
         if venta.metodo_pago == Venta.MetodoPago.CREDITO:
             total_credito += totales["total"]
 
         sale_cost = Decimal("0")
+        venta_descuento = (venta.descuento_total or Decimal("0")).quantize(TWO_PLACES)
+        venta_trade_in = (venta.trade_in_monto or Decimal("0")).quantize(TWO_PLACES)
+        total_discount += venta_descuento
+        total_trade_in += venta_trade_in
         for detalle in venta.detalles.all():
             cantidad_decimal = Decimal(detalle.cantidad or 0)
             try:
@@ -180,12 +206,16 @@ def aggregate_cash_session(session: CashSession) -> dict[str, Decimal | int]:
     subtotal_sum = subtotal_sum.quantize(TWO_PLACES)
     impuestos_sum = impuestos_sum.quantize(TWO_PLACES)
     descuento_sum = descuento_sum.quantize(TWO_PLACES)
+    trade_in_sum = trade_in_sum.quantize(TWO_PLACES)
     total_sum = total_sum.quantize(TWO_PLACES)
     total_credito = total_credito.quantize(TWO_PLACES)
-    total_cost = total_cost.quantize(TWO_PLACES)
     total_contado = (total_sum - total_credito).quantize(TWO_PLACES)
-    total_profit = (total_sum - total_cost).quantize(TWO_PLACES)
     total_en_caja = (session.monto_inicial + total_contado + total_credit_payments).quantize(TWO_PLACES)
+    total_discount = total_discount.quantize(TWO_PLACES)
+    total_trade_in = total_trade_in.quantize(TWO_PLACES)
+    total_cost = total_cost.quantize(TWO_PLACES)
+    total_profit = (total_sum - total_cost).quantize(TWO_PLACES)
+    total_credit_payments = total_credit_payments.quantize(TWO_PLACES)
 
     ventas_count = len(ventas_iterable)
 
@@ -193,12 +223,15 @@ def aggregate_cash_session(session: CashSession) -> dict[str, Decimal | int]:
         "subtotal": subtotal_sum,
         "impuestos": impuestos_sum,
         "descuento": descuento_sum,
+        "trade_in": trade_in_sum,
         "total": total_sum,
         "total_credito": total_credito,
         "total_contado": total_contado,
         "total_en_caja": total_en_caja,
         "total_cost": total_cost,
         "total_profit": total_profit,
+        "venta_descuento": total_discount,
+        "venta_trade_in": total_trade_in,
         "total_credit_payments": total_credit_payments,
         "ventas_count": ventas_count,
     }
@@ -244,6 +277,8 @@ def serialize_cash_session(session: CashSession, include_totals: bool = False) -
                     "impuestos_display": format_currency(totals["impuestos"]),
                     "descuento": float(totals["descuento"]),
                     "descuento_display": format_currency(totals["descuento"]),
+                    "trade_in": float(totals["trade_in"]),
+                    "trade_in_display": format_currency(totals["trade_in"]),
                     "total": float(totals["total"]),
                     "total_display": format_currency(totals["total"]),
                     "total_credito": float(totals["total_credito"]),
@@ -1714,6 +1749,129 @@ class ProveedorView(DashboardTemplateView):
         return self.render_to_response(context)
 
 
+class RecibirProductoView(DashboardTemplateView):
+    template_name = "dashboard/recibir_producto.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        tradein_form = kwargs.get("tradein_form") or TradeInCreditForm()
+        tradein_modal_mode = kwargs.get("tradein_modal_mode", "create")
+        editing_tradein_id = kwargs.get("editing_tradein_id")
+
+        request_get = self.request.GET
+        search_term = (request_get.get("search", "") or "").strip()
+        estado_filter = (request_get.get("estado", "") or "").strip()
+        asignado_filter = (request_get.get("asignado", "") or "").strip()
+        fecha_desde_raw = (request_get.get("fecha_desde", "") or "").strip()
+        fecha_hasta_raw = (request_get.get("fecha_hasta", "") or "").strip()
+
+        tradein_queryset = TradeInCredit.objects.select_related("cliente", "venta_aplicada").order_by("-created_at")
+
+        if search_term:
+            search_filters = (
+                Q(codigo__icontains=search_term)
+                | Q(nombre_cliente__icontains=search_term)
+                | Q(producto_nombre__icontains=search_term)
+                | Q(descripcion__icontains=search_term)
+            )
+            tradein_queryset = tradein_queryset.filter(search_filters)
+
+        estado_values = {choice[0] for choice in TradeInCredit.Estado.choices}
+        if estado_filter in estado_values:
+            tradein_queryset = tradein_queryset.filter(estado=estado_filter)
+
+        if asignado_filter == "con_cliente":
+            tradein_queryset = tradein_queryset.filter(cliente__isnull=False)
+        elif asignado_filter == "sin_cliente":
+            tradein_queryset = tradein_queryset.filter(cliente__isnull=True)
+
+        fecha_desde = parse_date(fecha_desde_raw) if fecha_desde_raw else None
+        fecha_hasta = parse_date(fecha_hasta_raw) if fecha_hasta_raw else None
+
+        if fecha_desde and fecha_hasta and fecha_desde > fecha_hasta:
+            fecha_desde, fecha_hasta = fecha_hasta, fecha_desde
+            fecha_desde_raw, fecha_hasta_raw = fecha_hasta_raw, fecha_desde_raw
+
+        if fecha_desde:
+            tradein_queryset = tradein_queryset.filter(created_at__date__gte=fecha_desde)
+
+        if fecha_hasta:
+            tradein_queryset = tradein_queryset.filter(created_at__date__lte=fecha_hasta)
+
+        paginator_tradein, tradeins_page, tradein_querystring = build_pagination(
+            self.request, tradein_queryset, per_page=10
+        )
+
+        context.update(
+            {
+                "tradein_form": tradein_form,
+                "tradeins_page": tradeins_page,
+                "tradeins": list(tradeins_page.object_list),
+                "tradeins_querystring": tradein_querystring,
+                "tradein_modal_mode": tradein_modal_mode,
+                "tradein_estado_choices": TradeInCredit.Estado.choices,
+                "filter_values": {
+                    "search": search_term,
+                    "estado": estado_filter,
+                    "asignado": asignado_filter,
+                    "fecha_desde": fecha_desde_raw,
+                    "fecha_hasta": fecha_hasta_raw,
+                },
+            }
+        )
+        if editing_tradein_id:
+            context["editing_tradein_id"] = editing_tradein_id
+        return context
+
+    def post(self, request, *args, **kwargs):
+        action = request.POST.get("action") or "create_tradein"
+
+        if action == "delete_tradein":
+            tradein_id = request.POST.get("tradein_id")
+            trade_in = get_object_or_404(TradeInCredit, pk=tradein_id)
+            if trade_in.estado != TradeInCredit.Estado.PENDIENTE:
+                messages.error(request, "Solo puedes eliminar créditos que estén pendientes.")
+            else:
+                trade_in.delete()
+                messages.success(request, "Crédito por intercambio eliminado correctamente.")
+            return redirect(request.path)
+
+        if action == "update_tradein":
+            tradein_id = request.POST.get("tradein_id")
+            trade_in = get_object_or_404(TradeInCredit, pk=tradein_id)
+            if trade_in.estado != TradeInCredit.Estado.PENDIENTE:
+                messages.error(request, "Solo puedes editar créditos que estén pendientes.")
+                return redirect(request.path)
+
+            form = TradeInCreditForm(request.POST, instance=trade_in)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Crédito por intercambio actualizado correctamente.")
+                return redirect(request.path)
+
+            context = self.get_context_data(
+                tradein_form=form,
+                tradein_modal_mode="edit",
+                editing_tradein_id=trade_in.pk,
+            )
+            context["force_tradein_modal"] = True
+            return self.render_to_response(context)
+
+        # Default: create new credit
+        form = TradeInCreditForm(request.POST)
+        if form.is_valid():
+            trade_in = form.save()
+            messages.success(
+                request,
+                f"Crédito generado correctamente. Código: {trade_in.codigo}",
+            )
+            return redirect(request.path)
+
+        context = self.get_context_data(tradein_form=form, tradein_modal_mode="create")
+        context["force_tradein_modal"] = True
+        return self.render_to_response(context)
+
+
 class ComprasView(DashboardTemplateView):
     template_name = "dashboard/compras.html"
 
@@ -2350,6 +2508,36 @@ def fiscal_voucher_xml_api(request):
 
 
 @require_POST
+def tradein_validate_api(request):
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+
+    codigo = (payload.get("codigo") or "").strip().upper()
+    if not codigo:
+        return JsonResponse({"error": "Debes proporcionar un código."}, status=400)
+
+    trade_in = TradeInCredit.objects.filter(codigo__iexact=codigo).select_related("cliente").first()
+    if trade_in is None:
+        return JsonResponse({"error": "No se encontró un crédito con ese código."}, status=404)
+
+    if trade_in.estado != TradeInCredit.Estado.PENDIENTE:
+        return JsonResponse({"error": "Este crédito ya fue utilizado o está cancelado."}, status=400)
+
+    data = {
+        "codigo": trade_in.codigo,
+        "nombre_cliente": trade_in.nombre_cliente,
+        "cliente_id": trade_in.cliente_id,
+        "producto": trade_in.producto_nombre,
+        "descripcion": trade_in.descripcion,
+        "monto": float(trade_in.monto_credito),
+        "creado": timezone.localtime(trade_in.created_at).isoformat(),
+    }
+    return JsonResponse({"success": True, "credit": data})
+
+
+@require_POST
 def fiscal_voucher_xml_check_api(request, xml_id: int):
     xml_template = get_object_or_404(FiscalVoucherXML, pk=xml_id)
     config = xml_template.configuracion or FiscalVoucherConfig.objects.first()
@@ -2667,6 +2855,8 @@ def ventas_historial_api(request):
         subtotal = subtotal.quantize(TWO_PLACES)
         impuestos = impuestos.quantize(TWO_PLACES)
         total_venta = subtotal + impuestos
+        descuento_total = (venta.descuento_total or Decimal("0")).quantize(TWO_PLACES)
+        trade_in_total = (venta.trade_in_monto or Decimal("0")).quantize(TWO_PLACES)
 
         try:
             cuenta_credito = venta.cuenta_credito
@@ -2714,9 +2904,13 @@ def ventas_historial_api(request):
                 "impuestos_num": float(impuestos),
                 "total": format_currency(total_venta),
                 "total_num": float(total_venta),
+                "descuento_total": format_currency(descuento_total),
+                "descuento_total_num": float(descuento_total),
+                "trade_in_total": format_currency(trade_in_total),
+                "trade_in_total_num": float(trade_in_total),
                 "total_abonado": format_currency(total_abonado) if total_abonado else format_currency(Decimal("0")),
                 "total_abonado_num": float(total_abonado),
-                "saldo_pendiente": format_currency(saldo_pendiente) if cuenta_credito else format_currency(Decimal("0")),
+                "saldo_pendiente": format_currency(saldo_pendiente) if es_credito else format_currency(Decimal("0")),
                 "saldo_pendiente_num": float(saldo_pendiente),
                 "cajero": venta.vendedor.get_full_name() if venta.vendedor else "-",
                 "metodo_pago": venta.get_metodo_pago_display(),
@@ -2847,6 +3041,8 @@ def get_filtered_sales_queryset(request):
 def build_sales_report(queryset):
     total_sales = Decimal("0")
     total_cost = Decimal("0")
+    total_discount = Decimal("0")
+    total_trade_in = Decimal("0")
     report_rows: list[dict[str, object]] = []
 
     for venta in queryset:
@@ -2886,6 +3082,10 @@ def build_sales_report(queryset):
         sale_total = sale_total.quantize(TWO_PLACES)
         sale_cost = sale_cost.quantize(TWO_PLACES)
         sale_profit = (sale_total - sale_cost).quantize(TWO_PLACES)
+        venta_descuento = (venta.descuento_total or Decimal("0")).quantize(TWO_PLACES)
+        venta_trade_in = (venta.trade_in_monto or Decimal("0")).quantize(TWO_PLACES)
+        total_discount += venta_descuento
+        total_trade_in += venta_trade_in
 
         factura_codigo = getattr(venta, "get_codigo_factura", None)
         if callable(factura_codigo):
@@ -2910,21 +3110,27 @@ def build_sales_report(queryset):
                 "costo_display": format_currency(sale_cost),
                 "ganancia": float(sale_profit),
                 "ganancia_display": format_currency(sale_profit),
+                "descuento": float(venta_descuento),
+                "descuento_display": format_currency(venta_descuento),
+                "trade_in": float(venta_trade_in),
+                "trade_in_display": format_currency(venta_trade_in),
                 "metodo_pago": venta.get_metodo_pago_display(),
             }
         )
 
     total_sales = total_sales.quantize(TWO_PLACES)
     total_cost = total_cost.quantize(TWO_PLACES)
+    total_discount = total_discount.quantize(TWO_PLACES)
+    total_trade_in = total_trade_in.quantize(TWO_PLACES)
     ventas_count = len(report_rows)
 
-    return total_sales, total_cost, report_rows, ventas_count
+    return total_sales, total_cost, total_discount, total_trade_in, report_rows, ventas_count
 
 
 @require_GET
 def report_total_sales_api(request):
     queryset, start_date, end_date = get_filtered_sales_queryset(request)
-    total_sales, total_cost, report_rows, ventas_count = build_sales_report(queryset)
+    total_sales, total_cost, total_discount, total_trade_in, report_rows, ventas_count = build_sales_report(queryset)
     total_profit = (total_sales - total_cost).quantize(TWO_PLACES)
 
     return JsonResponse(
@@ -2933,6 +3139,10 @@ def report_total_sales_api(request):
             "total_sales_display": format_currency(total_sales),
             "total_cost": float(total_cost),
             "total_cost_display": format_currency(total_cost),
+            "total_discount": float(total_discount),
+            "total_discount_display": format_currency(total_discount),
+            "total_trade_in": float(total_trade_in),
+            "total_trade_in_display": format_currency(total_trade_in),
             "total_profit": float(total_profit),
             "total_profit_display": format_currency(total_profit),
             "filters": {
@@ -3007,6 +3217,30 @@ def registrar_venta_api(request):
 
     fiscal_voucher = None
     fiscal_voucher_id = None
+    tradein_codigo = (payload.get("trade_in_code") or "").strip()
+    tradein_monto_payload = payload.get("trade_in_amount")
+    tradein_credit = None
+    tradein_monto = Decimal("0")
+
+    if tradein_codigo:
+        tradein_credit = (
+            TradeInCredit.objects.select_for_update()
+            .filter(codigo__iexact=tradein_codigo)
+            .first()
+        )
+        if tradein_credit is None:
+            return JsonResponse({"error": "El crédito trade-in indicado no existe."}, status=400)
+        if tradein_credit.estado != TradeInCredit.Estado.PENDIENTE:
+            return JsonResponse({"error": "El crédito trade-in ya fue utilizado o está cancelado."}, status=400)
+        monto_credito = tradein_credit.monto_credito
+        tradein_monto = monto_credito.quantize(TWO_PLACES)
+        if tradein_monto_payload is not None:
+            try:
+                esperado = Decimal(str(tradein_monto_payload)).quantize(TWO_PLACES)
+            except (InvalidOperation, TypeError, ValueError):
+                esperado = tradein_monto
+            if esperado != tradein_monto:
+                return JsonResponse({"error": "El monto del trade-in no es válido."}, status=400)
 
     with transaction.atomic():
         cash_session = (
@@ -3132,6 +3366,40 @@ def registrar_venta_api(request):
                     DetalleVenta.objects.filter(pk=item["detalle"].pk).update(descuento=item["descuento"])
 
         total_descuento = sum((item["descuento"] for item in line_items), Decimal("0")).quantize(TWO_PLACES)
+        trade_in_aplicado = Decimal("0")
+        if tradein_credit is not None and tradein_monto > Decimal("0"):
+            restante = tradein_monto
+            distribuibles = [item for item in line_items if item["base"] > 0]
+            if not distribuibles:
+                return JsonResponse({"error": "No hay productos para aplicar el crédito de intercambio."}, status=400)
+            total_base_distribuible = sum((item["base"] for item in distribuibles), Decimal("0"))
+            if total_base_distribuible <= Decimal("0"):
+                return JsonResponse({"error": "El crédito de intercambio excede el total de la venta."}, status=400)
+            last_index = len(distribuibles) - 1
+            for index, item in enumerate(distribuibles):
+                if restante <= Decimal("0"):
+                    break
+                if index == last_index:
+                    cuota = restante
+                else:
+                    cuota = (tradein_monto * item["base"] / total_base_distribuible).quantize(TWO_PLACES)
+                    if cuota > restante:
+                        cuota = restante
+                if cuota <= Decimal("0"):
+                    continue
+                item["descuento"] = (item["descuento"] + cuota).quantize(TWO_PLACES)
+                restante -= cuota
+                DetalleVenta.objects.filter(pk=item["detalle"].pk).update(descuento=item["descuento"])
+                trade_in_aplicado += cuota
+            if restante > Decimal("0"):
+                ultimo = distribuibles[-1]
+                ultimo["descuento"] = (ultimo["descuento"] + restante).quantize(TWO_PLACES)
+                DetalleVenta.objects.filter(pk=ultimo["detalle"].pk).update(descuento=ultimo["descuento"])
+                trade_in_aplicado += restante
+            total_descuento = sum((item["descuento"] for item in line_items), Decimal("0")).quantize(TWO_PLACES)
+        venta.descuento_total = (total_descuento - trade_in_aplicado).quantize(TWO_PLACES)
+        venta.trade_in_monto = trade_in_aplicado.quantize(TWO_PLACES)
+        venta.save(update_fields=["descuento_total", "trade_in_monto", "updated_at"])
 
     subtotal_neto = (subtotal_bruto - total_descuento).quantize(TWO_PLACES)
     if subtotal_neto < Decimal("0"):
@@ -3151,7 +3419,8 @@ def registrar_venta_api(request):
 
     cash_session.total_ventas = (cash_session.total_ventas + total_venta).quantize(TWO_PLACES)
     cash_session.total_impuesto = (cash_session.total_impuesto + impuestos).quantize(TWO_PLACES)
-    cash_session.total_descuento = (cash_session.total_descuento + total_descuento).quantize(TWO_PLACES)
+    cash_session.total_descuento = (cash_session.total_descuento + venta.descuento_total).quantize(TWO_PLACES)
+    cash_session.total_trade_in = (cash_session.total_trade_in + venta.trade_in_monto).quantize(TWO_PLACES)
     if metodo_pago == Venta.MetodoPago.CREDITO:
         cash_session.total_ventas_credito = (cash_session.total_ventas_credito + total_venta).quantize(TWO_PLACES)
     else:
@@ -3162,6 +3431,7 @@ def registrar_venta_api(request):
         "total_ventas",
         "total_impuesto",
         "total_descuento",
+        "total_trade_in",
         "total_ventas_credito",
         "total_en_caja",
         "updated_at",
@@ -3253,7 +3523,8 @@ def registrar_venta_api(request):
         "cliente": venta.cliente.nombre,
         "total": float(venta.total),
         "subtotal_bruto": float(subtotal_bruto),
-        "descuento_total": float(total_descuento),
+        "descuento_total": float(venta.descuento_total),
+        "trade_in_total": float(venta.trade_in_monto),
         "impuestos": float(impuestos),
         "total_pagado": float(total_pagado_decimal),
         "fecha": fecha_local.strftime("%Y-%m-%d"),
@@ -3291,5 +3562,12 @@ def registrar_venta_api(request):
         }
         if dgii_result.get("error"):
             data["comprobante_fiscal"]["dgii"]["error"] = dgii_result["error"]
+
+    if tradein_credit is not None:
+        tradein_credit.marcar_como_usado(venta=venta, cliente=cliente)
+        data["trade_in"] = {
+            "codigo": tradein_credit.codigo,
+            "monto": float(tradein_credit.monto_credito),
+        }
 
     return JsonResponse(data)

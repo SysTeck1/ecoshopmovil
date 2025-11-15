@@ -1,0 +1,74 @@
+<div class="report-modal" id="report-cash-status-modal" data-report-modal-type="cash-status" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="report-modal__dialog">
+        <div class="report-modal__header">
+            <h2>Resumen de sesiones de caja</h2>
+            <button type="button" class="report-modal__close" data-report-close aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="report-modal__body">
+            <div class="report-summary" data-summary-container>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Sesiones listadas</span>
+                    <span class="report-summary__value" data-summary="sessions">—</span>
+                </div>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Total en caja</span>
+                    <span class="report-summary__value" data-summary="cash">—</span>
+                </div>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Ventas registradas</span>
+                    <span class="report-summary__value" data-summary="sales">—</span>
+                </div>
+            </div>
+
+            <div class="report-modal__filters" data-filters>
+                <label>
+                    <span>Desde</span>
+                    <input type="date" data-filter="start">
+                </label>
+                <label>
+                    <span>Hasta</span>
+                    <input type="date" data-filter="end">
+                </label>
+                <label>
+                    <span>Por página</span>
+                    <select data-filter="page_size">
+                        <option value="10">10 registros</option>
+                        <option value="20">20 registros</option>
+                        <option value="30">30 registros</option>
+                        <option value="50">50 registros</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="report-modal__actions">
+                <button type="button" class="btn btn-secondary" data-report-close>Cancelar</button>
+                <button type="button" class="btn btn-primary" data-primary-action data-report-run="cash-status">
+                    <span>Generar reporte</span>
+                    <span class="report-spinner" aria-hidden="true"></span>
+                </button>
+            </div>
+
+            <div class="report-table-wrapper">
+                <table class="report-table" aria-describedby="report-cash-status-modal">
+                    <thead>
+                        <tr>
+                            <th>Apertura</th>
+                            <th>Cierre</th>
+                            <th>Estado</th>
+                            <th>Total en caja</th>
+                            <th>Total ventas</th>
+                            <th>Descuento</th>
+                        </tr>
+                    </thead>
+                    <tbody data-table-body>
+                        <tr>
+                            <td colspan="6" class="report-empty-state">Aplica filtros para obtener el historial de caja.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="report-empty-state" data-empty hidden>No se encontraron sesiones de caja para los filtros aplicados.</p>
+        </div>
+    </div>
+</div>

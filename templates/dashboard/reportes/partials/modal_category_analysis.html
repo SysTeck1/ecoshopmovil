@@ -1,0 +1,68 @@
+<div class="report-modal" id="report-category-analysis-modal" data-report-modal-type="category-analysis" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="report-modal__dialog">
+        <div class="report-modal__header">
+            <h2>Análisis por categoría y marca</h2>
+            <button type="button" class="report-modal__close" data-report-close aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="report-modal__body">
+            <div class="report-summary" data-summary-container>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Categorías</span>
+                    <span class="report-summary__value" data-summary="categories">—</span>
+                </div>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Grupos marca/categoría</span>
+                    <span class="report-summary__value" data-summary="groups">—</span>
+                </div>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Productos</span>
+                    <span class="report-summary__value" data-summary="products">—</span>
+                </div>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Stock total</span>
+                    <span class="report-summary__value" data-summary="stock">—</span>
+                </div>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Valor inventario</span>
+                    <span class="report-summary__value" data-summary="value">—</span>
+                </div>
+            </div>
+
+            <div class="report-modal__filters">
+                <label class="report-modal__filters-field--full">
+                    <span>Buscar por categoría, marca o producto</span>
+                    <input type="search" placeholder="Ej. accesorios, samsung, cargadores" data-filter="search">
+                </label>
+            </div>
+
+            <div class="report-modal__actions">
+                <button type="button" class="btn btn-secondary" data-report-close>Cancelar</button>
+                <button type="button" class="btn btn-primary" data-primary-action data-report-run="category-analysis">
+                    <span>Generar reporte</span>
+                    <span class="report-spinner" aria-hidden="true"></span>
+                </button>
+            </div>
+
+            <div class="report-table-wrapper">
+                <table class="report-table" aria-describedby="report-category-analysis-modal">
+                    <thead>
+                        <tr>
+                            <th>Categoría</th>
+                            <th>Marca</th>
+                            <th>Productos</th>
+                            <th>Stock</th>
+                            <th>Valor inventario</th>
+                        </tr>
+                    </thead>
+                    <tbody data-table-body>
+                        <tr>
+                            <td colspan="5" class="report-empty-state">Genera el reporte para visualizar los resultados.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="report-empty-state" data-empty hidden>No se encontraron registros que coincidan con la búsqueda.</p>
+        </div>
+    </div>
+</div>

@@ -13,6 +13,7 @@ from .models import (
     Proveedor,
     FiscalVoucherConfig,
     FiscalVoucherXML,
+    TradeInCredit,
 )
 
 
@@ -409,3 +410,50 @@ class FiscalVoucherConfigForm(forms.ModelForm):
     def clean_serie_por_defecto(self):
         serie = self.cleaned_data.get("serie_por_defecto", "").strip().upper()
         return serie
+
+
+class TradeInCreditForm(forms.ModelForm):
+    class Meta:
+        model = TradeInCredit
+        fields = [
+            "nombre_cliente",
+            "producto_nombre",
+            "descripcion",
+            "monto_credito",
+            "cliente",
+        ]
+        widgets = {
+            "nombre_cliente": forms.TextInput(attrs={
+                "placeholder": "Nombre del cliente",
+                "required": True,
+            }),
+            "producto_nombre": forms.TextInput(attrs={
+                "placeholder": "Producto recibido",
+                "required": True,
+            }),
+            "descripcion": forms.Textarea(attrs={
+                "placeholder": "Estado, detalles o notas del producto",
+                "rows": 3,
+            }),
+            "monto_credito": forms.NumberInput(attrs={
+                "min": "0",
+                "step": "0.01",
+                "required": True,
+            }),
+            "cliente": forms.Select(attrs={
+                "class": "select-control",
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "cliente" in self.fields:
+            self.fields["cliente"].required = False
+            self.fields["cliente"].queryset = Cliente.objects.order_by("nombre")
+            self.fields["cliente"].empty_label = "Sin cliente asignado"
+
+    def clean_monto_credito(self):
+        monto = self.cleaned_data.get("monto_credito") or Decimal("0")
+        if monto <= Decimal("0"):
+            raise forms.ValidationError("El monto debe ser mayor a cero.")
+        return monto.quantize(Decimal("0.01"))

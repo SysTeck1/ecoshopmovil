@@ -1233,7 +1233,29 @@
                         <ul class="sidebar__menu">
                             <li class="sidebar__item"><a class="sidebar__link" href="{% url 'dashboard:inicio' %}"><span class="sidebar__icon"><i class="ri-dashboard-line"></i></span><span class="sidebar__label">Inicio</span></a></li>
                             <li class="sidebar__item"><a class="sidebar__link" href="{% url 'dashboard:ventas' %}"><span class="sidebar__icon"><i class="ri-shopping-bag-3-line"></i></span><span class="sidebar__label">Ventas</span></a></li>
-                            <li class="sidebar__item"><a class="sidebar__link" href="{% url 'dashboard:inventario' %}"><span class="sidebar__icon"><i class="ri-box-3-line"></i></span><span class="sidebar__label">Inventario</span></a></li>
+                            <li class="sidebar__item sidebar__item--has-submenu">
+                                <button type="button" class="sidebar__link sidebar__link--toggle" data-submenu-toggle>
+                                    <span class="sidebar__button-content">
+                                        <span class="sidebar__icon"><i class="ri-box-3-line"></i></span>
+                                        <span class="sidebar__label">Inventario</span>
+                                    </span>
+                                    <span class="sidebar__chevron" aria-hidden="true"><i class="ri-arrow-down-s-line"></i></span>
+                                </button>
+                                <ul class="sidebar__submenu" aria-label="Submenú Inventario">
+                                    <li>
+                                        <a class="sidebar__sublink" href="{% url 'dashboard:inventario' %}">
+                                            <span class="sidebar__sublink-icon"><i class="ri-box-3-line" aria-hidden="true"></i></span>
+                                            <span class="sidebar__sublink-label">Producto</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="sidebar__sublink" href="{% url 'dashboard:recibir_producto' %}">
+                                            <span class="sidebar__sublink-icon"><i class="ri-inbox-unarchive-line" aria-hidden="true"></i></span>
+                                            <span class="sidebar__sublink-label">Recibir producto</span>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
                             <li class="sidebar__item"><a class="sidebar__link" href="{% url 'dashboard:clientes' %}"><span class="sidebar__icon"><i class="ri-team-line"></i></span><span class="sidebar__label">Clientes</span></a></li>
                             <li class="sidebar__item"><a class="sidebar__link" href="{% url 'dashboard:proveedor' %}"><span class="sidebar__icon"><i class="ri-truck-line"></i></span><span class="sidebar__label">Proveedor</span></a></li>
                             <li class="sidebar__item"><a class="sidebar__link" href="{% url 'dashboard:compras' %}"><span class="sidebar__icon"><i class="ri-shopping-cart-line"></i></span><span class="sidebar__label">Compras</span></a></li>
@@ -1749,5 +1771,7 @@
             window.createToast(message, type || 'info');
         };
     </script>
+
+    {% block custom_scripts %}{% endblock %}
 </body>
 </html>

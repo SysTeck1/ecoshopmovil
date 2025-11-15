@@ -1,0 +1,959 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Recibir producto{% endblock %}
+{% block page_title %}Recibir producto{% endblock %}
+{% block content %}
+<style>
+    .tradein-page {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .tradein-page__header {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        align-items: stretch;
+    }
+
+    .tradein-page__title {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-text-main);
+    }
+
+    .tradein-page__description {
+        margin: 6px 0 0;
+        max-width: 560px;
+        color: var(--color-text-subtle);
+        line-height: 1.5;
+    }
+
+    .tradein-page__actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+        justify-content: flex-end;
+    }
+
+    .tradein-filters {
+        background: var(--color-surface-card);
+        border-radius: 16px;
+        border: 1px solid var(--color-border-subtle);
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .tradein-filters__form {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .tradein-filters__row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+    }
+
+    .tradein-filters__group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .tradein-filters__label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-text-main);
+        margin: 0;
+    }
+
+    .tradein-filters__control {
+        position: relative;
+        display: flex;
+        align-items: center;
+        background: var(--color-surface-soft);
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 12px;
+        padding: 10px 14px;
+        gap: 10px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .tradein-filters__control input,
+    .tradein-filters__control select {
+        width: 100%;
+        border: none;
+        background: transparent;
+        color: var(--color-text-main);
+        font-size: 0.95rem;
+        outline: none;
+        appearance: none;
+    }
+
+    .tradein-filters__icon {
+        font-size: 1.1rem;
+        color: var(--color-text-subtle);
+    }
+
+    .tradein-filters__control:focus-within {
+        border-color: var(--color-accent-primary);
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+    }
+
+    .tradein-filters__actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+
+    .btn-tradein-ghost,
+    .btn-tradein-filter {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 10px 22px;
+        font-weight: 600;
+        border: 1px solid transparent;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+        text-decoration: none;
+    }
+
+    .btn-tradein-ghost {
+        background: transparent;
+        color: var(--color-text-subtle);
+        border-color: var(--color-border-subtle);
+    }
+
+    .btn-tradein-ghost:hover,
+    .btn-tradein-ghost:focus {
+        color: var(--color-text-main);
+        border-color: var(--color-accent-primary);
+        box-shadow: 0 12px 24px rgba(25, 35, 45, 0.08);
+        transform: translateY(-1px);
+    }
+
+    .btn-tradein-filter {
+        background: linear-gradient(135deg, #2563eb, #1e3a8a);
+        color: #fff;
+        box-shadow: 0 16px 34px rgba(37, 99, 235, 0.35);
+    }
+
+    .btn-tradein-filter:hover,
+    .btn-tradein-filter:focus {
+        box-shadow: 0 20px 40px rgba(37, 99, 235, 0.4);
+        transform: translateY(-1px);
+    }
+
+    @media (max-width: 960px) {
+        .tradein-page__actions {
+            justify-content: flex-start;
+        }
+    }
+
+    .tradein-section {
+        background: var(--color-surface-card);
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: 0 18px 36px rgba(25, 35, 45, 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .tradein-table__wrapper {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .tradein-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 680px;
+    }
+
+    .tradein-table th,
+    .tradein-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--color-border-divider);
+        text-align: left;
+        font-size: 0.95rem;
+    }
+
+    .tradein-table th {
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-size: 0.78rem;
+        color: var(--color-text-subtle);
+        background: var(--color-surface-muted);
+    }
+
+    .tradein-table tbody tr:hover {
+        background: rgba(25, 35, 45, 0.02);
+    }
+
+    .tradein-code {
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+
+    .tradein-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .tradein-status--pendiente {
+        background: rgba(var(--color-warning-rgb), 0.15);
+        color: #b26a00;
+    }
+
+    .tradein-status--usado {
+        background: rgba(var(--color-success-rgb), 0.18);
+        color: var(--color-success-text);
+    }
+
+    .tradein-status--cancelado {
+        background: rgba(var(--color-danger-rgb), 0.15);
+        color: var(--color-danger-text);
+    }
+
+    .tradein-empty {
+        border: 1px dashed var(--color-border-subtle);
+        border-radius: 16px;
+        padding: 24px;
+        text-align: center;
+        color: var(--color-text-subtle);
+        background: var(--color-surface-soft);
+    }
+
+    .tradein-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .tradein-actions form {
+        display: inline-flex;
+    }
+
+    .tradein-action-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 8px 16px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border: 1px solid transparent;
+        background: var(--color-surface-soft);
+        color: var(--color-text-main);
+        box-shadow: 0 6px 16px rgba(25, 35, 45, 0.08);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, color 0.15s ease;
+        text-decoration: none;
+    }
+
+    .tradein-action-button:hover,
+    .tradein-action-button:focus {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 22px rgba(25, 35, 45, 0.12);
+    }
+
+    .tradein-action-button--edit {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(59, 130, 246, 0.05));
+        color: #1d4ed8;
+        border-color: rgba(37, 99, 235, 0.15);
+    }
+
+    .tradein-action-button--edit:hover,
+    .tradein-action-button--edit:focus {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(59, 130, 246, 0.1));
+    }
+
+    .tradein-action-button--danger {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.05));
+        color: var(--color-danger-text);
+        border-color: rgba(239, 68, 68, 0.18);
+    }
+
+    .tradein-action-button--danger:hover,
+    .tradein-action-button--danger:focus {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1));
+        color: #991b1b;
+    }
+
+    .tradein-empty h3 {
+        margin: 0 0 8px;
+        color: var(--color-text-main);
+    }
+
+    .btn-copy {
+        padding: 0 6px;
+        font-size: 1rem;
+        vertical-align: middle;
+    }
+
+    .btn-copy.copied {
+        color: var(--color-success);
+    }
+
+    .modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(8, 12, 20, 0.55);
+        backdrop-filter: blur(2px);
+        z-index: 2200;
+        padding: 24px;
+    }
+
+    .modal.is-visible,
+    .modal[aria-hidden="false"] {
+        display: flex;
+    }
+
+    .modal-dialog {
+        width: min(640px, 100%);
+        background: var(--color-surface-card);
+        border-radius: 18px;
+        border: 1px solid var(--color-border-subtle);
+        box-shadow: 0 24px 60px rgba(10, 15, 25, 0.18);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px;
+        border-bottom: 1px solid var(--color-border-divider);
+        background: var(--color-surface-muted);
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-text-main);
+    }
+
+    .modal-close {
+        border: none;
+        background: transparent;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        color: var(--color-text-subtle);
+        transition: color 0.2s ease;
+    }
+
+    .modal-close:hover,
+    .modal-close:focus {
+        color: var(--color-text-main);
+    }
+
+    .modal-form {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .modal-form input[type="text"],
+    .modal-form input[type="number"],
+    .modal-form select,
+    .modal-form textarea {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid var(--color-border-subtle);
+        padding: 10px 14px;
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: var(--color-text-main);
+    }
+
+    .modal-form input:focus,
+    .modal-form select:focus,
+    .modal-form textarea:focus {
+        border-color: var(--color-accent-primary);
+        box-shadow: 0 0 0 2px rgba(44, 123, 246, 0.18);
+        outline: none;
+    }
+
+    .field-error {
+        margin-top: 6px;
+        font-size: 0.85rem;
+        color: var(--color-danger-text);
+    }
+
+    .field-error span {
+        display: block;
+    }
+
+    .form-errors {
+        border: 1px solid rgba(var(--color-danger-rgb, 220, 53, 69), 0.2);
+        background: rgba(var(--color-danger-rgb, 220, 53, 69), 0.05);
+        color: var(--color-danger-text);
+        padding: 12px 14px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+    }
+
+    .form-errors ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 8px;
+    }
+
+    .btn-tradein-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 10px 20px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        border: none;
+        box-shadow: 0 12px 30px rgba(37, 99, 235, 0.25);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-tradein-primary:hover,
+    .btn-tradein-primary:focus {
+        transform: translateY(-1px);
+        box-shadow: 0 18px 40px rgba(37, 99, 235, 0.32);
+    }
+
+    .btn-tradein-secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 10px 20px;
+        font-weight: 600;
+        background: transparent;
+        color: #1d4ed8;
+        border: 1px solid rgba(37, 99, 235, 0.45);
+        transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn-tradein-secondary:hover,
+    .btn-tradein-secondary:focus {
+        background: rgba(37, 99, 235, 0.1);
+        color: #1e3a8a;
+        box-shadow: 0 6px 18px rgba(37, 99, 235, 0.18);
+    }
+</style>
+
+<section class="tradein-page">
+    <header class="tradein-page__header">
+        <div>
+            <h2 class="tradein-page__title">Créditos por intercambio</h2>
+            <p class="tradein-page__description">
+                Registra productos que los clientes dejan como intercambio y genera un código de crédito para aplicar
+                como descuento durante la venta.
+            </p>
+        </div>
+        <div class="tradein-page__actions">
+            <button type="button" class="btn-tradein-primary" data-open-tradein-modal>
+                <i class="ri-add-line"></i>
+                Nuevo crédito
+            </button>
+        </div>
+    </header>
+
+    <section class="tradein-section">
+        <div class="tradein-filters">
+            <form method="get" class="tradein-filters__form">
+                <div class="tradein-filters__row">
+                    <div class="tradein-filters__group">
+                        <label class="tradein-filters__label" for="tradein-search">Buscar</label>
+                        <div class="tradein-filters__control">
+                            <i class="ri-search-line tradein-filters__icon"></i>
+                            <input type="text" id="tradein-search" name="search" placeholder="Buscar por código, cliente, producto..." value="{{ filter_values.search }}">
+                        </div>
+                    </div>
+                    <div class="tradein-filters__group">
+                        <label class="tradein-filters__label" for="tradein-estado">Estado</label>
+                        <div class="tradein-filters__control">
+                            <i class="ri-toggle-line tradein-filters__icon"></i>
+                            <select id="tradein-estado" name="estado">
+                                <option value="">Todos</option>
+                                {% for value, label in tradein_estado_choices %}
+                                    <option value="{{ value }}" {% if filter_values.estado == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="tradein-filters__group">
+                        <label class="tradein-filters__label" for="tradein-asignado">Asignación</label>
+                        <div class="tradein-filters__control">
+                            <i class="ri-user-line tradein-filters__icon"></i>
+                            <select id="tradein-asignado" name="asignado">
+                                <option value="">Todos</option>
+                                <option value="con_cliente" {% if filter_values.asignado == 'con_cliente' %}selected{% endif %}>Asignados</option>
+                                <option value="sin_cliente" {% if filter_values.asignado == 'sin_cliente' %}selected{% endif %}>Sin asignar</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="tradein-filters__group">
+                        <label class="tradein-filters__label" for="tradein-fecha-desde">Desde</label>
+                        <div class="tradein-filters__control">
+                            <i class="ri-calendar-line tradein-filters__icon"></i>
+                            <input type="date" id="tradein-fecha-desde" name="fecha_desde" value="{{ filter_values.fecha_desde }}">
+                        </div>
+                    </div>
+                    <div class="tradein-filters__group">
+                        <label class="tradein-filters__label" for="tradein-fecha-hasta">Hasta</label>
+                        <div class="tradein-filters__control">
+                            <i class="ri-calendar-event-line tradein-filters__icon"></i>
+                            <input type="date" id="tradein-fecha-hasta" name="fecha_hasta" value="{{ filter_values.fecha_hasta }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="tradein-filters__actions">
+                    <button type="button" class="btn-tradein-ghost" data-tradein-clear-filters>
+                        <i class="ri-refresh-line"></i>
+                        Limpiar
+                    </button>
+                    <button type="submit" class="btn-tradein-filter">
+                        <i class="ri-filter-3-line"></i>
+                        Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {% if tradeins %}
+            <div class="tradein-table__wrapper">
+                <table class="tradein-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Código</th>
+                            <th>Cliente</th>
+                            <th>Producto recibido</th>
+                            <th>Monto</th>
+                            <th>Estado</th>
+                            <th>Venta aplicada</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for credit in tradeins %}
+                            <tr>
+                                <td>{{ credit.created_at|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    <code class="tradein-code">{{ credit.codigo }}</code>
+                                    <button type="button" class="btn btn-link btn-copy" data-copy-code="{{ credit.codigo }}" title="Copiar código">
+                                        <i class="ri-file-copy-line"></i>
+                                    </button>
+                                </td>
+                                <td>{{ credit.cliente|default:credit.nombre_cliente|default:"—" }}</td>
+                                <td>
+                                    <strong>{{ credit.producto_nombre }}</strong><br>
+                                    <small>{{ credit.descripcion|default:"Sin descripción" }}</small>
+                                </td>
+                                <td>{{ credit.monto_credito|floatformat:2 }}</td>
+                                <td>
+                                    <span class="tradein-status tradein-status--{{ credit.estado }}">{{ credit.get_estado_display }}</span>
+                                    {% if credit.estado == 'usado' and credit.usado_en %}
+                                        <br><small>Usado: {{ credit.usado_en|date:"d/m/Y H:i" }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if credit.venta_aplicada %}
+                                        <a href="#" class="btn btn-link">Venta #{{ credit.venta_aplicada_id }}</a>
+                                    {% else %}
+                                        <small>Pendiente</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if credit.estado == 'pendiente' %}
+                                        <div class="tradein-actions">
+                                            <button type="button"
+                                                    class="tradein-action-button tradein-action-button--edit"
+                                                    data-tradein-edit
+                                                    data-tradein-id="{{ credit.id }}"
+                                                    data-tradein-nombre="{{ credit.nombre_cliente|default:''|escape }}"
+                                                    data-tradein-cliente-id="{{ credit.cliente_id|default:'' }}"
+                                                    data-tradein-producto="{{ credit.producto_nombre|default:''|escape }}"
+                                                    data-tradein-monto="{{ credit.monto_credito|floatformat:2 }}"
+                                                    data-tradein-descripcion="{{ credit.descripcion|default:''|escape }}">
+                                                <i class="ri-pencil-line"></i>
+                                                Editar
+                                            </button>
+                                            <form method="post" onsubmit="return confirm('¿Eliminar este crédito?');">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="delete_tradein">
+                                                <input type="hidden" name="tradein_id" value="{{ credit.id }}">
+                                                <button type="submit" class="tradein-action-button tradein-action-button--danger">
+                                                    <i class="ri-delete-bin-6-line"></i>
+                                                    Eliminar
+                                                </button>
+                                            </form>
+                                        </div>
+                                    {% else %}
+                                        <small class="text-muted">No disponible</small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% include "dashboard/pagination.html" with page_obj=tradeins_page querystring=tradeins_querystring %}
+        {% else %}
+            <div class="tradein-empty">
+                <h3>No hay créditos registrados</h3>
+                <p>Cuando recibas un producto de intercambio, crea el crédito y obtén su código aquí.</p>
+            </div>
+        {% endif %}
+    </section>
+</section>
+
+<div class="modal" id="tradein-modal" aria-hidden="true" data-tradein-default-mode="{{ tradein_modal_mode }}" data-tradein-editing-id="{{ editing_tradein_id|default:'' }}">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h2 data-tradein-modal-title>Registrar producto recibido</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-tradein-modal>&times;</button>
+        </div>
+        <form method="post" class="modal-form" data-tradein-form>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="{% if tradein_modal_mode == 'edit' %}update_tradein{% else %}create_tradein{% endif %}" data-tradein-action-field>
+            <input type="hidden" name="tradein_id" value="{% if tradein_modal_mode == 'edit' %}{{ editing_tradein_id }}{% endif %}" data-tradein-id-field>
+            {% if tradein_form.non_field_errors %}
+                <div class="form-errors">
+                    <ul>
+                        {% for error in tradein_form.non_field_errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+            <div class="form-grid">
+                <label class="form-field">
+                    <span class="form-label">Nombre del cliente</span>
+                    {{ tradein_form.nombre_cliente }}
+                    {% if tradein_form.nombre_cliente.errors %}
+                        <div class="field-error">
+                            {% for error in tradein_form.nombre_cliente.errors %}
+                                <span>{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Asignar a cliente existente</span>
+                    {{ tradein_form.cliente }}
+                    {% if tradein_form.cliente.errors %}
+                        <div class="field-error">
+                            {% for error in tradein_form.cliente.errors %}
+                                <span>{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Producto recibido</span>
+                    {{ tradein_form.producto_nombre }}
+                    {% if tradein_form.producto_nombre.errors %}
+                        <div class="field-error">
+                            {% for error in tradein_form.producto_nombre.errors %}
+                                <span>{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Monto del crédito</span>
+                    {{ tradein_form.monto_credito }}
+                    {% if tradein_form.monto_credito.errors %}
+                        <div class="field-error">
+                            {% for error in tradein_form.monto_credito.errors %}
+                                <span>{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </label>
+                <label class="form-field form-field--full">
+                    <span class="form-label">Descripción / estado</span>
+                    {{ tradein_form.descripcion }}
+                    {% if tradein_form.descripcion.errors %}
+                        <div class="field-error">
+                            {% for error in tradein_form.descripcion.errors %}
+                                <span>{{ error }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-tradein-secondary" data-close-tradein-modal>Cancelar</button>
+                <button type="submit" class="btn-tradein-primary" data-tradein-submit>Guardar crédito</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if force_tradein_modal %}
+    <script>
+        window.addEventListener('DOMContentLoaded', function () {
+            const modal = document.getElementById('tradein-modal');
+            if (modal) {
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('is-visible');
+            }
+        });
+    </script>
+{% endif %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('tradein-modal');
+        const openButtons = document.querySelectorAll('[data-open-tradein-modal]');
+        const closeButtons = document.querySelectorAll('[data-close-tradein-modal]');
+        const editButtons = document.querySelectorAll('[data-tradein-edit]');
+        const tradeinForm = modal ? modal.querySelector('[data-tradein-form]') : null;
+        let lastTrigger = null;
+
+        const tradeinActionField = tradeinForm ? tradeinForm.querySelector('[data-tradein-action-field]') : null;
+        const tradeinIdField = tradeinForm ? tradeinForm.querySelector('[data-tradein-id-field]') : null;
+        const tradeinTitleNode = modal ? modal.querySelector('[data-tradein-modal-title]') : null;
+        const tradeinSubmitButton = tradeinForm ? tradeinForm.querySelector('[data-tradein-submit]') : null;
+        const tradeinNameInput = tradeinForm ? tradeinForm.querySelector('[name="nombre_cliente"]') : null;
+        const tradeinClientSelect = tradeinForm ? tradeinForm.querySelector('[name="cliente"]') : null;
+        const tradeinProductInput = tradeinForm ? tradeinForm.querySelector('[name="producto_nombre"]') : null;
+        const tradeinAmountInput = tradeinForm ? tradeinForm.querySelector('[name="monto_credito"]') : null;
+        const tradeinDescriptionInput = tradeinForm ? tradeinForm.querySelector('[name="descripcion"]') : null;
+
+        function applyTradeInMode(mode, data, options) {
+            if (!modal || !tradeinForm) {
+                return;
+            }
+            const defaults = { reset: false };
+            const opts = Object.assign({}, defaults, options || {});
+
+            if (opts.reset) {
+                tradeinForm.reset();
+            }
+
+            if (mode === 'edit') {
+                if (tradeinActionField) {
+                    tradeinActionField.value = 'update_tradein';
+                }
+                if (tradeinIdField) {
+                    tradeinIdField.value = data && data.id ? data.id : (tradeinIdField.value || '');
+                }
+                if (tradeinTitleNode) {
+                    tradeinTitleNode.textContent = 'Editar crédito por intercambio';
+                }
+                if (tradeinSubmitButton) {
+                    tradeinSubmitButton.textContent = 'Actualizar crédito';
+                }
+
+                if (data) {
+                    if (tradeinNameInput) {
+                        tradeinNameInput.value = data.nombre || '';
+                    }
+                    if (tradeinClientSelect) {
+                        tradeinClientSelect.value = data.clienteId || '';
+                    }
+                    if (tradeinProductInput) {
+                        tradeinProductInput.value = data.producto || '';
+                    }
+                    if (tradeinAmountInput) {
+                        tradeinAmountInput.value = data.monto || '';
+                    }
+                    if (tradeinDescriptionInput) {
+                        tradeinDescriptionInput.value = data.descripcion || '';
+                    }
+                }
+                modal.setAttribute('data-tradein-editing-id', data && data.id ? data.id : '');
+            } else {
+                if (tradeinActionField) {
+                    tradeinActionField.value = 'create_tradein';
+                }
+                if (tradeinIdField) {
+                    tradeinIdField.value = '';
+                }
+                if (tradeinTitleNode) {
+                    tradeinTitleNode.textContent = 'Registrar producto recibido';
+                }
+                if (tradeinSubmitButton) {
+                    tradeinSubmitButton.textContent = 'Guardar crédito';
+                }
+                if (opts.reset) {
+                    if (tradeinNameInput) {
+                        tradeinNameInput.value = '';
+                    }
+                    if (tradeinClientSelect) {
+                        tradeinClientSelect.value = '';
+                    }
+                    if (tradeinProductInput) {
+                        tradeinProductInput.value = '';
+                    }
+                    if (tradeinAmountInput) {
+                        tradeinAmountInput.value = '';
+                    }
+                    if (tradeinDescriptionInput) {
+                        tradeinDescriptionInput.value = '';
+                    }
+                }
+                modal.setAttribute('data-tradein-editing-id', '');
+            }
+
+            modal.setAttribute('data-tradein-default-mode', mode);
+        }
+
+        function initializeTradeInModeFromDataset() {
+            if (!modal) {
+                return;
+            }
+            const defaultMode = modal.getAttribute('data-tradein-default-mode') || 'create';
+            const editingId = modal.getAttribute('data-tradein-editing-id') || '';
+            if (defaultMode === 'edit') {
+                applyTradeInMode('edit', { id: editingId }, { reset: false });
+            } else {
+                applyTradeInMode('create', null, { reset: false });
+            }
+        }
+
+        function openModal() {
+            if (!modal) return;
+            modal.setAttribute('aria-hidden', 'false');
+            modal.classList.add('is-visible');
+            var firstField = modal.querySelector('input, select, textarea, button');
+            if (firstField && typeof firstField.focus === 'function') {
+                firstField.focus();
+            }
+        }
+
+        function closeModal() {
+            if (!modal) return;
+            if (document.activeElement) {
+                document.activeElement.blur();
+            }
+            modal.classList.remove('is-visible');
+            requestAnimationFrame(function () {
+                modal.setAttribute('aria-hidden', 'true');
+                if (lastTrigger && typeof lastTrigger.focus === 'function') {
+                    lastTrigger.focus();
+                }
+            });
+            applyTradeInMode('create', null, { reset: true });
+        }
+
+        openButtons.forEach(btn => btn.addEventListener('click', function (event) {
+            lastTrigger = event.currentTarget || btn;
+            applyTradeInMode('create', null, { reset: true });
+            openModal();
+        }));
+        closeButtons.forEach(btn => btn.addEventListener('click', closeModal));
+
+        editButtons.forEach(btn => btn.addEventListener('click', function (event) {
+            if (!modal) {
+                return;
+            }
+            const trigger = event.currentTarget || btn;
+            lastTrigger = trigger;
+            const data = {
+                id: trigger.dataset.tradeinId || '',
+                nombre: trigger.dataset.tradeinNombre || '',
+                clienteId: trigger.dataset.tradeinClienteId || '',
+                producto: trigger.dataset.tradeinProducto || '',
+                monto: trigger.dataset.tradeinMonto || '',
+                descripcion: trigger.dataset.tradeinDescripcion || '',
+            };
+            applyTradeInMode('edit', data, { reset: true });
+            openModal();
+        }));
+
+        if (modal) {
+            modal.addEventListener('click', function (event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+            modal.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeModal();
+                }
+            });
+        }
+
+        document.querySelectorAll('[data-copy-code]').forEach(button => {
+            button.addEventListener('click', function () {
+                const code = this.getAttribute('data-copy-code') || '';
+                if (!navigator.clipboard) {
+                    const temp = document.createElement('input');
+                    temp.value = code;
+                    document.body.appendChild(temp);
+                    temp.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(temp);
+                } else {
+                    navigator.clipboard.writeText(code).catch(() => {});
+                }
+                this.classList.add('copied');
+                setTimeout(() => this.classList.remove('copied'), 1500);
+            });
+        });
+
+        const tradeinFiltersForm = document.querySelector('.tradein-filters__form');
+        const tradeinClearButton = document.querySelector('[data-tradein-clear-filters]');
+        const tradeinSearchInput = document.getElementById('tradein-search');
+
+        if (tradeinFiltersForm && tradeinSearchInput) {
+            tradeinSearchInput.addEventListener('keypress', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    tradeinFiltersForm.submit();
+                }
+            });
+        }
+
+        if (tradeinClearButton) {
+            tradeinClearButton.addEventListener('click', function () {
+                if (!tradeinFiltersForm) {
+                    window.location.href = window.location.pathname;
+                    return;
+                }
+                tradeinFiltersForm.reset();
+                window.location.href = window.location.pathname;
+            });
+        }
+
+        initializeTradeInModeFromDataset();
+    });
+</script>
+{% endblock %}

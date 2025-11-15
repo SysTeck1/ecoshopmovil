@@ -1,4 +1,5 @@
 from decimal import Decimal, InvalidOperation
+import secrets
 
 from django.conf import settings
 from django.core.validators import MinValueValidator
@@ -434,6 +435,75 @@ class ProductImage(TimeStampedModel):
         return f"Imagen de {self.producto}"
 
 
+class TradeInCredit(TimeStampedModel):
+    class Estado(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        USADO = "usado", "Usado"
+        CANCELADO = "cancelado", "Cancelado"
+
+    CODIGO_PREFIX = "TRD"
+    CODIGO_PADDING = 6
+
+    codigo = models.CharField(max_length=20, unique=True, editable=False)
+    nombre_cliente = models.CharField(max_length=150)
+    producto_nombre = models.CharField(max_length=150)
+    descripcion = models.TextField(blank=True)
+    monto_credito = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.SET_NULL,
+        related_name="trade_in_creditos",
+        null=True,
+        blank=True,
+    )
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDIENTE)
+    venta_aplicada = models.ForeignKey(
+        "Venta",
+        on_delete=models.SET_NULL,
+        related_name="trade_in_creditos",
+        null=True,
+        blank=True,
+    )
+    usado_en = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Crédito por intercambio"
+        verbose_name_plural = "Créditos por intercambio"
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return f"{self.codigo} - {self.producto_nombre} ({self.monto_credito})"
+
+    def save(self, *args, **kwargs):
+        if not self.codigo:
+            self.codigo = self._generate_codigo()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def _generate_codigo(cls) -> str:
+        random_suffix = secrets.token_hex(3).upper()
+        return f"{cls.CODIGO_PREFIX}-{random_suffix}"
+
+    def marcar_como_usado(self, venta: "Venta" | None = None, cliente: Cliente | None = None):
+        if self.estado == self.Estado.USADO:
+            return
+        self.estado = self.Estado.USADO
+        if venta is not None:
+            self.venta_aplicada = venta
+        updated_fields = ["estado", "venta_aplicada", "usado_en", "updated_at"]
+        if cliente is not None and self.cliente_id is None:
+            self.cliente = cliente
+            updated_fields.append("cliente")
+        self.usado_en = timezone.now()
+        self.save(update_fields=updated_fields)
+
+    def cancelar(self):
+        if self.estado == self.Estado.CANCELADO:
+            return
+        self.estado = self.Estado.CANCELADO
+        self.save(update_fields=["estado", "updated_at"])
+
+
 class CashSession(TimeStampedModel):
     class Estado(models.TextChoices):
         ABIERTA = "abierta", "Abierta"
@@ -446,6 +516,7 @@ class CashSession(TimeStampedModel):
     total_ventas = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     total_impuesto = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     total_descuento = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    total_trade_in = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     total_ventas_credito = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ABIERTA)
 
@@ -515,6 +586,8 @@ class Venta(TimeStampedModel):
         null=True,
         blank=True,
     )
+    descuento_total = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    trade_in_monto = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
 
     class Meta:
         verbose_name = "Venta"

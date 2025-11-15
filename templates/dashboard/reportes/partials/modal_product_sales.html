@@ -1,0 +1,68 @@
+<div class="report-modal" id="report-product-sales-modal" data-report-modal-type="product-sales" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="report-modal__dialog">
+        <div class="report-modal__header">
+            <h2>Ventas por producto</h2>
+            <button type="button" class="report-modal__close" data-report-close aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="report-modal__body">
+            <div class="report-summary" data-summary-container>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Productos agrupados</span>
+                    <span class="report-summary__value" data-summary="products">—</span>
+                </div>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Cantidad vendida total</span>
+                    <span class="report-summary__value" data-summary="quantity">—</span>
+                </div>
+                <div class="report-summary__card">
+                    <span class="report-summary__label">Total vendido</span>
+                    <span class="report-summary__value" data-summary="total">—</span>
+                </div>
+            </div>
+
+            <div class="report-modal__filters" data-filters>
+                <label>
+                    <span>Desde</span>
+                    <input type="date" data-filter="start">
+                </label>
+                <label>
+                    <span>Hasta</span>
+                    <input type="date" data-filter="end">
+                </label>
+                <label class="report-modal__filters-field--full">
+                    <span>Buscar producto, marca o modelo</span>
+                    <input type="search" placeholder="Ej. Samsung, cable USB, adaptador" data-filter="search">
+                </label>
+            </div>
+
+            <div class="report-modal__actions">
+                <button type="button" class="btn btn-secondary" data-report-close>Cancelar</button>
+                <button type="button" class="btn btn-primary" data-primary-action data-report-run="product-sales">
+                    <span>Generar reporte</span>
+                    <span class="report-spinner" aria-hidden="true"></span>
+                </button>
+            </div>
+
+            <div class="report-table-wrapper">
+                <table class="report-table" aria-describedby="report-product-sales-modal">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Marca</th>
+                            <th>Modelo</th>
+                            <th>Cantidad vendida</th>
+                            <th>Total vendido</th>
+                        </tr>
+                    </thead>
+                    <tbody data-table-body>
+                        <tr>
+                            <td colspan="5" class="report-empty-state">Configura los filtros y genera el reporte.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="report-empty-state" data-empty hidden>No se encontraron resultados para la búsqueda aplicada.</p>
+        </div>
+    </div>
+</div>

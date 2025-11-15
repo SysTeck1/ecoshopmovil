@@ -581,7 +581,7 @@
     </div>
 </div>
 
-<div class="modal" id="payment-modal" aria-hidden="true">
+<div class="modal" id="payment-modal" aria-hidden="true" data-tradein-validate-url="{% url 'dashboard:tradein_validate_api' %}">
     <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
         <div class="modal-header">
             <h2 id="payment-modal-title">Realizar pago</h2>
@@ -604,9 +604,9 @@
                             <dt>Total con descuento</dt>
                             <dd data-payment-total-discounted>RD$ 0.00</dd>
                         </div>
-                        <div class="payment-summary__row">
-                            <dt>Pago recibido</dt>
-                            <dd data-payment-received>RD$ 0.00</dd>
+                        <div class="payment-summary__row" data-payment-tradein-row hidden>
+                            <dt>Crédito trade-in</dt>
+                            <dd data-payment-tradein>RD$ 0.00</dd>
                         </div>
                         <div class="payment-summary__row payment-summary__row--change" hidden data-payment-change-row>
                             <dt>Vuelto a entregar</dt>
@@ -617,6 +617,21 @@
                         <span class="icon">%</span>
                         <span>Aplicar descuento</span>
                     </button>
+                    <div class="tradein-apply">
+                        <label class="tradein-apply__label" for="tradein-code-input">Código trade-in</label>
+                        <div class="tradein-apply__controls">
+                            <div class="tradein-code-group">
+                                <span class="tradein-code-icon"><i class="ri-ticket-2-line"></i></span>
+                                <input id="tradein-code-input" type="text" placeholder="Ej. TRD-ABC123" autocomplete="off" data-tradein-code>
+                            </div>
+                            <button type="button" class="btn btn-outline btn-icon" data-tradein-search>
+                                <i class="ri-search-line"></i>
+                            </button>
+                            <button type="button" class="btn btn-primary" data-apply-tradein>Aplicar</button>
+                            <button type="button" class="btn btn-link" data-remove-tradein hidden>Quitar</button>
+                        </div>
+                        <p class="tradein-apply__feedback" data-tradein-feedback></p>
+                    </div>
                     <div class="payment-table-wrapper">
                         <h4 class="payment-table__title">Ingrese el monto pagado:</h4>
                         <table class="payment-table">
@@ -1869,6 +1884,73 @@
         font-weight: 600;
     }
 
+    .tradein-apply {
+        margin-top: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .tradein-apply__label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #636e72;
+    }
+
+    .tradein-apply__controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: nowrap;
+        align-items: center;
+        max-width: 420px;
+    }
+
+    .tradein-code-group {
+        display: flex;
+        align-items: center;
+        flex: 1 1 auto;
+        border: 1px solid #dcdde1;
+        border-radius: 8px;
+        background: #fff;
+        overflow: hidden;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .tradein-code-group:focus-within {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+    }
+
+    .tradein-code-icon {
+        padding: 0 10px;
+        color: #2563eb;
+        font-size: 1.1rem;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .tradein-code-group input[type="text"] {
+        flex: 1 1 auto;
+        padding: 10px 10px 10px 4px;
+        border: none;
+        font-size: 0.95rem;
+        outline: none;
+    }
+
+    .tradein-apply__feedback {
+        margin: 4px 0 0;
+        font-size: 0.85rem;
+        color: #636e72;
+    }
+
+    .tradein-apply__feedback--success {
+        color: var(--color-success-text);
+    }
+
+    .tradein-apply__feedback--error {
+        color: var(--color-danger-text);
+    }
+
     /* Estilos para modal de cuotas */
     .credit-summary {
         background: var(--color-surface-soft);
@@ -2347,6 +2429,8 @@
         var paymentTotalOutput = paymentModal ? paymentModal.querySelector('[data-payment-total]') : null;
         var paymentDiscountOutput = paymentModal ? paymentModal.querySelector('[data-payment-discount]') : null;
         var paymentDiscountRow = paymentModal ? paymentModal.querySelector('[data-payment-discount-row]') : null;
+        var paymentTradeInRow = paymentModal ? paymentModal.querySelector('[data-payment-tradein-row]') : null;
+        var paymentTradeInValue = paymentModal ? paymentModal.querySelector('[data-payment-tradein]') : null;
         var paymentReceivedOutput = paymentModal ? paymentModal.querySelector('[data-payment-received]') : null;
         var paymentTotalDiscountedOutput = paymentModal ? paymentModal.querySelector('[data-payment-total-discounted]') : null;
         var paymentTotalDiscountedRow = paymentModal ? paymentModal.querySelector('[data-payment-total-discounted-row]') : null;
@@ -2371,6 +2455,12 @@
         var discountValueInput = discountModal ? discountModal.querySelector('[data-discount-value]') : null;
         var discountCurrentTotal = discountModal ? discountModal.querySelector('[data-discount-current-total]') : null;
         var discountFinalTotal = discountModal ? discountModal.querySelector('[data-discount-final-total]') : null;
+        var tradeInCodeInput = paymentModal ? paymentModal.querySelector('[data-tradein-code]') : null;
+        var tradeInApplyButton = paymentModal ? paymentModal.querySelector('[data-apply-tradein]') : null;
+        var tradeInSearchButton = paymentModal ? paymentModal.querySelector('[data-tradein-search]') : null;
+        var tradeInRemoveButton = paymentModal ? paymentModal.querySelector('[data-remove-tradein]') : null;
+        var tradeInFeedback = paymentModal ? paymentModal.querySelector('[data-tradein-feedback]') : null;
+        var tradeInValidateEndpoint = paymentModal ? paymentModal.getAttribute('data-tradein-validate-url') : '';
         var creditInstallmentsModal = document.getElementById('credit-installments-modal');
         var closeCreditModalButtons = creditInstallmentsModal ? creditInstallmentsModal.querySelectorAll('[data-close-credit-modal]') : [];
         var confirmCreditConfigButton = creditInstallmentsModal ? creditInstallmentsModal.querySelector('[data-confirm-credit-config]') : null;
@@ -2425,6 +2515,7 @@
             discounts: cashCloseModal.querySelector('[data-cash-report-discounts]'),
             taxes: cashCloseModal.querySelector('[data-cash-report-taxes]'),
             cash: cashCloseModal.querySelector('[data-cash-report-cash]'),
+            tradeIn: cashCloseModal.querySelector('[data-cash-report-tradein]'),
             electronic: cashCloseModal.querySelector('[data-cash-report-electronic]'),
             cashSales: cashCloseModal.querySelector('[data-cash-report-cash-sales]'),
             cashCredit: cashCloseModal.querySelector('[data-cash-report-cash-credit]'),
@@ -2644,38 +2735,41 @@
             if (!session) {
                 return null;
             }
+            var totals = session.totals || {};
             return {
                 id: session.id,
                 apertura: session.apertura_display || '--',
                 aperturaISO: session.apertura || null,
                 montoInicial: session.monto_inicial_display || 'RD$ 0.00',
                 montoInicialValor: typeof session.monto_inicial === 'number' ? Number(session.monto_inicial) : null,
-                totalEnCaja: session.totals ? (session.totals.total_en_caja_display || 'RD$ 0.00') : '--',
-                totalEnCajaValor: session.totals && typeof session.totals.total_en_caja === 'number'
-                    ? Number(session.totals.total_en_caja)
+                totalEnCaja: totals.total_en_caja_display || 'RD$ 0.00',
+                totalEnCajaValor: typeof totals.total_en_caja === 'number'
+                    ? Number(totals.total_en_caja)
                     : (typeof session.total_en_caja_registrado === 'number' ? Number(session.total_en_caja_registrado) : null),
                 estado: session.estado || 'abierta',
                 estadoDisplay: session.estado_display || 'Abierta',
-                totalVentas: session.totals ? (session.totals.total_display || 'RD$ 0.00') : '--',
-                totalVentasValor: session.totals && typeof session.totals.total === 'number'
-                    ? Number(session.totals.total)
+                totalVentas: totals.total_display || 'RD$ 0.00',
+                totalVentasValor: typeof totals.total === 'number'
+                    ? Number(totals.total)
                     : null,
-                totalCost: session.totals ? (session.totals.total_costo_display || 'RD$ 0.00') : '--',
-                totalCostValor: session.totals && typeof session.totals.total_costo === 'number'
-                    ? Number(session.totals.total_costo)
+                totalCost: totals.total_costo_display || 'RD$ 0.00',
+                totalCostValor: typeof totals.total_costo === 'number'
+                    ? Number(totals.total_costo)
                     : null,
-                totalGanancia: session.totals ? (session.totals.total_ganancia_display || 'RD$ 0.00') : '--',
-                totalGananciaValor: session.totals && typeof session.totals.total_ganancia === 'number'
-                    ? Number(session.totals.total_ganancia)
+                totalGanancia: totals.total_ganancia_display || 'RD$ 0.00',
+                totalGananciaValor: typeof totals.total_ganancia === 'number'
+                    ? Number(totals.total_ganancia)
                     : null,
                 cierre: session.cierre_display || '--',
                 cierreISO: session.cierre || null,
-                impuesto: session.totals ? (session.totals.impuestos_display || 'RD$ 0.00') : '--',
-                descuento: session.totals ? (session.totals.descuento_display || 'RD$ 0.00') : '--',
-                credito: session.totals ? (session.totals.total_credito_display || 'RD$ 0.00') : '--',
-                creditPayments: session.totals ? (session.totals.total_credit_payments_display || 'RD$ 0.00') : '--',
-                creditPaymentsValor: session.totals && typeof session.totals.total_credit_payments === 'number'
-                    ? Number(session.totals.total_credit_payments)
+                impuesto: totals.impuestos_display || 'RD$ 0.00',
+                discounts: typeof totals.descuento === 'number' ? totals.descuento : 0,
+                tradeIn: typeof totals.trade_in === 'number' ? totals.trade_in : 0,
+                descuento: totals.descuento_display || 'RD$ 0.00',
+                credito: totals.total_credito_display || 'RD$ 0.00',
+                creditPayments: totals.total_credit_payments_display || 'RD$ 0.00',
+                creditPaymentsValor: typeof totals.total_credit_payments === 'number'
+                    ? Number(totals.total_credit_payments)
                     : null,
             };
         }
@@ -2836,6 +2930,7 @@
             tax: 0,
             fiscalConfig: null,
             fiscalEnabled: false,
+            tradeIn: null,
         };
         var cashState = {
             isOpen: false,
@@ -2846,6 +2941,7 @@
                 creditPayments: 0,
                 discounts: 0,
                 taxes: 0,
+                tradeIn: 0,
                 payment: {
                     cash: 0,
                     cashCredit: 0,
@@ -2925,6 +3021,7 @@
             paymentState.discountType = null;
             paymentState.discountValue = 0;
             paymentState.fiscalConfig = null;
+            clearTradeInState({ silent: true, resetInput: true });
             hideFiscalPreview();
             updatePaymentSummary();
             invoiceCode = generateInvoiceCode();
@@ -3079,6 +3176,7 @@
             cashState.totals.creditPayments += snapshot.creditPayments || 0;
             cashState.totals.discounts += snapshot.discounts || 0;
             cashState.totals.taxes += snapshot.taxes || 0;
+            cashState.totals.tradeIn += snapshot.tradeIn || 0;
             var paymentSnapshot = snapshot.payment || {};
             Object.keys(paymentSnapshot).forEach(function (key) {
                 if (Object.prototype.hasOwnProperty.call(cashState.totals.payment, key)) {
@@ -3150,6 +3248,28 @@
             return csrfCookieMatch ? decodeURIComponent(csrfCookieMatch[1]) : '';
         }
 
+        function buildFiscalPayload() {
+            if (!paymentState.fiscalEnabled || !paymentState.fiscalConfig) {
+                return null;
+            }
+            var config = paymentState.fiscalConfig;
+            var clientOption = clientSelect ? clientSelect.options[clientSelect.selectedIndex] : null;
+            var clientName = clientOption ? clientOption.textContent : '';
+            var documento = clientOption ? clientOption.getAttribute('data-documento') || '' : '';
+            var correo = clientOption ? clientOption.getAttribute('data-correo') || '' : '';
+            var telefono = clientOption ? clientOption.getAttribute('data-telefono') || '' : '';
+
+            return {
+                config_id: config.id || null,
+                tipo: config.tipo_por_defecto || '',
+                serie: config.serie_por_defecto || '',
+                cliente_nombre: clientName,
+                cliente_documento: documento,
+                correo_envio: correo,
+                telefono_contacto: telefono,
+            };
+        }
+
         function buildSalePayload(options) {
             options = options || {};
             var clientId = clientSelect ? clientSelect.value : '';
@@ -3202,20 +3322,11 @@
                     frecuencia_dias: creditConfig.frequency,
                 };
             }
-            var clientOption = clientSelect ? clientSelect.options[clientSelect.selectedIndex] : null;
-            var clientName = clientOption ? clientOption.textContent : '';
-            var documento = clientOption ? clientOption.getAttribute('data-documento') || '' : '';
-            var correo = clientOption ? clientOption.getAttribute('data-correo') || '' : '';
-            var telefono = clientOption ? clientOption.getAttribute('data-telefono') || '' : '';
-            return {
-                config_id: paymentState.fiscalConfig && paymentState.fiscalConfig.id ? paymentState.fiscalConfig.id : null,
-                tipo: paymentState.fiscalConfig ? paymentState.fiscalConfig.tipo_por_defecto : '',
-                serie: paymentState.fiscalConfig ? paymentState.fiscalConfig.serie_por_defecto : '',
-                cliente_nombre: clientName,
-                cliente_documento: documento,
-                correo_envio: correo,
-                telefono_contacto: telefono,
-            };
+            if (paymentState.tradeIn && paymentState.tradeIn.code) {
+                payload.trade_in_code = paymentState.tradeIn.code;
+                payload.trade_in_amount = roundMoney(paymentState.tradeIn.amount || 0);
+            }
+            return payload;
         }
 
         function roundMoney(value) {
@@ -3223,7 +3334,12 @@
         }
 
         function updatePaymentSummary() {
-            var discountedTotal = Math.max(paymentState.total - paymentState.discountAmount, 0);
+            var tradeInAmountDisplay = 0;
+            if (paymentState.tradeIn && typeof paymentState.tradeIn.amount === 'number') {
+                tradeInAmountDisplay = roundMoney(paymentState.tradeIn.amount);
+            }
+            var totalDiscounts = paymentState.discountAmount + tradeInAmountDisplay;
+            var discountedTotal = Math.max(paymentState.total - totalDiscounts, 0);
             if (paymentTotalOutput) {
                 paymentTotalOutput.textContent = formatCurrency(paymentState.total);
             }
@@ -3233,11 +3349,17 @@
             if (paymentDiscountRow) {
                 paymentDiscountRow.hidden = !(paymentState.discountAmount > 0);
             }
+            if (paymentTradeInValue) {
+                paymentTradeInValue.textContent = formatCurrency(tradeInAmountDisplay);
+            }
+            if (paymentTradeInRow) {
+                paymentTradeInRow.hidden = !(tradeInAmountDisplay > 0);
+            }
             if (paymentTotalDiscountedOutput) {
                 paymentTotalDiscountedOutput.textContent = formatCurrency(discountedTotal);
             }
             if (paymentTotalDiscountedRow) {
-                paymentTotalDiscountedRow.hidden = !(paymentState.discountAmount > 0);
+                paymentTotalDiscountedRow.hidden = !(totalDiscounts > 0);
             }
             if (discountCurrentTotal) {
                 discountCurrentTotal.textContent = formatCurrency(paymentState.total);
@@ -3265,6 +3387,137 @@
             if (paymentChangeOutput) {
                 paymentChangeOutput.textContent = formatCurrency(changeAmount);
             }
+        }
+
+        function setTradeInFeedback(message, state) {
+            if (!tradeInFeedback) {
+                return;
+            }
+            tradeInFeedback.textContent = message || '';
+            tradeInFeedback.classList.remove('tradein-apply__feedback--success', 'tradein-apply__feedback--error');
+            if (state === 'success') {
+                tradeInFeedback.classList.add('tradein-apply__feedback--success');
+            } else if (state === 'error') {
+                tradeInFeedback.classList.add('tradein-apply__feedback--error');
+            }
+        }
+
+        function updateTradeInControls() {
+            var hasTradeIn = Boolean(paymentState.tradeIn && typeof paymentState.tradeIn.amount === 'number');
+            if (tradeInApplyButton) {
+                tradeInApplyButton.disabled = hasTradeIn;
+                tradeInApplyButton.classList.remove('is-loading');
+            }
+            if (tradeInRemoveButton) {
+                tradeInRemoveButton.hidden = !hasTradeIn;
+            }
+            if (tradeInCodeInput) {
+                if (hasTradeIn) {
+                    tradeInCodeInput.readOnly = true;
+                } else {
+                    tradeInCodeInput.readOnly = false;
+                }
+            }
+        }
+
+        function applyTradeInState(credit, options) {
+            options = options || {};
+            paymentState.tradeIn = credit ? {
+                code: credit.codigo,
+                amount: Number(credit.monto) || 0,
+                nombre_cliente: credit.nombre_cliente || '',
+                producto: credit.producto || '',
+                descripcion: credit.descripcion || ''
+            } : null;
+
+            if (tradeInCodeInput) {
+                tradeInCodeInput.value = credit ? credit.codigo : '';
+            }
+
+            updateTradeInControls();
+            updatePaymentSummary();
+
+            if (!options.silent) {
+                if (credit) {
+                    setTradeInFeedback('Crédito aplicado correctamente.', 'success');
+                    showToast('Crédito trade-in aplicado.', 'success');
+                } else {
+                    setTradeInFeedback('', null);
+                }
+            }
+        }
+
+        function clearTradeInState(options) {
+            options = options || {};
+            var hadTradeIn = Boolean(paymentState.tradeIn);
+            paymentState.tradeIn = null;
+            if (tradeInCodeInput && options.resetInput !== false) {
+                tradeInCodeInput.value = '';
+            }
+            updateTradeInControls();
+            updatePaymentSummary();
+            if (!options.silent && hadTradeIn) {
+                setTradeInFeedback('Se eliminó el crédito trade-in.', 'success');
+                showToast('Se quitó el crédito trade-in.', 'info');
+            } else if (!options.silent) {
+                setTradeInFeedback('', null);
+            }
+        }
+
+        function applyTradeInCode() {
+            if (!tradeInApplyButton || !tradeInCodeInput) {
+                return;
+            }
+            if (!tradeInValidateEndpoint) {
+                showToast('No hay endpoint configurado para validar créditos trade-in.', 'error');
+                return;
+            }
+            var code = tradeInCodeInput.value.trim();
+            if (!code) {
+                setTradeInFeedback('Ingresa un código antes de aplicar.', 'error');
+                return;
+            }
+            if (paymentState.tradeIn && paymentState.tradeIn.code === code.toUpperCase()) {
+                setTradeInFeedback('Este crédito ya está aplicado.', 'success');
+                return;
+            }
+
+            tradeInApplyButton.disabled = true;
+            tradeInApplyButton.classList.add('is-loading');
+            setTradeInFeedback('Validando crédito...', null);
+
+            fetch(tradeInValidateEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({ codigo: code })
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        return response.json().catch(function () { return {}; }).then(function (data) {
+                            throw new Error(data.error || 'No se pudo validar el crédito.');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (!data || !data.success || !data.credit) {
+                        throw new Error('Respuesta inesperada del servidor.');
+                    }
+                    applyTradeInState(data.credit, { silent: true });
+                    setTradeInFeedback('Crédito aplicado: ' + formatCurrency(data.credit.monto), 'success');
+                })
+                .catch(function (error) {
+                    setTradeInFeedback(error.message || 'No se pudo aplicar el crédito.', 'error');
+                    showToast(error.message || 'No se pudo validar el crédito trade-in.', 'error');
+                })
+                .finally(function () {
+                    tradeInApplyButton.disabled = false;
+                    tradeInApplyButton.classList.remove('is-loading');
+                    updateTradeInControls();
+                });
         }
 
         function updateCashOpenInfo() {
@@ -3380,6 +3633,7 @@
                 creditPayments: 0,
                 discounts: 0,
                 taxes: 0,
+                tradeIn: 0,
                 payment: {
                     cash: 0,
                     cashCredit: 0,
@@ -3496,8 +3750,11 @@
             if (cashCloseSummaryRefs.creditPayments) {
                 cashCloseSummaryRefs.creditPayments.textContent = formatCurrency(totals.creditPayments);
             }
-            if (cashCloseSummaryRefs.discounts) {
-                cashCloseSummaryRefs.discounts.textContent = formatCurrency(totals.discounts);
+            if (cashCloseSummaryRefs.discount) {
+                cashCloseSummaryRefs.discount.textContent = formatCurrency(totals.discounts);
+            }
+            if (cashCloseSummaryRefs.tradeIn) {
+                cashCloseSummaryRefs.tradeIn.textContent = formatCurrency(totals.tradeIn);
             }
             if (cashCloseSummaryRefs.taxes) {
                 cashCloseSummaryRefs.taxes.textContent = formatCurrency(totals.taxes);
@@ -3653,6 +3910,11 @@
             if (!modal) {
                 return;
             }
+            if (document.activeElement && document.activeElement !== document.body) {
+                modal._previouslyFocused = document.activeElement;
+            } else {
+                modal._previouslyFocused = null;
+            }
             modal.classList.add('is-visible');
             modal.setAttribute('aria-hidden', 'false');
         }
@@ -3661,8 +3923,18 @@
             if (!modal) {
                 return;
             }
+            var activeElement = document.activeElement;
+            if (activeElement && modal.contains(activeElement) && typeof activeElement.blur === 'function') {
+                activeElement.blur();
+            }
             modal.classList.remove('is-visible');
-            modal.setAttribute('aria-hidden', 'true');
+            requestAnimationFrame(function () {
+                modal.setAttribute('aria-hidden', 'true');
+                if (modal._previouslyFocused && typeof modal._previouslyFocused.focus === 'function') {
+                    modal._previouslyFocused.focus();
+                }
+                modal._previouslyFocused = null;
+            });
         }
 
         function openInvoiceModalWithSale(saleSummary) {
@@ -3786,6 +4058,25 @@
 
         if (confirmPaymentButton) {
             confirmPaymentButton.addEventListener('click', handleConfirmPayment);
+        }
+
+        if (tradeInApplyButton) {
+            tradeInApplyButton.addEventListener('click', function () {
+                applyTradeInCode();
+            });
+        }
+        if (tradeInSearchButton) {
+            tradeInSearchButton.addEventListener('click', function () {
+                applyTradeInCode();
+            });
+        }
+
+        if (closeDiscountButtons.length) {
+            closeDiscountButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    closeModalElement(discountModal);
+                });
+            });
         }
 
         if (openDiscountButton) {
@@ -4160,7 +4451,10 @@
             var selectedMethods = getSelectedPaymentMethods();
             var hasContadoMethod = selectedMethods.length > 0;
             var changeEligible = !isCreditSaleChecked && selectedMethods.length === 1 && selectedMethods[0] === 'cash';
-            var paymentDue = roundMoney(Math.max(paymentState.total - paymentState.discountAmount, 0));
+            var tradeInAmount = paymentState.tradeIn && typeof paymentState.tradeIn.amount === 'number'
+                ? roundMoney(paymentState.tradeIn.amount)
+                : 0;
+            var paymentDue = roundMoney(Math.max(paymentState.total - (paymentState.discountAmount + tradeInAmount), 0));
             var paymentReceived = roundMoney(getPaymentReceivedTotal());
 
             if (!isCreditSaleChecked && !hasContadoMethod) {
@@ -4210,7 +4504,7 @@
                 sales: isCreditSaleChecked ? 0 : paymentDue,
                 creditSales: isCreditSaleChecked ? paymentDue : 0,
                 creditPayments: isCreditSaleChecked ? paymentReceived : 0,
-                discounts: roundMoney(paymentState.discountAmount),
+                discounts: roundMoney(paymentState.discountAmount + tradeInAmount),
                 taxes: roundMoney(paymentState.tax),
                 payment: {
                     cash: 0,
