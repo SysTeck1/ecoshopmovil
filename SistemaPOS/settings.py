@@ -26,6 +26,10 @@ ALLOWED_HOSTS = [host for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localh
 
 CSRF_TRUSTED_ORIGINS = [origin for origin in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if origin]
 
+DJANGO_ADMIN_USERNAME = os.environ.get("DJANGO_ADMIN_USERNAME", "admin")
+DJANGO_ADMIN_EMAIL = os.environ.get("DJANGO_ADMIN_EMAIL", "admin@example.com")
+DJANGO_ADMIN_PASSWORD = os.environ.get("DJANGO_ADMIN_PASSWORD", "admin")
+
 
 # Application definition
 
