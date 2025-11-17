@@ -656,7 +656,7 @@
                 </label>
                 <label class="form-field form-field--full">
                     <span class="form-label">Marca asociada</span>
-                    <select name="marca" class="select-control" data-model-create-brand>
+                    <select name="marca" class="select-control" data-model-create-brand data-brand-select>
                         <option value="">Sin marca</option>
                         {% for marca in marcas_catalogo %}
                             <option value="{{ marca.id }}">{{ marca.nombre }}</option>
