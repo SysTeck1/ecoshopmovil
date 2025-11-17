@@ -2318,14 +2318,18 @@ class ConfiguracionView(DashboardTemplateView):
         fiscal_config = FiscalVoucherConfig.objects.first()
         context["fiscal_config"] = fiscal_config
         context["fiscal_config_form"] = FiscalVoucherConfigForm(instance=fiscal_config)
-        context["fiscal_xml_form"] = FiscalVoucherXMLForm()
+        fiscal_xml_form = FiscalVoucherXMLForm()
+        fiscal_xml_form.fields["nombre"].widget.attrs.update({"id": "fiscal-xml-name-input"})
+        context["fiscal_xml_form"] = fiscal_xml_form
         context["fiscal_xml_templates"] = (
             FiscalVoucherXML.objects.filter(configuracion=fiscal_config)
             if fiscal_config
             else FiscalVoucherXML.objects.none()
         )
         context["categorias"] = Categoria.objects.all()
-        context["categoria_form"] = getattr(self, "categoria_form", CategoriaForm())
+        categoria_form = getattr(self, "categoria_form", CategoriaForm())
+        categoria_form.fields["nombre"].widget.attrs.update({"id": "category-register-name-input"})
+        context["categoria_form"] = categoria_form
         context["next_categoria_codigo"] = Categoria.next_codigo()
         if not hasattr(self, "force_open_category"):
             self.force_open_category = self.request.GET.get("open") == "categories"
@@ -2333,7 +2337,9 @@ class ConfiguracionView(DashboardTemplateView):
         context["force_open_category_register"] = getattr(self, "force_open_category_register", False)
 
         context["impuestos"] = Impuesto.objects.all()
-        context["impuesto_form"] = getattr(self, "impuesto_form", ImpuestoForm())
+        impuesto_form = getattr(self, "impuesto_form", ImpuestoForm())
+        impuesto_form.fields["nombre"].widget.attrs.update({"id": "tax-register-name-input"})
+        context["impuesto_form"] = impuesto_form
         context["next_impuesto_codigo"] = Impuesto.next_codigo()
         if not hasattr(self, "force_open_tax"):
             self.force_open_tax = self.request.GET.get("open") == "taxes"

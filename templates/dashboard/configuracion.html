@@ -204,7 +204,7 @@
                     <input id="category-register-code" name="codigo" type="text" value="{{ next_categoria_codigo }}" readonly>
                 </div>
                 <div class="modal-field">
-                    <label class="modal-field__label" for="category-register-name">Nombre</label>
+                    <label class="modal-field__label" for="category-register-name-input">Nombre</label>
                     {{ categoria_form.nombre }}
                     {% if categoria_form.nombre.errors %}
                         <div class="field-error">{{ categoria_form.nombre.errors|join:", " }}</div>
@@ -282,7 +282,7 @@
                     <input id="tax-register-code" name="codigo" type="text" value="{{ next_impuesto_codigo }}" readonly>
                 </div>
                 <div class="modal-field">
-                    <label class="modal-field__label" for="tax-register-name">Nombre</label>
+                    <label class="modal-field__label" for="tax-register-name-input">Nombre</label>
                     {{ impuesto_form.nombre }}
                     {% if impuesto_form.nombre.errors %}
                         <div class="field-error">{{ impuesto_form.nombre.errors|join:", " }}</div>
@@ -318,7 +318,7 @@
                 <form class="fiscal-xml-card__form" enctype="multipart/form-data" data-fiscal-xml-form>
                     {% csrf_token %}
                     <div class="fiscal-xml-card__form-grid">
-                        <label class="fiscal-xml-card__field">
+                        <label class="fiscal-xml-card__field" for="fiscal-xml-name-input">
                             <span class="fiscal-xml-card__label">Nombre</span>
                             {{ fiscal_xml_form.nombre }}
                             {% if fiscal_xml_form.nombre.errors %}
