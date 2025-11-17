@@ -19,8 +19,14 @@ def _resolve_logo_url(site_config: SiteConfiguration) -> str:
     """Devuelve la URL del logo configurado o un placeholder estático."""
 
     # Si hay un logo configurado y parece estar disponible, úsalo
-    if site_config.logo and site_config.logo.name:
-        return site_config.logo.url
+    logo_field = site_config.logo
+    if logo_field and logo_field.name:
+        try:
+            if logo_field.storage.exists(logo_field.name):
+                return logo_field.url
+        except Exception:
+            # Si no podemos verificar la existencia, seguimos con el fallback estático
+            pass
 
     # Fallback a un logo dentro de los archivos estáticos versionados
     if staticfiles_storage.exists("img/logo/placeholder.svg"):
