@@ -76,6 +76,7 @@ from ventas.models import (
 )
 
 from .forms import SiteConfigurationLogoForm
+from .context_processors import _resolve_logo_url
 from .models import SiteConfiguration
 
 
@@ -2311,7 +2312,7 @@ class ConfiguracionView(DashboardTemplateView):
             "site_logo_form",
             getattr(self, "site_logo_form", SiteConfigurationLogoForm(instance=site_config)),
         )
-        context["site_logo_url"] = site_config.logo.url if site_config.logo else static("img/logo/logo.png")
+        context["site_logo_url"] = _resolve_logo_url(site_config)
         context["site_logo_panel_open"] = getattr(self, "force_open_general_settings", False)
         context["site_configuration"] = site_config
 
