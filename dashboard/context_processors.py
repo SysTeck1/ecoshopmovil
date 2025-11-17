@@ -29,8 +29,13 @@ def _resolve_logo_url(site_config: SiteConfiguration) -> str:
             pass
 
     # Fallback a un logo dentro de los archivos estáticos versionados
-    if staticfiles_storage.exists("img/logo/placeholder.svg"):
-        return staticfiles_storage.url("img/logo/placeholder.svg")
+    for asset in ("img/logo/logo.png", "img/logo/placeholder.svg"):
+        try:
+            if staticfiles_storage.exists(asset):
+                return staticfiles_storage.url(asset)
+        except Exception:
+            # Si falla la verificación, generamos la URL con templatetag static
+            return static(asset)
 
-    # Último recurso: URL relativa generada con templatetag static
-    return static("img/logo/placeholder.svg")
+    # Último recurso: URL relativa generada con templatetag static al logo principal
+    return static("img/logo/logo.png")
