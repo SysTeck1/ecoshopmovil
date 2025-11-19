@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import logging
 import shutil
+from decimal import Decimal
 from pathlib import Path
 
 from django.conf import settings
 from django.core.files.storage import default_storage
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -21,6 +23,13 @@ class SiteConfiguration(models.Model):
     """Configuración general del sitio (logo, temas, etc.)."""
 
     logo = models.ImageField(upload_to="branding/", blank=True, null=True)
+    global_tax_enabled = models.BooleanField(default=True)
+    global_tax_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("18.00"),
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

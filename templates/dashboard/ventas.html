@@ -49,7 +49,12 @@
                     <select name="producto" class="field__control" data-product-selector data-sales-product>
                         <option value="">Selecciona producto</option>
                         {% for producto in productos %}
-                            <option value="{{ producto.id }}" data-stock="{{ producto.stock }}" data-price="{{ producto.precio_venta }}">{{ producto.nombre }}</option>
+                            <option value="{{ producto.id }}"
+                                data-stock="{{ producto.stock }}"
+                                data-price="{{ producto.precio_venta }}"
+                                data-impuesto="{{ producto.impuesto.porcentaje|default_if_none:0 }}"
+                                data-impuesto-activo="{% if producto.impuesto and producto.impuesto.activo %}true{% else %}false{% endif %}"
+                            >{{ producto.nombre }}</option>
                         {% endfor %}
                     </select>
                     <button type="button" class="btn btn-outline" data-open-product-modal>Buscar</button>
@@ -220,7 +225,15 @@
             </div>
             <ul class="client-list" data-product-list>
                 {% for producto in productos %}
-                    <li class="client-list__item" data-product-item data-id="{{ producto.id }}" data-name="{{ producto.nombre }}" data-price="{{ producto.precio_venta }}" data-stock="{{ producto.stock }}">
+                    <li class="client-list__item"
+                        data-product-item
+                        data-id="{{ producto.id }}"
+                        data-name="{{ producto.nombre }}"
+                        data-price="{{ producto.precio_venta }}"
+                        data-stock="{{ producto.stock }}"
+                        data-impuesto="{{ producto.impuesto.porcentaje|default_if_none:0 }}"
+                        data-impuesto-activo="{% if producto.impuesto and producto.impuesto.activo %}true{% else %}false{% endif %}"
+                    >
                         <span class="client-list__name">{{ producto.nombre }}</span>
                         <span class="client-list__code">Existencias: {{ producto.stock }}</span>
                         <button type="button" class="btn btn-secondary" data-select-product>Seleccionar</button>
@@ -2904,7 +2917,8 @@
             fechaFin: '',
             isLoading: false,
         };
-        var TAX_RATE = 0.18;
+        var GLOBAL_TAX_ENABLED = '{{ global_tax_enabled|yesno:"true,false" }}' === 'true';
+        var GLOBAL_TAX_RATE = parseFloat('{{ global_tax_rate|default:0 }}') / 100;
         var CURRENCY = 'RD$';
         var VentaMetodoPago = {
             EFECTIVO: 'efectivo',
@@ -3788,6 +3802,26 @@
             }
         }
 
+        function computeLineTax(item) {
+            if (!item || !Number.isFinite(item.price) || !Number.isFinite(item.quantity)) {
+                return 0;
+            }
+            var base = item.price * item.quantity;
+            if (!Number.isFinite(base) || base <= 0) {
+                return 0;
+            }
+            if (GLOBAL_TAX_ENABLED) {
+                if (!item.impuestoActivo) {
+                    return 0;
+                }
+                return base * GLOBAL_TAX_RATE;
+            }
+            if (!Number.isFinite(item.impuestoPorcentaje) || item.impuestoPorcentaje <= 0) {
+                return 0;
+            }
+            return base * (item.impuestoPorcentaje / 100);
+        }
+
         function renderCart() {
             if (!salesItemsBody) {
                 return;
@@ -3799,7 +3833,7 @@
             } else {
                 var rows = cartItems.map(function (item, index) {
                     var lineSubtotal = item.price * item.quantity;
-                    var lineTax = lineSubtotal * TAX_RATE;
+                    var lineTax = computeLineTax(item);
                     var lineTotal = lineSubtotal + lineTax;
                     var isSelected = index === selectedItemIndex;
                     return [
@@ -3820,7 +3854,9 @@
             var subtotal = cartItems.reduce(function (acc, item) {
                 return acc + (item.price * item.quantity);
             }, 0);
-            var tax = subtotal * TAX_RATE;
+            var tax = cartItems.reduce(function (acc, item) {
+                return acc + computeLineTax(item);
+            }, 0);
             var total = subtotal + tax;
 
             paymentState.subtotal = subtotal;
@@ -3871,6 +3907,9 @@
             var productOption = productSelector.options[productSelector.selectedIndex];
             var clientOption = clientSelect ? clientSelect.options[clientSelect.selectedIndex] : null;
             var price = parseFloat(productOption ? productOption.getAttribute('data-price') || '0' : '0');
+            var impuestoPorcentaje = parseFloat(productOption ? productOption.getAttribute('data-impuesto') || '0' : '0');
+            var impuestoActivoAttr = productOption ? productOption.getAttribute('data-impuesto-activo') : null;
+            var impuestoActivo = impuestoActivoAttr === null ? true : impuestoActivoAttr === 'true';
 
             if (!price || price < 0) {
                 showToast('El producto seleccionado no tiene un precio válido.', 'warning');
@@ -3883,7 +3922,9 @@
                 client: clientOption ? clientOption.text : '-',
                 product: productOption ? productOption.text : '-',
                 price: price,
-                quantity: quantityValue
+                quantity: quantityValue,
+                impuestoPorcentaje: impuestoPorcentaje,
+                impuestoActivo: impuestoActivo
             });
 
             selectedItemIndex = cartItems.length - 1;
@@ -4855,6 +4896,8 @@
             var productName = item.dataset.name;
             var productPrice = item.dataset.price;
             var productStock = item.dataset.stock;
+            var productTax = item.getAttribute('data-impuesto');
+            var productTaxActive = item.getAttribute('data-impuesto-activo');
 
             if (!productId) {
                 return;
@@ -4870,6 +4913,8 @@
 
             option.setAttribute('data-price', productPrice || '');
             option.setAttribute('data-stock', productStock || '');
+            option.setAttribute('data-impuesto', productTax || '0');
+            option.setAttribute('data-impuesto-activo', productTaxActive || 'true');
 
             productSelector.value = productId;
             updateStock();

@@ -59,6 +59,7 @@ from ventas.models import (
     Impuesto,
     Marca,
     Modelo,
+    ProductCondition,
     ProductImage,
     Producto,
     Proveedor,
@@ -75,7 +76,7 @@ from ventas.models import (
     TradeInCredit,
 )
 
-from .forms import SiteConfigurationLogoForm
+from .forms import SiteConfigurationLogoForm, SiteConfigurationGeneralForm
 from .context_processors import _resolve_logo_url
 from .models import SiteConfiguration
 
@@ -85,6 +86,48 @@ logger = logging.getLogger(__name__)
 
 TAX_RATE = Decimal("0.18")
 TWO_PLACES = Decimal("0.01")
+
+
+def _resolve_global_tax_rate(site_config):
+    try:
+        if getattr(site_config, "global_tax_enabled", False):
+            rate_value = Decimal(site_config.global_tax_rate or 0)
+            decimal_rate = (rate_value / Decimal("100")).quantize(TWO_PLACES)
+        else:
+            return None
+    except (InvalidOperation, TypeError, ValueError, AttributeError):
+        return None
+    if decimal_rate < Decimal("0"):
+        return Decimal("0")
+    return decimal_rate
+
+
+def _resolve_manual_tax_rate(porcentaje, activo):
+    if not activo or porcentaje in (None, ""):
+        return Decimal("0")
+    try:
+        return (Decimal(porcentaje) / Decimal("100")).quantize(TWO_PLACES)
+    except (InvalidOperation, TypeError, ValueError):
+        return Decimal("0")
+
+
+def _resolve_line_tax_rate(producto, global_tax_rate):
+    if producto is None:
+        return global_tax_rate or Decimal("0")
+
+    usar_global = getattr(producto, "usar_impuesto_global", True)
+    impuesto_obj = getattr(producto, "impuesto", None)
+    impuesto_activo = getattr(impuesto_obj, "activo", False)
+    impuesto_porcentaje = getattr(impuesto_obj, "porcentaje", None)
+
+    if usar_global:
+        if global_tax_rate is None:
+            return _resolve_manual_tax_rate(impuesto_porcentaje, impuesto_activo)
+        if not impuesto_obj or not impuesto_activo:
+            return Decimal("0")
+        return global_tax_rate
+
+    return _resolve_manual_tax_rate(impuesto_porcentaje, impuesto_activo)
 PAYMENT_CYCLE_DAYS = 30
 COUNTDOWN_WARNING_DAYS = 10
 WHATSAPP_ALERT_DAYS = 5
@@ -106,6 +149,9 @@ def compute_sale_totals(venta: Venta) -> dict[str, Decimal]:
     discount_total = Decimal("0")
     trade_in_total = Decimal("0")
 
+    site_config = SiteConfiguration.get_solo()
+    global_tax_rate = _resolve_global_tax_rate(site_config)
+
     for detalle in venta.detalles.all():
         precio_unitario = detalle.precio_unitario or Decimal("0")
         cantidad = Decimal(detalle.cantidad or 0)
@@ -116,7 +162,10 @@ def compute_sale_totals(venta: Venta) -> dict[str, Decimal]:
         line_subtotal = (base_amount - line_discount).quantize(TWO_PLACES)
         if line_subtotal < Decimal("0"):
             line_subtotal = Decimal("0.00")
-        line_tax = (line_subtotal * TAX_RATE).quantize(TWO_PLACES)
+        producto = getattr(detalle, "producto", None)
+        tax_rate = _resolve_line_tax_rate(producto, global_tax_rate)
+
+        line_tax = (line_subtotal * tax_rate).quantize(TWO_PLACES)
 
         subtotal += line_subtotal
         impuestos += line_tax
@@ -726,8 +775,19 @@ def build_profit_period_report(queryset, period: str):
 def build_product_sales_report(queryset, search_term: str | None):
     detalle_qs = (
         DetalleVenta.objects.filter(venta__in=queryset)
-        .select_related("producto__marca", "producto__modelo")
+        .select_related("producto__marca", "producto__modelo", "producto__impuesto")
     )
+
+    site_config = SiteConfiguration.get_solo()
+    try:
+        if getattr(site_config, "global_tax_enabled", False):
+            global_tax_rate = Decimal(site_config.global_tax_rate or 0) / Decimal("100")
+        else:
+            global_tax_rate = None
+    except (InvalidOperation, TypeError, ValueError):
+        global_tax_rate = None
+    if global_tax_rate is not None and global_tax_rate < Decimal("0"):
+        global_tax_rate = Decimal("0")
 
     if search_term:
         search_value = search_term.strip()
@@ -769,7 +829,28 @@ def build_product_sales_report(queryset, search_term: str | None):
         if line_subtotal < Decimal("0"):
             line_subtotal = Decimal("0")
         line_subtotal = line_subtotal.quantize(TWO_PLACES)
-        line_tax = (line_subtotal * TAX_RATE).quantize(TWO_PLACES)
+        if global_tax_rate is not None:
+            impuesto_obj = getattr(producto, "impuesto", None)
+            impuesto_activo = getattr(impuesto_obj, "activo", False)
+            if producto is None:
+                tax_rate = global_tax_rate
+            elif not impuesto_obj or not impuesto_activo:
+                tax_rate = Decimal("0")
+            else:
+                tax_rate = global_tax_rate
+        else:
+            impuesto_obj = getattr(producto, "impuesto", None)
+            impuesto_activo = getattr(impuesto_obj, "activo", False)
+            try:
+                tax_rate = (
+                    Decimal(impuesto_obj.porcentaje) / Decimal("100")
+                    if impuesto_obj and impuesto_obj.porcentaje is not None and impuesto_activo
+                    else Decimal("0")
+                )
+            except (InvalidOperation, TypeError, ValueError):
+                tax_rate = Decimal("0")
+
+        line_tax = (line_subtotal * tax_rate).quantize(TWO_PLACES)
         line_total = (line_subtotal + line_tax).quantize(TWO_PLACES)
 
         entry["cantidad"] += cantidad
@@ -1280,6 +1361,9 @@ class VentasView(DashboardTemplateView):
         context["clientes"] = Cliente.objects.all()
         context["productos"] = Producto.objects.all()
         context["invoices_count"] = Venta.objects.count()
+        site_config = SiteConfiguration.get_solo()
+        context["global_tax_enabled"] = bool(getattr(site_config, "global_tax_enabled", False))
+        context["global_tax_rate"] = float((getattr(site_config, "global_tax_rate", Decimal("0")) or Decimal("0")).quantize(TWO_PLACES))
 
         today = timezone.localdate()
         now = timezone.now()
@@ -1469,7 +1553,10 @@ class InventarioView(DashboardTemplateView):
             "modelos_admin_catalogo",
             Modelo.objects.select_related("marca").order_by("nombre"),
         )
-        context.setdefault("impuestos_catalogo", Impuesto.objects.only("id", "nombre", "porcentaje"))
+        context.setdefault(
+            "impuestos_catalogo",
+            Impuesto.objects.all().order_by("nombre")
+        )
         context.setdefault("proveedores_catalogo", Proveedor.objects.only("id", "nombre"))
         force_modal = kwargs.get("force_product_modal", False) or bool(form.errors)
         context["force_product_modal"] = force_modal
@@ -1811,6 +1898,7 @@ class RecibirProductoView(DashboardTemplateView):
                 "tradeins_querystring": tradein_querystring,
                 "tradein_modal_mode": tradein_modal_mode,
                 "tradein_estado_choices": TradeInCredit.Estado.choices,
+                "product_conditions": ProductCondition.objects.filter(activo=True).order_by("nombre"),
                 "filter_values": {
                     "search": search_term,
                     "estado": estado_filter,
@@ -1826,6 +1914,77 @@ class RecibirProductoView(DashboardTemplateView):
 
     def post(self, request, *args, **kwargs):
         action = request.POST.get("action") or "create_tradein"
+
+        if action == "create_condition":
+            nombre = (request.POST.get("nombre") or "").strip()
+            descripcion = (request.POST.get("descripcion") or "").strip()
+            condition_id = (request.POST.get("condicion_id") or "").strip()
+
+            if not nombre:
+                error_message = "Completa el nombre de la condición."
+                if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                    return JsonResponse({"success": False, "error": error_message}, status=400)
+                messages.error(request, error_message)
+                return redirect(request.path)
+
+            condition = None
+            created = False
+            if condition_id:
+                condition = ProductCondition.objects.filter(pk=condition_id).first()
+            if not condition:
+                condition, created = ProductCondition.objects.get_or_create(
+                    nombre=nombre,
+                    defaults={"descripcion": descripcion, "activo": True},
+                )
+            else:
+                condition.nombre = nombre
+                condition.descripcion = descripcion
+                condition.activo = True
+                condition.save(update_fields=["nombre", "descripcion", "activo", "updated_at"])
+
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                payload = {
+                    "success": True,
+                    "created": created,
+                    "condition": {
+                        "id": condition.pk,
+                        "nombre": condition.nombre,
+                        "descripcion": condition.descripcion or "",
+                    },
+                    "all_conditions": [
+                        {
+                            "id": cond.pk,
+                            "nombre": cond.nombre,
+                            "descripcion": cond.descripcion or "",
+                        }
+                        for cond in ProductCondition.objects.filter(activo=True).order_by("nombre")
+                    ],
+                }
+                return JsonResponse(payload, status=201)
+
+            if created:
+                messages.success(request, f"Condición {condition.nombre} creada.")
+            else:
+                messages.success(request, f"Condición {condition.nombre} actualizada.")
+            return redirect(request.path)
+
+        if action == "delete_condition":
+            condicion_id = (request.POST.get("condicion_id") or "").strip()
+            condition = ProductCondition.objects.filter(pk=condicion_id).first()
+            if condition:
+                condition.activo = False
+                condition.save(update_fields=["activo", "updated_at"])
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                activo_conditions = [
+                    {
+                        "id": cond.pk,
+                        "nombre": cond.nombre,
+                        "descripcion": cond.descripcion or "",
+                    }
+                    for cond in ProductCondition.objects.filter(activo=True).order_by("nombre")
+                ]
+                return JsonResponse({"success": True, "all_conditions": activo_conditions})
+            return redirect(request.path)
 
         if action == "delete_tradein":
             tradein_id = request.POST.get("tradein_id")
@@ -2286,6 +2445,61 @@ def create_model_api(request):
     )
 
 
+@require_POST
+def create_tax_api(request):
+    payload = _parse_json_body(request)
+    if payload is None:
+        return JsonResponse({"error": "Datos inválidos."}, status=400)
+
+    nombre = (payload.get("nombre") or "").strip()
+    if not nombre:
+        return JsonResponse({"error": "Debes indicar el nombre del impuesto."}, status=400)
+
+    porcentaje_raw = payload.get("porcentaje")
+    try:
+        porcentaje_decimal = Decimal(str(porcentaje_raw))
+    except (InvalidOperation, TypeError, ValueError):
+        return JsonResponse({"error": "El porcentaje debe ser un número válido."}, status=400)
+
+    if porcentaje_decimal < Decimal("0") or porcentaje_decimal > Decimal("100"):
+        return JsonResponse({"error": "El porcentaje debe estar entre 0 y 100."}, status=400)
+
+    activo = bool(payload.get("activo", True))
+
+    impuesto = Impuesto(nombre=nombre, porcentaje=porcentaje_decimal, activo=activo)
+    try:
+        impuesto.save()
+    except IntegrityError:
+        return JsonResponse({"error": "Ya existe un impuesto con ese nombre."}, status=409)
+
+    return JsonResponse(
+        {
+            "id": impuesto.pk,
+            "nombre": impuesto.nombre,
+            "porcentaje": str(impuesto.porcentaje),
+            "activo": impuesto.activo,
+            "estado_display": "Activo" if impuesto.activo else "Inactivo",
+        },
+        status=201,
+    )
+
+
+@require_POST
+def toggle_tax_status_api(request, tax_id: int):
+    impuesto = get_object_or_404(Impuesto, pk=tax_id)
+    impuesto.activo = not impuesto.activo
+    impuesto.save(update_fields=["activo", "updated_at"])
+    return JsonResponse(
+        {
+            "id": impuesto.pk,
+            "nombre": impuesto.nombre,
+            "porcentaje": str(impuesto.porcentaje),
+            "activo": impuesto.activo,
+            "estado_display": "Activo" if impuesto.activo else "Inactivo",
+        }
+    )
+
+
 class OtrosView(DashboardTemplateView):
     template_name = "dashboard/otros.html"
 
@@ -2312,9 +2526,16 @@ class ConfiguracionView(DashboardTemplateView):
             "site_logo_form",
             getattr(self, "site_logo_form", SiteConfigurationLogoForm(instance=site_config)),
         )
+        context.setdefault(
+            "site_general_form",
+            getattr(self, "site_general_form", SiteConfigurationGeneralForm(instance=site_config)),
+        )
         context["site_logo_url"] = _resolve_logo_url(site_config)
         context["site_logo_panel_open"] = getattr(self, "force_open_general_settings", False)
+        context["site_tax_panel_open"] = getattr(self, "site_tax_panel_open", False)
         context["site_configuration"] = site_config
+        context["force_open_tax_edit"] = getattr(self, "force_open_tax_edit", False)
+        context["tax_edit_context"] = getattr(self, "edit_tax_context", None)
 
         fiscal_config = FiscalVoucherConfig.objects.first()
         context["fiscal_config"] = fiscal_config
@@ -2348,6 +2569,27 @@ class ConfiguracionView(DashboardTemplateView):
         context["force_open_tax_register"] = getattr(self, "force_open_tax_register", False)
         return context
 
+    def _apply_active_tax(self, impuesto: Impuesto) -> None:
+        if impuesto is None:
+            return
+
+        Impuesto.objects.exclude(pk=impuesto.pk).update(activo=False)
+
+        site_config = SiteConfiguration.get_solo()
+        try:
+            rate_value = Decimal(impuesto.porcentaje or 0)
+        except (InvalidOperation, TypeError, ValueError):
+            rate_value = Decimal("0")
+        site_config.global_tax_enabled = True
+        site_config.global_tax_rate = rate_value.quantize(TWO_PLACES)
+        site_config.save(update_fields=["global_tax_enabled", "global_tax_rate", "updated_at"])
+
+    def _disable_global_tax(self) -> None:
+        site_config = SiteConfiguration.get_solo()
+        if site_config.global_tax_enabled:
+            site_config.global_tax_enabled = False
+            site_config.save(update_fields=["global_tax_enabled", "updated_at"])
+
     def post(self, request, *args, **kwargs):
         resource = request.POST.get("resource")
         action = request.POST.get("action")
@@ -2364,6 +2606,19 @@ class ConfiguracionView(DashboardTemplateView):
             self.force_open_general_settings = True
             return self.get(request, *args, **kwargs)
 
+        if resource == "site_config_general" and action == "update":
+            site_config = SiteConfiguration.get_solo()
+            form = SiteConfigurationGeneralForm(request.POST, instance=site_config)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Impuesto global actualizado correctamente.")
+                return redirect("dashboard:configuracion")
+
+            self.site_general_form = form
+            self.force_open_general_settings = True
+            self.site_tax_panel_open = True
+            return self.get(request, *args, **kwargs)
+
         if resource == "categoria" and action == "create":
             form = CategoriaForm(request.POST)
             if form.is_valid():
@@ -2377,11 +2632,51 @@ class ConfiguracionView(DashboardTemplateView):
             self.force_open_category_register = True
             return self.get(request, *args, **kwargs)
 
+        if resource == "categoria" and action == "update":
+            categoria_id = request.POST.get("categoria_id")
+            categoria = get_object_or_404(Categoria, pk=categoria_id)
+            form = CategoriaForm(request.POST, instance=categoria)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Categoría actualizada correctamente.")
+                url = f"{reverse('dashboard:configuracion')}?open=categories"
+                return redirect(url)
+
+            self.categoria_form = form
+            self.force_open_category = True
+            self.force_open_category_register = True
+            return self.get(request, *args, **kwargs)
+
+        if resource == "categoria" and action == "toggle":
+            categoria_id = request.POST.get("categoria_id")
+            categoria = get_object_or_404(Categoria, pk=categoria_id)
+            categoria.activo = not categoria.activo
+            categoria.save(update_fields=["activo", "updated_at"])
+            message = "Categoría activada correctamente." if categoria.activo else "Categoría desactivada correctamente."
+            messages.success(request, message)
+            url = f"{reverse('dashboard:configuracion')}?open=categories"
+            return redirect(url)
+
+        if resource == "categoria" and action == "delete":
+            categoria_id = request.POST.get("categoria_id")
+            categoria = get_object_or_404(Categoria, pk=categoria_id)
+            try:
+                categoria.delete()
+                messages.success(request, "Categoría eliminada correctamente.")
+            except ProtectedError:
+                messages.error(
+                    request,
+                    "No es posible eliminar esta categoría porque está asociada a otros registros.",
+                )
+            url = f"{reverse('dashboard:configuracion')}?open=categories"
+            return redirect(url)
+
         if resource == "impuesto" and action == "create":
             form = ImpuestoForm(request.POST)
             if form.is_valid():
-                form.save()
-                messages.success(request, "Impuesto registrado correctamente.")
+                impuesto = form.save()
+                self._apply_active_tax(impuesto)
+                messages.success(request, "Impuesto registrado y aplicado como impuesto global activo.")
                 url = f"{reverse('dashboard:configuracion')}?open=taxes"
                 return redirect(url)
 
@@ -2389,6 +2684,77 @@ class ConfiguracionView(DashboardTemplateView):
             self.force_open_tax = True
             self.force_open_tax_register = True
             return self.get(request, *args, **kwargs)
+
+        if resource == "impuesto" and action == "update":
+            impuesto_id = request.POST.get("impuesto_id")
+            impuesto = get_object_or_404(Impuesto, pk=impuesto_id)
+            form = ImpuestoForm(request.POST, instance=impuesto)
+            if form.is_valid():
+                impuesto = form.save()
+                if impuesto.activo:
+                    self._apply_active_tax(impuesto)
+                messages.success(request, "Impuesto actualizado correctamente.")
+                url = f"{reverse('dashboard:configuracion')}?open=taxes"
+                return redirect(url)
+
+            activo_actual = "true" if impuesto.activo else "false"
+            self.edit_tax_context = {
+                "impuesto_id": impuesto.pk,
+                "nombre": request.POST.get("nombre", ""),
+                "porcentaje": request.POST.get("porcentaje", ""),
+                "activo": activo_actual,
+                "activo_label": "Activo" if impuesto.activo else "Inactivo",
+                "errors": form.errors,
+            }
+            self.force_open_tax = True
+            self.force_open_tax_register = False
+            self.force_open_tax_edit = True
+            self.site_tax_panel_open = True
+            return self.get(request, *args, **kwargs)
+
+        if resource == "impuesto" and action == "toggle":
+            impuesto_id = request.POST.get("impuesto_id")
+            impuesto = get_object_or_404(Impuesto, pk=impuesto_id)
+            if impuesto.activo:
+                messages.info(request, "Este impuesto ya está activo.")
+                url = f"{reverse('dashboard:configuracion')}?open=taxes"
+                return redirect(url)
+
+            impuesto.activo = True
+            impuesto.save(update_fields=["activo", "updated_at"])
+            self._apply_active_tax(impuesto)
+            messages.success(request, "Impuesto activado y aplicado globalmente.")
+            url = f"{reverse('dashboard:configuracion')}?open=taxes"
+            return redirect(url)
+
+        if resource == "impuesto" and action == "delete":
+            impuesto_id = request.POST.get("impuesto_id")
+            impuesto = get_object_or_404(Impuesto, pk=impuesto_id)
+            estaba_activo = impuesto.activo
+            try:
+                impuesto.delete()
+                messages.success(request, "Impuesto eliminado correctamente.")
+                if estaba_activo:
+                    siguiente = Impuesto.objects.order_by("id").first()
+                    if siguiente:
+                        self._apply_active_tax(siguiente)
+                        messages.info(
+                            request,
+                            "Se activó automáticamente el siguiente impuesto disponible.",
+                        )
+                    else:
+                        self._disable_global_tax()
+                        messages.warning(
+                            request,
+                            "No hay impuestos disponibles. El impuesto global ha sido desactivado.",
+                        )
+            except ProtectedError:
+                messages.error(
+                    request,
+                    "No es posible eliminar este impuesto porque está asociado a otros registros.",
+                )
+            url = f"{reverse('dashboard:configuracion')}?open=taxes"
+            return redirect(url)
 
         return self.get(request, *args, **kwargs)
 

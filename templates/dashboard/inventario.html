@@ -114,7 +114,7 @@
                         </td>
                         <td class="actions-column">
                             <div class="inventory-actions">
-                                <button type="button" class="btn btn-secondary" data-action="edit"
+                                <button type="button" class="btn btn-secondary btn-icon btn-icon--sm" data-action="edit"
                                     data-product-id="{{ producto.id }}"
                                     data-product-name="{{ producto.nombre }}"
                                     data-product-category="{{ producto.categoria_id|default:'' }}"
@@ -125,6 +125,7 @@
                                     data-product-cost="{{ producto.precio_compra|default_if_none:0|floatformat:2 }}"
                                     data-product-price="{{ producto.precio_venta|default_if_none:0|floatformat:2 }}"
                                     data-product-tax-id="{{ producto.impuesto_id|default:'' }}"
+                                    data-product-uses-global="{{ producto.usar_impuesto_global|yesno:'true,false' }}"
                                     data-product-stock="{{ producto.stock|default_if_none:0 }}"
                                     data-product-stockmin="{{ producto.stock_minimo|default_if_none:0 }}"
                                     data-product-imei="{{ producto.imei|default:'' }}"
@@ -133,17 +134,19 @@
                                     data-product-proveedor-id="{{ producto.proveedor_id|default:'' }}"
                                     data-product-image="{{ producto.imagen_principal|default:'' }}"
                                     data-product-description="{{ producto.descripcion|default:'' }}"
-                                    data-product-active="{{ producto.activo|yesno:'true,false' }}">
-                                    Editar
+                                    data-product-active="{{ producto.activo|yesno:'true,false' }}"
+                                    aria-label="Editar producto {{ producto.nombre }}">
+                                    <span class="icon">✏️</span>
                                 </button>
-                                <button type="button" class="btn btn-danger" data-action="delete"
+                                <button type="button" class="btn btn-danger btn-icon btn-icon--sm" data-action="delete"
                                     data-product-id="{{ producto.id }}"
-                                    data-product-name="{{ producto.nombre }}">
-                                    Eliminar
+                                    data-product-name="{{ producto.nombre }}"
+                                    aria-label="Eliminar producto {{ producto.nombre }}">
+                                    <span class="icon">🗑️</span>
                                 </button>
-                                <a href="{% url 'dashboard:producto_detail' producto.id %}" class="btn btn-info" title="Ver detalle completo">
-                                    <i class="ri-eye-line"></i>
-                                    Detalle
+                                <a href="{% url 'dashboard:producto_detail' producto.id %}" class="btn btn-info btn-icon btn-icon--sm" title="Ver detalle completo">
+                                    <span class="icon">👁️</span>
+                                    <span class="sr-only">Detalle</span>
                                 </a>
                             </div>
                         </td>
@@ -286,12 +289,24 @@
                 </label>
                 <label class="form-field">
                     <span class="form-label">Impuesto aplicado</span>
-                    <select name="impuesto" class="select-control">
-                        <option value="">Sin impuesto</option>
-                        {% for impuesto in impuestos_catalogo %}
-                            <option value="{{ impuesto.id }}">{{ impuesto.nombre }} ({{ impuesto.porcentaje }}%)</option>
-                        {% endfor %}
-                    </select>
+                    <div class="form-field__group form-field__group--tax">
+                        <label class="checkbox-toggle">
+                            <input type="checkbox" name="usar_impuesto_global" value="true" data-tax-mode-toggle checked>
+                            <span class="checkbox-toggle__track">
+                                <span class="checkbox-toggle__thumb"></span>
+                            </span>
+                            <span class="checkbox-toggle__label">Usar impuesto global</span>
+                        </label>
+                        <select name="impuesto" class="select-control" data-tax-selector hidden>
+                            <option value="">Sin impuesto</option>
+                            {% for impuesto in impuestos_catalogo %}
+                                <option value="{{ impuesto.id }}">{{ impuesto.nombre }} ({{ impuesto.porcentaje }}%)</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-outline btn-icon btn-icon--sm" data-open-tax-modal title="Gestionar impuestos">
+                            <span class="icon">⚙️</span>
+                        </button>
+                    </div>
                 </label>
                 <label class="form-field">
                     <span class="form-label">Stock actual</span>
@@ -329,6 +344,100 @@
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" data-close-modal>Cancelar</button>
                 <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="tax-management-modal" data-toggle-template="{% url 'dashboard:toggle_tax_status_api' 0 %}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog--wide" role="dialog" aria-modal="true" aria-labelledby="tax-management-title">
+        <div class="modal-header">
+            <h2 id="tax-management-title">Gestionar impuestos</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="modal-top-actions">
+                <button type="button" class="btn btn-primary" data-open-tax-create>Agregar impuesto</button>
+            </div>
+            <div class="modal-table-wrapper modal-table-wrapper--taxes">
+                <table class="lookup-table lookup-table--taxes">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Impuesto</th>
+                            <th>Porcentaje</th>
+                            <th>Estado</th>
+                            <th colspan="2">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody data-tax-table-body>
+                        {% for impuesto in impuestos_catalogo %}
+                            <tr data-tax-row data-tax-id="{{ impuesto.id }}" data-tax-name="{{ impuesto.nombre }}" data-tax-rate="{{ impuesto.porcentaje }}" data-tax-active="{{ impuesto.activo|yesno:'true,false' }}">
+                                <td data-row-index></td>
+                                <td><span class="lookup-name">{{ impuesto.nombre }}</span></td>
+                                <td>{{ impuesto.porcentaje }}%</td>
+                                <td>
+                                    <span class="lookup-status {% if impuesto.activo %}lookup-status--active{% else %}lookup-status--inactive{% endif %}">
+                                        {% if impuesto.activo %}Activo{% else %}Inactivo{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline btn--compact" data-tax-select-button data-tax-id="{{ impuesto.id }}" data-tax-name="{{ impuesto.nombre }}" data-tax-rate="{{ impuesto.porcentaje }}">
+                                        Seleccionar
+                                    </button>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline lookup-toggle" data-tax-toggle data-toggle-url="{% url 'dashboard:toggle_tax_status_api' impuesto.id %}">
+                                        {% if impuesto.activo %}Inactivar{% else %}Activar{% endif %}
+                                    </button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr data-tax-empty>
+                                <td colspan="6">No hay impuestos registrados.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-close-modal>Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="tax-create-modal" data-create-url="{% url 'dashboard:create_tax_api' %}" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tax-create-title">
+        <div class="modal-header">
+            <h2 id="tax-create-title">Registrar impuesto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <form class="modal-form" data-tax-create-form>
+            {% csrf_token %}
+            <div class="form-grid">
+                <label class="form-field form-field--full">
+                    <span class="form-label">Nombre</span>
+                    <input type="text" name="nombre" placeholder="Ej. ITBIS reducido" maxlength="120" data-tax-create-name required>
+                </label>
+                <label class="form-field">
+                    <span class="form-label">Porcentaje (%)</span>
+                    <input type="number" name="porcentaje" min="0" max="100" step="0.01" placeholder="0.00" data-tax-create-rate required>
+                </label>
+                <label class="form-field form-field--checkbox">
+                    <span class="form-label">Estado</span>
+                    <label class="checkbox-toggle">
+                        <input type="checkbox" name="activo" data-tax-create-active checked>
+                        <span class="checkbox-toggle__track">
+                            <span class="checkbox-toggle__thumb"></span>
+                        </span>
+                        <span class="checkbox-toggle__label">Activo</span>
+                    </label>
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-tax-create-cancel data-close-modal>Cancelar</button>
+                <button type="button" class="btn btn-primary" data-tax-create-save>Guardar</button>
             </div>
         </form>
     </div>
@@ -571,12 +680,24 @@
                 </label>
                 <label class="form-field">
                     <span class="form-label">Impuesto aplicado</span>
-                    <select name="impuesto" data-edit-taxes class="select-control">
-                        <option value="">Sin impuesto</option>
-                        {% for impuesto in impuestos_catalogo %}
-                            <option value="{{ impuesto.id }}">{{ impuesto.nombre }} ({{ impuesto.porcentaje }}%)</option>
-                        {% endfor %}
-                    </select>
+                    <div class="form-field__group form-field__group--tax">
+                        <label class="checkbox-toggle">
+                            <input type="checkbox" name="usar_impuesto_global" value="true" data-edit-tax-mode>
+                            <span class="checkbox-toggle__track">
+                                <span class="checkbox-toggle__thumb"></span>
+                            </span>
+                            <span class="checkbox-toggle__label">Usar impuesto global</span>
+                        </label>
+                        <select name="impuesto" data-edit-taxes data-tax-selector class="select-control" hidden>
+                            <option value="">Sin impuesto</option>
+                            {% for impuesto in impuestos_catalogo %}
+                                <option value="{{ impuesto.id }}">{{ impuesto.nombre }} ({{ impuesto.porcentaje }}%)</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-outline btn-icon btn-icon--sm" data-open-tax-modal title="Gestionar impuestos">
+                            <span class="icon">⚙️</span>
+                        </button>
+                    </div>
                 </label>
                 <label class="form-field">
                     <span class="form-label">Stock actual</span>
@@ -1210,6 +1331,19 @@
 
     .modal-table-wrapper--models .lookup-table {
         min-width: 1120px;
+    }
+
+    .modal-table-wrapper--taxes {
+        overflow-x: auto;
+    }
+
+    .lookup-table--taxes {
+        min-width: 760px;
+    }
+
+    .lookup-table--taxes th:last-child,
+    .lookup-table--taxes td:last-child {
+        width: 180px;
     }
 
 </style>
@@ -1992,6 +2126,337 @@
             }
         }
 
+        var productRegisterModal = document.getElementById("create-product-modal");
+        var productRegisterForm = productRegisterModal ? productRegisterModal.querySelector("[data-register-form]") : null;
+        var productRegisterCloseButtons = productRegisterModal ? productRegisterModal.querySelectorAll("[data-close-modal]") : [];
+        var productRegisterOpenButton = document.querySelector('[data-open-modal="product"]');
+        var productRegisterErrors = productRegisterModal ? productRegisterModal.querySelector("[data-register-errors]") : null;
+        var taxManagementModal = document.getElementById("tax-management-modal");
+        var taxCreateModal = document.getElementById("tax-create-modal");
+
+        function updateTaxModePresentation(toggle) {
+            if (!toggle) {
+                return;
+            }
+            var container = toggle.closest(".form-field__group--tax") || toggle.closest(".form-field");
+            var taxSelect = container ? container.querySelector("[data-tax-selector]") : null;
+            if (!taxSelect) {
+                return;
+            }
+            var useGlobal = toggle.checked;
+            if (useGlobal) {
+                taxSelect.setAttribute("hidden", "");
+                taxSelect.disabled = true;
+                taxSelect.required = false;
+            } else {
+                taxSelect.removeAttribute("hidden");
+                taxSelect.disabled = false;
+                taxSelect.required = true;
+            }
+        }
+
+        function initTaxModeControls(modal) {
+            if (!modal) {
+                return;
+            }
+            var toggles = modal.querySelectorAll("[data-tax-mode-toggle], [data-edit-tax-mode]");
+            toggles.forEach(function (toggle) {
+                if (toggle.dataset.taxModeBound !== "true") {
+                    toggle.addEventListener("change", function () {
+                        updateTaxModePresentation(toggle);
+                    });
+                    toggle.dataset.taxModeBound = "true";
+                }
+                updateTaxModePresentation(toggle);
+            });
+        }
+
+        if (productRegisterModal) {
+            initTaxModeControls(productRegisterModal);
+        }
+
+        function attachTaxModalTriggers(scope) {
+            (scope || document).querySelectorAll("[data-open-tax-modal]").forEach(function (button) {
+                if (button.dataset.taxModalBound === "true") {
+                    return;
+                }
+                button.dataset.taxModalBound = "true";
+                button.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    if (taxManagementModal) {
+                        openModal(taxManagementModal, button);
+                        refreshTaxRows();
+                    }
+                });
+            });
+        }
+
+        attachTaxModalTriggers(document);
+
+        function getTaxTableBody() {
+            return taxManagementModal ? taxManagementModal.querySelector("[data-tax-table-body]") : null;
+        }
+
+        function refreshTaxRows() {
+            var tbody = getTaxTableBody();
+            if (!tbody) {
+                return;
+            }
+            var emptyRow = tbody.querySelector("[data-tax-empty]");
+            var rows = tbody.querySelectorAll("[data-tax-row]");
+            if (emptyRow) {
+                emptyRow.hidden = rows.length > 0;
+            }
+            var index = 0;
+            rows.forEach(function (row) {
+                var indexCell = row.querySelector("[data-row-index]");
+                if (indexCell) {
+                    index += 1;
+                    indexCell.textContent = index;
+                }
+            });
+        }
+
+        function addTaxRow(data) {
+            var tbody = getTaxTableBody();
+            if (!tbody) {
+                return;
+            }
+            var emptyRow = tbody.querySelector("[data-tax-empty]");
+            if (emptyRow) {
+                emptyRow.hidden = true;
+            }
+            var row = document.createElement("tr");
+            row.dataset.taxRow = "";
+            row.dataset.taxId = String(data.id || "");
+            row.dataset.taxName = data.nombre || "";
+            row.dataset.taxRate = data.porcentaje || "0";
+            row.dataset.taxActive = data.activo ? "true" : "false";
+            row.innerHTML = [
+                '<td data-row-index></td>',
+                '<td><span class="lookup-name">' + (data.nombre || "") + '</span></td>',
+                '<td>' + (data.porcentaje || "0") + '%</td>',
+                '<td><span class="lookup-status ' + (data.activo ? "lookup-status--active" : "lookup-status--inactive") + '">' + (data.activo ? "Activo" : "Inactivo") + '</span></td>',
+                '<td><button type="button" class="btn btn-outline btn--compact" data-tax-select-button data-tax-id="' + (data.id || "") + '" data-tax-name="' + (data.nombre || "") + '" data-tax-rate="' + (data.porcentaje || "0") + '">Seleccionar</button></td>',
+                '<td><button type="button" class="btn btn-outline lookup-toggle" data-tax-toggle data-toggle-url="' + (taxManagementModal.dataset.toggleTemplate || "").replace(/0\/$/, String(data.id || "") + '/') + '">' + (data.activo ? "Inactivar" : "Activar") + '</button></td>'
+            ].join("");
+            tbody.appendChild(row);
+            attachTaxSelect(row.querySelector("[data-tax-select-button]"));
+            attachTaxToggle(row.querySelector("[data-tax-toggle]"));
+            refreshTaxRows();
+        }
+
+        function attachTaxSelect(button) {
+            if (!button || button.dataset.taxSelectBound === "true") {
+                return;
+            }
+            button.dataset.taxSelectBound = "true";
+            button.addEventListener("click", function () {
+                var row = button.closest("[data-tax-row]");
+                if (!row) {
+                    return;
+                }
+                var taxId = row.dataset.taxId;
+                var taxName = row.dataset.taxName;
+                var selector = document.querySelectorAll("[data-tax-selector]");
+                selector.forEach(function (select) {
+                    var option = select.querySelector('option[value="' + taxId + '"]');
+                    if (!option) {
+                        option = document.createElement("option");
+                        option.value = taxId || "";
+                        option.textContent = taxName + " (" + row.dataset.taxRate + "%)";
+                        select.appendChild(option);
+                    } else {
+                        option.textContent = taxName + " (" + row.dataset.taxRate + "%)";
+                    }
+                    select.value = taxId || "";
+                    select.dataset.taxOptionActive = row.dataset.taxActive;
+                });
+                document.querySelectorAll("[data-tax-mode-toggle]").forEach(function (toggle) {
+                    toggle.checked = false;
+                    updateTaxModePresentation(toggle);
+                });
+                document.querySelectorAll("[data-edit-tax-mode]").forEach(function (toggle) {
+                    toggle.checked = false;
+                    updateTaxModePresentation(toggle);
+                });
+                closeModal(taxManagementModal);
+                showToast("Impuesto seleccionado: " + taxName, "success");
+            });
+        }
+
+        function attachTaxToggle(button) {
+            if (!button || button.dataset.taxToggleBound === "true") {
+                return;
+            }
+            button.dataset.taxToggleBound = "true";
+            button.addEventListener("click", function () {
+                var url = button.dataset.toggleUrl;
+                var row = button.closest("[data-tax-row]");
+                if (!url || !row) {
+                    return;
+                }
+                button.disabled = true;
+                fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": getCsrfToken() || "",
+                    },
+                })
+                    .then(function (response) {
+                        if (!response.ok) {
+                            throw new Error("Error al actualizar estado del impuesto");
+                        }
+                        return response.json();
+                    })
+                    .then(function (data) {
+                        row.dataset.taxActive = data.activo ? "true" : "false";
+                        row.dataset.taxRate = data.porcentaje;
+                        row.dataset.taxName = data.nombre;
+                        var statusSpan = row.querySelector(".lookup-status");
+                        if (statusSpan) {
+                            statusSpan.textContent = data.activo ? "Activo" : "Inactivo";
+                            statusSpan.classList.toggle("lookup-status--active", !!data.activo);
+                            statusSpan.classList.toggle("lookup-status--inactive", !data.activo);
+                        }
+                        button.textContent = data.activo ? "Inactivar" : "Activar";
+                        button.disabled = false;
+                        syncTaxOptionsWithRow(row);
+                    })
+                    .catch(function (error) {
+                        button.disabled = false;
+                        showToast(error.message || "No se pudo actualizar el impuesto.", "error");
+                    });
+            });
+        }
+
+        function syncTaxOptionsWithRow(row) {
+            if (!row) {
+                return;
+            }
+            var taxId = row.dataset.taxId;
+            document.querySelectorAll('select[data-tax-selector] option[value="' + taxId + '"]').forEach(function (option) {
+                option.dataset.taxOptionActive = row.dataset.taxActive;
+            });
+        }
+
+        function attachTaxRows(scope) {
+            (scope || document).querySelectorAll("[data-tax-row]").forEach(function (row) {
+                attachTaxSelect(row.querySelector("[data-tax-select-button]"));
+                attachTaxToggle(row.querySelector("[data-tax-toggle]"));
+                syncTaxOptionsWithRow(row);
+            });
+            refreshTaxRows();
+        }
+
+        attachTaxRows(taxManagementModal);
+
+        function openTaxCreateModal(trigger) {
+            if (!taxCreateModal) {
+                return;
+            }
+            var form = taxCreateModal.querySelector("[data-tax-create-form]");
+            if (form) {
+                form.reset();
+                var nameInput = form.querySelector("[data-tax-create-name]");
+                if (nameInput) {
+                    nameInput.focus();
+                }
+            }
+            openModal(taxCreateModal, trigger);
+        }
+
+        if (taxManagementModal && taxCreateModal) {
+            var openTaxCreateButton = taxManagementModal.querySelector("[data-open-tax-create]");
+            if (openTaxCreateButton) {
+                openTaxCreateButton.addEventListener("click", function () {
+                    openTaxCreateModal(openTaxCreateButton);
+                });
+            }
+            var saveButton = taxCreateModal.querySelector("[data-tax-create-save]");
+            var cancelButtons = taxCreateModal.querySelectorAll("[data-tax-create-cancel]");
+            cancelButtons.forEach(function (button) {
+                button.addEventListener("click", function () {
+                    closeModal(taxCreateModal);
+                    setTimeout(function () {
+                        openModal(taxManagementModal, button);
+                    }, 150);
+                });
+            });
+            if (saveButton) {
+                saveButton.addEventListener("click", function () {
+                    var form = taxCreateModal.querySelector("[data-tax-create-form]");
+                    var nameInput = form ? form.querySelector("[data-tax-create-name]") : null;
+                    var rateInput = form ? form.querySelector("[data-tax-create-rate]") : null;
+                    var activeInput = form ? form.querySelector("[data-tax-create-active]") : null;
+                    var nombre = nameInput ? nameInput.value.trim() : "";
+                    var porcentaje = rateInput ? rateInput.value.trim() : "";
+                    var activo = activeInput ? activeInput.checked : true;
+                    if (!nombre) {
+                        showToast("Ingresa el nombre del impuesto.", "warning");
+                        if (nameInput) {
+                            nameInput.focus();
+                        }
+                        return;
+                    }
+                    if (!porcentaje) {
+                        showToast("Ingresa el porcentaje de impuesto.", "warning");
+                        if (rateInput) {
+                            rateInput.focus();
+                        }
+                        return;
+                    }
+                    var url = taxCreateModal.dataset.createUrl;
+                    if (!url) {
+                        showToast("No se puede registrar el impuesto en este momento.", "error");
+                        return;
+                    }
+                    saveButton.disabled = true;
+                    fetch(url, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": getCsrfToken() || "",
+                            "Content-Type": "application/json",
+                            "Accept": "application/json",
+                        },
+                        body: JSON.stringify({ nombre: nombre, porcentaje: porcentaje, activo: activo }),
+                    })
+                        .then(function (response) {
+                            if (!response.ok) {
+                                return response.json().then(function (data) {
+                                    throw new Error(data && data.error ? data.error : "No se pudo registrar el impuesto.");
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(function (data) {
+                            showToast("Impuesto registrado correctamente.", "success");
+                            closeModal(taxCreateModal);
+                            addTaxRow(data);
+                            document.querySelectorAll('[data-tax-selector]').forEach(function (select) {
+                                var option = select.querySelector('option[value="' + data.id + '"]');
+                                if (!option) {
+                                    option = document.createElement("option");
+                                    option.value = data.id;
+                                    option.dataset.taxOptionActive = data.activo ? "true" : "false";
+                                    select.appendChild(option);
+                                }
+                                option.textContent = data.nombre + " (" + data.porcentaje + "%)";
+                            });
+                            setTimeout(function () {
+                                openModal(taxManagementModal, saveButton);
+                            }, 150);
+                        })
+                        .catch(function (error) {
+                            showToast(error && error.message ? error.message : "No se pudo registrar el impuesto.", "error");
+                        })
+                        .finally(function () {
+                            saveButton.disabled = false;
+                        });
+                });
+            }
+        }
+
         var editModal = document.getElementById("edit-product-modal");
         if (editModal) {
             var editButtons = document.querySelectorAll('[data-action="edit"]');
@@ -2072,12 +2537,18 @@
                         if (taxSelect) {
                             taxSelect.value = button.dataset.productTaxId || "";
                         }
+                        var taxToggle = editForm.querySelector("[data-edit-tax-mode]");
+                        if (taxToggle) {
+                            taxToggle.checked = (button.dataset.productUsesGlobal !== "false");
+                        }
                         setNumericValue(fieldMap.stock, button.dataset.productStock, 0);
                         setNumericValue(fieldMap.stockmin, button.dataset.productStockmin, 0);
                         if (fieldMap.active) {
                             fieldMap.active.checked = (button.dataset.productActive === "true");
                         }
-                        enableNumericFields(editForm);
+                        editModal.dataset.currentEditId = button.dataset.productId || "";
+                        initTaxModeControls(editModal);
+                        attachTaxModalTriggers(editModal);
                         openModal(editModal, button);
                     });
                 });

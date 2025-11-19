@@ -7,6 +7,7 @@ from .models import (
     Marca,
     Modelo,
     Producto,
+    ProductCondition,
     Venta,
     CashSession,
     FiscalVoucherConfig,

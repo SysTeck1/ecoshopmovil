@@ -8,6 +8,7 @@ from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.db.models import F, Sum, Max
 from django.utils import timezone
+from django.utils.text import slugify
 
 
 class TimeStampedModel(models.Model):
@@ -148,6 +149,7 @@ class Categoria(TimeStampedModel):
         blank=True,
     )
     nombre = models.CharField(max_length=120, unique=True)
+    activo = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Categoría"
@@ -241,6 +243,7 @@ class Impuesto(TimeStampedModel):
     )
     nombre = models.CharField(max_length=120, unique=True)
     porcentaje = models.DecimalField(max_digits=5, decimal_places=2)
+    activo = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Impuesto"
@@ -249,7 +252,8 @@ class Impuesto(TimeStampedModel):
 
     def __str__(self) -> str:
         code = self.codigo or self.next_codigo()
-        return f"{code} - {self.nombre} ({self.porcentaje}%)"
+        status = "Activo" if self.activo else "Inactivo"
+        return f"{code} - {self.nombre} ({self.porcentaje}%) [{status}]"
 
     def save(self, *args, **kwargs):
         if not self.codigo:
@@ -359,6 +363,10 @@ class Producto(TimeStampedModel):
         blank=True,
         null=True,
     )
+    usar_impuesto_global = models.BooleanField(
+        default=True,
+        help_text="Si está habilitado, este producto usará la tasa global configurada."
+    )
 
     class Meta:
         verbose_name = "Producto"
@@ -458,6 +466,11 @@ class TradeInCredit(TimeStampedModel):
         null=True,
         blank=True,
     )
+    condiciones = models.ManyToManyField(
+        "ProductCondition",
+        blank=True,
+        related_name="trade_in_creditos",
+    )
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDIENTE)
     venta_aplicada = models.ForeignKey(
         "Venta",
@@ -504,6 +517,51 @@ class TradeInCredit(TimeStampedModel):
             return
         self.estado = self.Estado.CANCELADO
         self.save(update_fields=["estado", "updated_at"])
+
+    @property
+    def condiciones_ids_csv(self) -> str:
+        return ",".join(str(pk) for pk in self.condiciones.values_list("id", flat=True))
+
+    @property
+    def condiciones_resumen(self) -> str:
+        nombres = list(self.condiciones.values_list("nombre", flat=True))
+        return ", ".join(nombres)
+
+
+class ProductCondition(TimeStampedModel):
+    codigo = models.CharField(max_length=30, unique=True, blank=True)
+    nombre = models.CharField(max_length=120, unique=True)
+    descripcion = models.CharField(max_length=255, blank=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Condición de producto"
+        verbose_name_plural = "Condiciones de producto"
+        ordering = ("nombre",)
+
+    def __str__(self) -> str:
+        estado = "Activo" if self.activo else "Inactivo"
+        if self.codigo:
+            return f"{self.codigo} - {self.nombre} ({estado})"
+        return f"{self.nombre} ({estado})"
+
+    def save(self, *args, **kwargs):
+        if self.nombre:
+            self.nombre = self.nombre.strip()
+        if not self.codigo and self.nombre:
+            base_code = slugify(self.nombre) or secrets.token_hex(2)
+            base_code = base_code.replace('-', '').upper()
+            base_code = base_code[:30]
+            candidate = base_code
+            counter = 1
+            while ProductCondition.objects.filter(codigo=candidate).exclude(pk=self.pk).exists():
+                counter += 1
+                suffix = f"-{counter}"
+                candidate = f"{base_code[: max(0, 30 - len(suffix))]}{suffix}".upper()
+            self.codigo = candidate
+        elif self.codigo:
+            self.codigo = self.codigo.strip().upper()
+        super().save(*args, **kwargs)
 
 
 class CashSession(TimeStampedModel):

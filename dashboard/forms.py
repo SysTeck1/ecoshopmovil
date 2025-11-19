@@ -98,3 +98,30 @@ class SiteConfigurationLogoForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class SiteConfigurationGeneralForm(forms.ModelForm):
+    class Meta:
+        model = SiteConfiguration
+        fields = ["global_tax_enabled", "global_tax_rate"]
+        widgets = {
+            "global_tax_enabled": forms.CheckboxInput(attrs={
+                "data-global-tax-enabled": "true",
+            }),
+            "global_tax_rate": forms.NumberInput(attrs={
+                "min": "0",
+                "max": "100",
+                "step": "0.01",
+                "placeholder": "Ej. 18",
+            }),
+        }
+        labels = {
+            "global_tax_enabled": "Aplicar impuesto global",
+            "global_tax_rate": "Porcentaje global (%)",
+        }
+
+    def clean_global_tax_rate(self):
+        rate = self.cleaned_data.get("global_tax_rate")
+        if rate is None:
+            return rate
+        return rate

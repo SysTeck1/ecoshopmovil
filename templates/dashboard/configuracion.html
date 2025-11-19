@@ -72,6 +72,77 @@
                     <span class="settings-tile__label">Categoría</span>
                 </button>
             </div>
+
+<div class="modal" id="tax-edit-modal" aria-hidden="true"{% if force_open_tax_edit %} data-force-open{% endif %}>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tax-edit-title">
+        <div class="modal-header">
+            <h2 id="tax-edit-title">Editar impuesto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-tax-edit>&times;</button>
+        </div>
+        <form method="post" class="modal-form tax-edit__form" data-tax-edit-form>
+            {% csrf_token %}
+            <input type="hidden" name="resource" value="impuesto">
+            <input type="hidden" name="action" value="update">
+            <input type="hidden" name="open" value="taxes">
+            <input type="hidden" name="impuesto_id" value="{% if tax_edit_context %}{{ tax_edit_context.impuesto_id }}{% endif %}" data-tax-edit-id>
+            <div class="modal-form__grid tax-register__grid">
+                <div class="modal-field">
+                    <label class="modal-field__label" for="tax-edit-name-input">Nombre</label>
+                    <input id="tax-edit-name-input"
+                        name="nombre"
+                        type="text"
+                        value="{% if tax_edit_context %}{{ tax_edit_context.nombre }}{% endif %}"
+                        placeholder="Ej. ITBIS"
+                        required
+                        autocomplete="off"
+                        maxlength="120"
+                        data-tax-edit-name>
+                    {% if tax_edit_context and tax_edit_context.errors.nombre %}
+                        <div class="field-error">{{ tax_edit_context.errors.nombre|join:", " }}</div>
+                    {% endif %}
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field__label" for="tax-edit-rate">Porcentaje (%)</label>
+                    <input id="tax-edit-rate"
+                        name="porcentaje"
+                        type="number"
+                        value="{% if tax_edit_context %}{{ tax_edit_context.porcentaje }}{% endif %}"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        placeholder="Ej. 18"
+                        data-tax-edit-rate>
+                    {% if tax_edit_context and tax_edit_context.errors.porcentaje %}
+                        <div class="field-error">{{ tax_edit_context.errors.porcentaje|join:", " }}</div>
+                    {% endif %}
+                </div>
+                <div class="modal-field modal-field--inline">
+                    <span class="modal-field__label">Estado actual</span>
+                    <span class="modal-field__value tax-edit__status"
+                        data-tax-edit-status
+                        data-state="{% if tax_edit_context %}{% if tax_edit_context.activo == 'true' %}active{% elif tax_edit_context.activo == 'false' %}inactive{% endif %}{% endif %}">
+                        {% if tax_edit_context %}
+                            {{ tax_edit_context.activo_label }}
+                        {% else %}
+                            --
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            {% if tax_edit_context and tax_edit_context.errors %}
+                {% for field, field_errors in tax_edit_context.errors.items %}
+                    {% if field == '__all__' %}
+                        <div class="form-errors">{{ field_errors|join:", " }}</div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" data-close-tax-edit>Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
         </div>
     </div>
 
@@ -127,13 +198,43 @@
                     {% endwith %}
                 </div>
                 <div class="general-accordion__item">
-                    <button type="button" class="general-accordion__trigger" aria-expanded="false">
-                        <span class="general-accordion__label">Sección 2</span>
+                    {% with panel_open=site_tax_panel_open %}
+                    <button type="button" class="general-accordion__trigger" aria-expanded="{{ panel_open|yesno:'true,false' }}">
+                        <span class="general-accordion__label">Impuestos</span>
                         <span class="general-accordion__icon" aria-hidden="true">▸</span>
                     </button>
-                    <div class="general-accordion__panel" hidden>
-                        <p class="general-accordion__placeholder">Contenido pendiente.</p>
+                    <div class="general-accordion__panel"{% if not panel_open %} hidden{% endif %}>
+                        <form method="post" class="site-tax-form" data-site-tax-form>
+                            {% csrf_token %}
+                            <input type="hidden" name="resource" value="site_config_general">
+                            <input type="hidden" name="action" value="update">
+                            <div class="site-tax-form__grid">
+                                <label class="site-tax-form__toggle">
+                                    {{ site_general_form.global_tax_enabled }}
+                                    <span>Aplicar impuesto global a todas las ventas</span>
+                                </label>
+                                {% if site_general_form.global_tax_enabled.errors %}
+                                    <div class="field-error">{{ site_general_form.global_tax_enabled.errors|join:", " }}</div>
+                                {% endif %}
+
+                                <div class="site-tax-form__field">
+                                    <label for="id_global_tax_rate">Porcentaje global (%)</label>
+                                    {{ site_general_form.global_tax_rate }}
+                                    <p class="site-tax-form__hint">Este valor se usará para todas las líneas de venta cuando el impuesto global esté activo.</p>
+                                    {% if site_general_form.global_tax_rate.errors %}
+                                        <div class="field-error">{{ site_general_form.global_tax_rate.errors|join:", " }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if site_general_form.non_field_errors %}
+                                <div class="form-errors">{{ site_general_form.non_field_errors|join:", " }}</div>
+                            {% endif %}
+                            <div class="site-tax-form__actions">
+                                <button type="submit" class="btn btn-primary">Guardar ajustes</button>
+                            </div>
+                        </form>
                     </div>
+                    {% endwith %}
                 </div>
             </div>
         </div>
@@ -166,14 +267,59 @@
                         <tr>
                             <th scope="col">ID</th>
                             <th scope="col">Categoría</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Acciones</th>
                         </tr>
                     </thead>
                     <tbody data-category-table>
                         {% if categorias %}
                             {% for categoria in categorias %}
-                                <tr data-category-row data-id="{{ categoria.id }}" data-name="{{ categoria.nombre|lower }}">
+                                <tr
+                                    data-category-row
+                                    data-id="{{ categoria.id }}"
+                                    data-name="{{ categoria.nombre|lower }}"
+                                    data-state="{{ categoria.activo|yesno:'true,false' }}"
+                                >
                                     <td>{{ categoria.id }}</td>
                                     <td>{{ categoria.nombre }}</td>
+                                    <td>{{ categoria.activo|yesno:'Activa,Inactiva' }}</td>
+                                    <td>
+                                        <div class="tax-actions tax-actions--compact">
+                                            <button type="button"
+                                                class="btn btn-secondary btn-icon btn-icon--sm"
+                                                data-category-edit
+                                                data-id="{{ categoria.id }}"
+                                                data-name="{{ categoria.nombre|escape }}"
+                                                data-active="{{ categoria.activo|yesno:'true,false' }}"
+                                                aria-label="Editar categoría {{ categoria.nombre }}">
+                                                <span class="icon">✏️</span>
+                                            </button>
+                                            <div class="tax-actions__inline-group">
+                                                <form method="post" class="tax-actions__form">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="resource" value="categoria">
+                                                    <input type="hidden" name="action" value="toggle">
+                                                    <input type="hidden" name="categoria_id" value="{{ categoria.id }}">
+                                                    <input type="hidden" name="open" value="categories">
+                                                    <button type="submit" class="btn btn-outline btn-icon btn-icon--sm"
+                                                        aria-label="{% if categoria.activo %}Desactivar{% else %}Activar{% endif %} categoría {{ categoria.nombre }}">
+                                                        <span class="icon">{% if categoria.activo %}⏸️{% else %}▶️{% endif %}</span>
+                                                    </button>
+                                                </form>
+                                                <form method="post" class="tax-actions__form" data-confirm="¿Eliminar esta categoría?">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="resource" value="categoria">
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <input type="hidden" name="categoria_id" value="{{ categoria.id }}">
+                                                    <input type="hidden" name="open" value="categories">
+                                                    <button type="submit" class="btn btn-danger btn-icon btn-icon--sm"
+                                                        aria-label="Eliminar categoría {{ categoria.nombre }}">
+                                                        <span class="icon">🗑️</span>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </td>
                                 </tr>
                             {% endfor %}
                         {% endif %}
@@ -219,6 +365,45 @@
     </div>
 </div>
 
+<div class="modal" id="category-edit-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="category-edit-title">
+        <div class="modal-header">
+            <h2 id="category-edit-title">Editar categoría</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-category-edit>&times;</button>
+        </div>
+        <form method="post" class="modal-form category-edit__form" data-category-edit-form>
+            {% csrf_token %}
+            <input type="hidden" name="resource" value="categoria">
+            <input type="hidden" name="action" value="update">
+            <input type="hidden" name="open" value="categories">
+            <input type="hidden" name="categoria_id" data-category-edit-id>
+            <div class="modal-form__grid category-register__grid">
+                <div class="modal-field">
+                    <label class="modal-field__label" for="category-edit-name">Nombre</label>
+                    <input id="category-edit-name"
+                        name="nombre"
+                        type="text"
+                        placeholder="Ej. Accesorios"
+                        required
+                        autocomplete="off"
+                        maxlength="120"
+                        data-category-edit-name>
+                </div>
+                <div class="modal-field modal-field--inline">
+                    <span class="modal-field__label">Estado actual</span>
+                    <span class="modal-field__value category-edit__status" data-category-edit-status data-state="">
+                        --
+                    </span>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" data-close-category-edit>Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="modal" id="tax-modal" aria-hidden="true"{% if force_open_tax %} data-force-open{% endif %}>
     <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tax-modal-title">
         <div class="modal-header">
@@ -243,15 +428,54 @@
                             <th scope="col">ID</th>
                             <th scope="col">Impuesto</th>
                             <th scope="col">Porcentaje</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Acciones</th>
                         </tr>
                     </thead>
                     <tbody data-tax-table>
                         {% if impuestos %}
                             {% for impuesto in impuestos %}
-                                <tr data-tax-row data-id="{{ impuesto.id }}" data-name="{{ impuesto.nombre|lower }}">
+                                <tr
+                                    data-tax-row
+                                    data-id="{{ impuesto.id }}"
+                                    data-name="{{ impuesto.nombre|lower }}"
+                                    data-rate="{{ impuesto.porcentaje }}"
+                                    data-active="{{ impuesto.activo|yesno:'true,false' }}">
                                     <td>{{ impuesto.id }}</td>
                                     <td>{{ impuesto.nombre }}</td>
                                     <td>{{ impuesto.porcentaje }}%</td>
+                                    <td>{{ impuesto.activo|yesno:'Activo,Inactivo' }}</td>
+                                    <td>
+                                        <div class="tax-actions">
+                                            <button type="button"
+                                                class="btn btn-secondary"
+                                                data-tax-edit
+                                                data-id="{{ impuesto.id }}"
+                                                data-name="{{ impuesto.nombre|escape }}"
+                                                data-rate="{{ impuesto.porcentaje }}"
+                                                data-active="{{ impuesto.activo|yesno:'true,false' }}">
+                                                Editar
+                                            </button>
+                                            <form method="post" class="tax-actions__form">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="resource" value="impuesto">
+                                                <input type="hidden" name="action" value="toggle">
+                                                <input type="hidden" name="impuesto_id" value="{{ impuesto.id }}">
+                                                <input type="hidden" name="open" value="taxes">
+                                                <button type="submit" class="btn btn-outline">
+                                                    {{ impuesto.activo|yesno:'Desactivar,Activar' }}
+                                                </button>
+                                            </form>
+                                            <form method="post" class="tax-actions__form" data-confirm="¿Eliminar este impuesto?">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="resource" value="impuesto">
+                                                <input type="hidden" name="action" value="delete">
+                                                <input type="hidden" name="impuesto_id" value="{{ impuesto.id }}">
+                                                <input type="hidden" name="open" value="taxes">
+                                                <button type="submit" class="btn btn-danger">Eliminar</button>
+                                            </form>
+                                        </div>
+                                    </td>
                                 </tr>
                             {% endfor %}
                         {% endif %}
@@ -1124,6 +1348,29 @@
         background: rgba(30, 144, 255, 0.08);
     }
 
+    .tax-actions {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .tax-actions__inline-group {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .tax-actions--compact .btn-icon {
+        gap: 6px;
+        padding-left: 10px;
+        padding-right: 12px;
+    }
+
+    .tax-actions--compact .btn-icon.btn-icon--sm {
+        min-width: 0;
+    }
+
     .category-modal__empty {
         margin: 0;
         padding: 18px;
@@ -1646,6 +1893,18 @@
         })();
 
         (function () {
+            var confirmForms = document.querySelectorAll('form[data-confirm]');
+            confirmForms.forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    var message = form.getAttribute('data-confirm');
+                    if (message && !window.confirm(message)) {
+                        event.preventDefault();
+                    }
+                });
+            });
+        })();
+
+        (function () {
             var generalModal = document.getElementById('general-settings-modal');
             if (!generalModal) {
                 return;
@@ -1844,6 +2103,7 @@
         (function () {
             var taxModal = document.getElementById('tax-modal');
             var registerModal = document.getElementById('tax-register-modal');
+            var editModal = document.getElementById('tax-edit-modal');
             if (!taxModal || !registerModal) {
                 return;
             }
@@ -1881,20 +2141,6 @@
                 openRegisterModal();
             });
 
-            closeButtons.forEach(function (button) {
-                button.addEventListener('click', function () {
-                    closeRegisterModal();
-                });
-            });
-
-            document.addEventListener('keydown', function (event) {
-                if (event.key === 'Escape' && registerModal.classList.contains('is-visible')) {
-                    event.preventDefault();
-                    event.stopImmediatePropagation();
-                    closeRegisterModal();
-                }
-            }, true);
-
             if (form) {
                 form.addEventListener('submit', function () {
                     closeRegisterModal();
@@ -1904,6 +2150,104 @@
 
             if (registerModal.hasAttribute('data-force-open')) {
                 openRegisterModal();
+            }
+        })();
+
+        (function () {
+            var categoryModal = document.getElementById('category-modal');
+            var editModal = document.getElementById('category-edit-modal');
+            if (!categoryModal || !editModal) {
+                return;
+            }
+
+            var editForm = editModal.querySelector('[data-category-edit-form]');
+            var editIdInput = editModal.querySelector('[data-category-edit-id]');
+            var editNameInput = editModal.querySelector('[data-category-edit-name]');
+            var statusBadge = editModal.querySelector('[data-category-edit-status]');
+            var closeButtons = editModal.querySelectorAll('[data-close-category-edit]');
+            var categoryModalWasVisible = false;
+
+            function setStatusBadge(state) {
+                if (!statusBadge) {
+                    return;
+                }
+                var normalized = state === 'true';
+                statusBadge.dataset.state = normalized ? 'active' : 'inactive';
+                statusBadge.textContent = normalized ? 'Activa' : 'Inactiva';
+                statusBadge.classList.toggle('status-badge', true);
+                statusBadge.classList.toggle('status-badge--active', normalized);
+                statusBadge.classList.toggle('status-badge--inactive', !normalized);
+            }
+
+            function openEditModal(config) {
+                if (!config) {
+                    return;
+                }
+                categoryModalWasVisible = categoryModal.classList.contains('is-visible');
+                if (categoryModalWasVisible) {
+                    categoryModal.classList.remove('is-visible');
+                    categoryModal.setAttribute('aria-hidden', 'true');
+                }
+                if (editIdInput) {
+                    editIdInput.value = config.id || '';
+                }
+                if (editNameInput) {
+                    editNameInput.value = config.name || '';
+                    editNameInput.focus();
+                }
+                setStatusBadge(config.active || 'false');
+                editModal.setAttribute('aria-hidden', 'false');
+                editModal.classList.add('is-visible');
+            }
+
+            function closeEditModal() {
+                editModal.setAttribute('aria-hidden', 'true');
+                editModal.classList.remove('is-visible');
+                if (editModal.contains(document.activeElement)) {
+                    document.activeElement.blur();
+                }
+                if (categoryModalWasVisible) {
+                    categoryModal.setAttribute('aria-hidden', 'false');
+                    categoryModal.classList.add('is-visible');
+                }
+            }
+
+            categoryModal.addEventListener('click', function (event) {
+                var button = event.target.closest('[data-category-edit]');
+                if (!button) {
+                    return;
+                }
+                event.preventDefault();
+                var config = {
+                    id: button.getAttribute('data-id'),
+                    name: button.getAttribute('data-name'),
+                    active: button.getAttribute('data-active'),
+                };
+                openEditModal(config);
+            });
+
+            closeButtons.forEach(function (button) {
+                button.addEventListener('click', function () {
+                    closeEditModal();
+                });
+            });
+
+            editModal.addEventListener('click', function (event) {
+                if (event.target === editModal) {
+                    closeEditModal();
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && editModal.classList.contains('is-visible')) {
+                    closeEditModal();
+                }
+            });
+
+            if (editForm) {
+                editForm.addEventListener('submit', function () {
+                    closeEditModal();
+                });
             }
         })();
 

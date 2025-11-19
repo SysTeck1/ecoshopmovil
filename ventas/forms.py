@@ -8,6 +8,7 @@ from .models import (
     Impuesto,
     Marca,
     Modelo,
+    ProductCondition,
     ProductImage,
     Producto,
     Proveedor,
@@ -154,6 +155,13 @@ class ImpuestoForm(forms.ModelForm):
 
 
 class ProductoForm(forms.ModelForm):
+    usar_impuesto_global = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Usar impuesto global",
+        help_text="Si se activa, este producto aplicará la tasa global configurada",
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for campo in ["precio_compra", "precio_venta", "stock", "stock_minimo"]:
@@ -182,6 +190,17 @@ class ProductoForm(forms.ModelForm):
             self.fields["impuesto"].queryset = Impuesto.objects.all()
             self.fields["impuesto"].empty_label = "Sin impuesto"
 
+    def clean(self):
+        cleaned_data = super().clean()
+        usar_impuesto_global = cleaned_data.get("usar_impuesto_global")
+        impuesto = cleaned_data.get("impuesto")
+        if usar_impuesto_global:
+            cleaned_data["impuesto"] = None
+        else:
+            if impuesto is None:
+                raise forms.ValidationError("Selecciona un impuesto o activa la opción de impuesto global.")
+        return cleaned_data
+
     class Meta:
         model = Producto
         fields = [
@@ -201,6 +220,7 @@ class ProductoForm(forms.ModelForm):
             "stock",
             "stock_minimo",
             "impuesto",
+            "usar_impuesto_global",
             "activo",
         ]
         exclude = []
@@ -421,6 +441,7 @@ class TradeInCreditForm(forms.ModelForm):
             "descripcion",
             "monto_credito",
             "cliente",
+            "condiciones",
         ]
         widgets = {
             "nombre_cliente": forms.TextInput(attrs={
@@ -443,6 +464,7 @@ class TradeInCreditForm(forms.ModelForm):
             "cliente": forms.Select(attrs={
                 "class": "select-control",
             }),
+            "condiciones": forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -451,6 +473,9 @@ class TradeInCreditForm(forms.ModelForm):
             self.fields["cliente"].required = False
             self.fields["cliente"].queryset = Cliente.objects.order_by("nombre")
             self.fields["cliente"].empty_label = "Sin cliente asignado"
+        if "condiciones" in self.fields:
+            self.fields["condiciones"].required = False
+            self.fields["condiciones"].queryset = ProductCondition.objects.filter(activo=True).order_by("nombre")
 
     def clean_monto_credito(self):
         monto = self.cleaned_data.get("monto_credito") or Decimal("0")

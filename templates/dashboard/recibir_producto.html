@@ -169,9 +169,542 @@
         gap: 20px;
     }
 
+    .tradein-accordion {
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 14px;
+        overflow: hidden;
+        background: var(--color-surface-soft);
+        margin: 16px 0;
+    }
+
+    .tradein-accordion__header {
+        display: flex;
+        align-items: stretch;
+    }
+
+    .tradein-accordion__trigger {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border: none;
+        background: transparent;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--color-text-main);
+        cursor: pointer;
+        pointer-events: auto;
+    }
+
+    .tradein-accordion__trigger:hover,
+    .tradein-accordion__trigger:focus-visible {
+        background: rgba(37, 99, 235, 0.08);
+        outline: none;
+    }
+
+    .tradein-accordion__icon {
+        transition: transform 0.2s ease;
+    }
+
+    .tradein-accordion__trigger[aria-expanded="true"] .tradein-accordion__icon {
+        transform: rotate(90deg);
+    }
+
+    .tradein-accordion__action {
+        border: none;
+        background: transparent;
+        padding: 12px 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.15rem;
+        color: var(--color-text-subtle);
+        cursor: pointer;
+        transition: color 0.2s ease, background 0.2s ease;
+        pointer-events: auto;
+    }
+
+    .tradein-accordion__action:hover,
+    .tradein-accordion__action:focus-visible {
+        color: var(--color-accent-primary);
+        background: rgba(37, 99, 235, 0.08);
+        outline: none;
+    }
+
+    .tradein-accordion__panel {
+        padding: 0 16px 16px;
+        background: var(--color-surface-soft);
+    }
+
     .tradein-table__wrapper {
         width: 100%;
         overflow-x: auto;
+    }
+
+    .tradein-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 680px;
+    }
+
+    .tradein-table th,
+    .tradein-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--color-border-divider);
+        text-align: left;
+        font-size: 0.95rem;
+    }
+
+    .tradein-table th {
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-size: 0.78rem;
+        color: var(--color-text-subtle);
+        background: var(--color-surface-muted);
+    }
+
+    .tradein-table tbody tr:hover {
+        background: rgba(25, 35, 45, 0.02);
+    }
+
+    .tradein-code {
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+
+    .tradein-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .tradein-status--pendiente {
+        background: rgba(var(--color-warning-rgb), 0.15);
+        color: #b26a00;
+    }
+
+    .tradein-status--usado {
+        background: rgba(var(--color-success-rgb), 0.18);
+        color: var(--color-success-text);
+    }
+
+    .tradein-status--cancelado {
+        background: rgba(var(--color-danger-rgb), 0.15);
+        color: var(--color-danger-text);
+    }
+
+    .tradein-empty {
+        border: 1px dashed var(--color-border-subtle);
+        border-radius: 16px;
+        padding: 24px;
+        text-align: center;
+        color: var(--color-text-subtle);
+        background: var(--color-surface-soft);
+    }
+
+    .tradein-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .tradein-actions form {
+        display: inline-flex;
+    }
+
+    .tradein-action-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 8px 16px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border: 1px solid transparent;
+        background: var(--color-surface-soft);
+        color: var(--color-text-main);
+        box-shadow: 0 6px 16px rgba(25, 35, 45, 0.08);
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, color 0.15s ease;
+        text-decoration: none;
+    }
+
+    .tradein-action-button:hover,
+    .tradein-action-button:focus {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 22px rgba(25, 35, 45, 0.12);
+    }
+
+    .tradein-action-button--edit {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(59, 130, 246, 0.05));
+        color: #1d4ed8;
+        border-color: rgba(37, 99, 235, 0.15);
+    }
+
+    .tradein-action-button--edit:hover,
+    .tradein-action-button--edit:focus {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(59, 130, 246, 0.1));
+    }
+
+    .tradein-action-button--danger {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.05));
+        color: var(--color-danger-text);
+        border-color: rgba(239, 68, 68, 0.18);
+    }
+
+    .tradein-action-button--danger:hover,
+    .tradein-action-button--danger:focus {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1));
+        color: #991b1b;
+    }
+
+    .tradein-empty h3 {
+        margin: 0 0 8px;
+        color: var(--color-text-main);
+    }
+
+    .btn-copy {
+        padding: 0 6px;
+        font-size: 1rem;
+        vertical-align: middle;
+    }
+
+    .btn-copy.copied {
+        color: var(--color-success);
+    }
+
+    .modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(8, 12, 20, 0.55);
+        backdrop-filter: blur(2px);
+        z-index: 2200;
+        padding: 24px;
+    }
+
+    .modal.is-visible,
+    .modal[aria-hidden="false"] {
+        display: flex;
+    }
+
+    .modal-dialog {
+        width: min(640px, 100%);
+        background: var(--color-surface-card);
+        border-radius: 18px;
+        border: 1px solid var(--color-border-subtle);
+        box-shadow: 0 24px 60px rgba(10, 15, 25, 0.18);
+        overflow-x: hidden;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        max-height: min(90vh, 720px);
+        max-width: calc(100vw - 32px);
+        scrollbar-gutter: stable both-edges;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px;
+        border-bottom: 1px solid var(--color-border-divider);
+        background: var(--color-surface-muted);
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-text-main);
+    }
+
+    .modal-close {
+        border: none;
+        background: transparent;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        color: var(--color-text-subtle);
+        transition: color 0.2s ease;
+    }
+
+    .tradein-condition-card {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 12px;
+        background: #fff;
+        padding: 16px;
+        box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.04);
+    }
+
+    .tradein-condition-card__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .tradein-condition-card__title {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--color-text-main);
+    }
+
+    .tradein-condition-card__subtitle {
+        margin: 4px 0 0;
+        font-size: 0.8rem;
+        color: var(--color-text-subtle);
+        line-height: 1.4;
+    }
+
+    .tradein-conditions-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .tradein-condition-card__body {
+        max-height: 240px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .tradein-condition-card__body::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .tradein-condition-card__body::-webkit-scrollbar-thumb {
+        background: rgba(15, 23, 42, 0.18);
+        border-radius: 999px;
+    }
+
+    .tradein-condition-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 6px 10px;
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 12px;
+        background: var(--color-surface-soft);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .tradein-condition-option input[type="checkbox"] {
+        margin: 0;
+        flex-shrink: 0;
+    }
+
+    .tradein-condition-option__content {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+    }
+
+    .tradein-condition-option__title {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--color-text-main);
+    }
+
+    .tradein-condition-option__subtitle {
+        font-size: 0.7rem;
+        color: var(--color-text-subtle);
+        line-height: 1.3;
+    }
+
+    @media (max-width: 1024px) {
+        .tradein-conditions-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 640px) {
+        .tradein-conditions-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+        .tradein-condition-card__body {
+            max-height: 280px;
+        }
+    }
+
+    .tradein-condition-card__footer {
+        font-size: 0.8rem;
+        color: var(--color-text-subtle);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .tradein-condition-summary {
+        margin-top: 4px;
+        font-size: 0.75rem;
+        color: var(--color-text-subtle);
+    }
+
+    .tradein-condition-badge-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        background: rgba(37, 99, 235, 0.1);
+        color: var(--color-accent-primary);
+    }
+
+    .condition-modal__form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .condition-modal__group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .condition-modal__group label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--color-text-main);
+    }
+
+    .condition-modal__group input,
+    .condition-modal__group textarea {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid var(--color-border-subtle);
+        padding: 10px 12px;
+        font-size: 0.9rem;
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .condition-modal__group input:focus,
+    .condition-modal__group textarea:focus {
+        border-color: var(--color-accent-primary);
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+        outline: none;
+    }
+
+    .condition-modal__error {
+        border-radius: 12px;
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        background: rgba(239, 68, 68, 0.12);
+        padding: 10px 14px;
+        font-size: 0.85rem;
+        color: var(--color-danger-text);
+    }
+
+    .condition-modal__actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .condition-modal__list {
+        margin-top: 16px;
+        border-top: 1px solid var(--color-border-subtle);
+        padding-top: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 340px;
+        overflow-y: auto;
+    }
+
+    .condition-modal__items {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .condition-modal__item {
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 12px;
+        padding: 14px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 18px;
+        background: var(--color-surface-soft);
+    }
+
+    .condition-modal__item-main {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .condition-modal__item-main h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-text-main);
+    }
+
+    .condition-modal__item-main p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--color-text-subtle);
+    }
+
+    .condition-modal__item-main p.is-muted {
+        font-style: italic;
+    }
+
+    .condition-modal__item-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-left: auto;
+    }
+
+    .condition-modal__empty {
+        text-align: center;
+        padding: 16px;
+        border-radius: 10px;
+        background: rgba(15, 23, 42, 0.04);
+        color: var(--color-text-subtle);
+        font-size: 0.9rem;
+    }
+
+    .btn-tradein-secondary--ghost {
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--color-text-subtle);
+        padding: 6px 12px;
+        border-radius: 999px;
+        transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .btn-tradein-secondary--ghost:hover,
+    .btn-tradein-secondary--ghost:focus {
+        background: rgba(37, 99, 235, 0.12);
+        color: #1d4ed8;
     }
 
     .tradein-table {
@@ -377,6 +910,27 @@
         display: flex;
         flex-direction: column;
         gap: 20px;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        scrollbar-gutter: stable both-edges;
+    }
+
+    .modal-form--static {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: calc(min(90vh, 720px) - 150px);
+        overflow-y: auto;
+        scrollbar-gutter: stable both-edges;
+    }
+
+    .modal-form--static::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .modal-form--static::-webkit-scrollbar-thumb {
+        background: rgba(15, 23, 42, 0.18);
+        border-radius: 999px;
     }
 
     .modal-form input[type="text"],
@@ -576,10 +1130,15 @@
                                         <i class="ri-file-copy-line"></i>
                                     </button>
                                 </td>
-                                <td>{{ credit.cliente|default:credit.nombre_cliente|default:"—" }}</td>
+                                <td>{{ credit.cliente|default_if_none:credit.nombre_cliente|default_if_none:"—" }}</td>
                                 <td>
                                     <strong>{{ credit.producto_nombre }}</strong><br>
-                                    <small>{{ credit.descripcion|default:"Sin descripción" }}</small>
+                                    <small>{{ credit.descripcion|default_if_none:"Sin descripción" }}</small>
+                                    {% with resumen=credit.condiciones_resumen %}
+                                        {% if resumen %}
+                                            <div class="tradein-condition-summary">{{ resumen }}</div>
+                                        {% endif %}
+                                    {% endwith %}
                                 </td>
                                 <td>{{ credit.monto_credito|floatformat:2 }}</td>
                                 <td>
@@ -602,11 +1161,13 @@
                                                     class="tradein-action-button tradein-action-button--edit"
                                                     data-tradein-edit
                                                     data-tradein-id="{{ credit.id }}"
-                                                    data-tradein-nombre="{{ credit.nombre_cliente|default:''|escape }}"
-                                                    data-tradein-cliente-id="{{ credit.cliente_id|default:'' }}"
-                                                    data-tradein-producto="{{ credit.producto_nombre|default:''|escape }}"
+                                                    data-tradein-nombre="{{ credit.nombre_cliente|default_if_none:''|escape }}"
+                                                    data-tradein-cliente-id="{{ credit.cliente_id|default_if_none:'' }}"
+                                                    data-tradein-producto="{{ credit.producto_nombre|default_if_none:''|escape }}"
                                                     data-tradein-monto="{{ credit.monto_credito|floatformat:2 }}"
-                                                    data-tradein-descripcion="{{ credit.descripcion|default:''|escape }}">
+                                                    data-tradein-descripcion="{{ credit.descripcion|default_if_none:''|escape }}"
+                                                    data-tradein-conditions="{{ credit.condiciones_ids_csv }}"
+                                                    data-tradein-conditions-summary="{{ credit.condiciones_resumen }}">
                                                 <i class="ri-pencil-line"></i>
                                                 Editar
                                             </button>
@@ -639,7 +1200,7 @@
     </section>
 </section>
 
-<div class="modal" id="tradein-modal" aria-hidden="true" data-tradein-default-mode="{{ tradein_modal_mode }}" data-tradein-editing-id="{{ editing_tradein_id|default:'' }}">
+<div class="modal" id="tradein-modal" aria-hidden="true" data-tradein-default-mode="{{ tradein_modal_mode }}" data-tradein-editing-id="{{ editing_tradein_id|default_if_none:'' }}">
     <div class="modal-dialog">
         <div class="modal-header">
             <h2 data-tradein-modal-title>Registrar producto recibido</h2>
@@ -704,6 +1265,77 @@
                     {% endif %}
                 </label>
                 <label class="form-field form-field--full">
+                    <div class="tradein-accordion" data-tradein-accordion>
+                        <div class="tradein-accordion__header">
+                            <button type="button" class="tradein-accordion__trigger" aria-expanded="false" data-tradein-accordion-toggle>
+                                <span>Condición del producto</span>
+                                <span class="tradein-accordion__icon" aria-hidden="true">▸</span>
+                            </button>
+                            <button type="button" class="tradein-accordion__action" data-tradein-accordion-action data-open-condition-modal aria-label="Configurar condición del producto">
+                                <i class="ri-settings-4-line" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="tradein-accordion__panel" data-tradein-accordion-panel hidden>
+                            {% with selected_ids=tradein_form.condiciones.value|default_if_none:'' %}
+                                <div class="tradein-condition-card" data-condition-card>
+                                    <div class="tradein-condition-card__header">
+                                        <p class="tradein-condition-card__subtitle">Marca todas las condiciones que describen el estado del equipo recibido.</p>
+                                    </div>
+                                    <div class="tradein-condition-card__body">
+                                        <div class="tradein-condition-card__empty" data-condition-empty {% if product_conditions %}hidden{% endif %}>
+                                            No hay condiciones registradas todavía. Usa el botón de la tuerca para crear una.
+                                        </div>
+                                        <div class="tradein-conditions-grid" data-condition-grid {% if not product_conditions %}hidden{% endif %}>
+                                            {% for condition in product_conditions %}
+                                                {% with condition_id=condition.id|stringformat:"s" %}
+                                                    <label class="tradein-condition-option" for="condicion-{{ condition.id }}" data-condition-option>
+                                                        <input type="checkbox"
+                                                               id="condicion-{{ condition.id }}"
+                                                               name="condiciones"
+                                                               value="{{ condition.id }}"
+                                                               data-condition-checkbox
+                                                               data-condition-name="{{ condition.nombre }}"
+                                                               {% if condition_id in selected_ids %}checked{% endif %}>
+                                                        <div class="tradein-condition-option__content">
+                                                            <span class="tradein-condition-option__title">{{ condition.nombre }}</span>
+                                                            {% if condition.descripcion %}
+                                                                <span class="tradein-condition-option__subtitle">{{ condition.descripcion }}</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </label>
+                                                {% endwith %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div class="tradein-condition-card__footer">
+                                        <span data-condition-summary>
+                                            {% if selected_ids %}
+                                                {% for condition in product_conditions %}
+                                                    {% with cond_id=condition.id|stringformat:"s" %}
+                                                        {% if cond_id in selected_ids %}
+                                                            {{ condition.nombre }}{% if not forloop.last %}, {% endif %}
+                                                        {% endif %}
+                                                    {% endwith %}
+                                                {% endfor %}
+                                            {% else %}
+                                                Selecciona las condiciones que describen el producto recibido.
+                                            {% endif %}
+                                        </span>
+                                        <span class="tradein-condition-badge-count" data-condition-count-badge>{{ selected_ids|length }}</span>
+                                    </div>
+                                </div>
+                                {% if tradein_form.condiciones.errors %}
+                                    <div class="field-error">
+                                        {% for error in tradein_form.condiciones.errors %}
+                                            <span>{{ error }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                </label>
+                <label class="form-field form-field--full">
                     <span class="form-label">Descripción / estado</span>
                     {{ tradein_form.descripcion }}
                     {% if tradein_form.descripcion.errors %}
@@ -736,6 +1368,77 @@
     </script>
 {% endif %}
 
+<div class="modal" id="condition-modal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog--narrow" role="dialog" aria-modal="true" aria-labelledby="condition-modal-title">
+        <div class="modal-header">
+            <h2 id="condition-modal-title">Condición del producto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-condition-modal>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <form class="condition-modal__form" data-condition-form method="post" action="{% url 'dashboard:recibir_producto' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_condition">
+                <input type="hidden" name="condicion_id" value="" data-condition-id>
+                <div class="condition-modal__group">
+                    <label for="condition-nombre">Nombre</label>
+                    <input id="condition-nombre" name="nombre" type="text" maxlength="100" placeholder="Nombre legible" data-condition-field="nombre" required>
+                </div>
+                <div class="condition-modal__group">
+                    <label for="condition-descripcion">Descripción</label>
+                    <textarea id="condition-descripcion" name="descripcion" rows="3" placeholder="Describe el criterio (opcional)" data-condition-field="descripcion"></textarea>
+                </div>
+                <div class="condition-modal__error" data-condition-error hidden></div>
+                <div class="condition-modal__actions">
+                    <button type="submit" class="btn-tradein-primary" data-condition-submit>Guardar condición</button>
+                </div>
+            </form>
+            <div class="condition-modal__list" data-condition-list>
+                <template data-condition-row-template>
+                    <div class="condition-modal__item" data-condition-item>
+                        <div class="condition-modal__item-main">
+                            <h3 data-condition-item-title></h3>
+                            <p data-condition-item-description></p>
+                        </div>
+                        <div class="condition-modal__item-actions">
+                            <button type="button" class="btn-tradein-secondary btn-tradein-secondary--ghost" data-condition-edit>Editar</button>
+                            <button type="button" class="btn-tradein-secondary btn-tradein-secondary--ghost" data-condition-delete>Eliminar</button>
+                        </div>
+                    </div>
+                </template>
+                <div class="condition-modal__empty" data-condition-empty {% if product_conditions %}hidden{% endif %}>
+                    No hay condiciones registradas todavía.
+                </div>
+                <div class="condition-modal__items" data-condition-items>
+                    {% for condition in product_conditions %}
+                        <div class="condition-modal__item" data-condition-item data-condition-id="{{ condition.id }}">
+                            <div class="condition-modal__item-main">
+                                <h3 data-condition-item-title>{{ condition.nombre }}</h3>
+                                {% if condition.descripcion %}
+                                    <p data-condition-item-description>{{ condition.descripcion }}</p>
+                                {% else %}
+                                    <p data-condition-item-description data-placeholder="Sin descripción" class="is-muted">Sin descripción</p>
+                                {% endif %}
+                            </div>
+                            <div class="condition-modal__item-actions">
+                                <button type="button"
+                                        class="btn-tradein-secondary btn-tradein-secondary--ghost"
+                                        data-condition-edit
+                                        data-condition-data='{"id": "{{ condition.id }}", "nombre": "{{ condition.nombre|escapejs }}", "descripcion": "{{ condition.descripcion|default_if_none:''|escapejs }}"}'>
+                                    Editar
+                                </button>
+                                <button type="button" class="btn-tradein-secondary btn-tradein-secondary--ghost" data-condition-delete>Eliminar</button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn-tradein-secondary" data-close-condition-modal>Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const modal = document.getElementById('tradein-modal');
@@ -754,6 +1457,360 @@
         const tradeinProductInput = tradeinForm ? tradeinForm.querySelector('[name="producto_nombre"]') : null;
         const tradeinAmountInput = tradeinForm ? tradeinForm.querySelector('[name="monto_credito"]') : null;
         const tradeinDescriptionInput = tradeinForm ? tradeinForm.querySelector('[name="descripcion"]') : null;
+        const tradeinAccordion = tradeinForm ? tradeinForm.querySelector('[data-tradein-accordion]') : null;
+        const tradeinAccordionToggle = tradeinAccordion ? tradeinAccordion.querySelector('[data-tradein-accordion-toggle]') : null;
+        const tradeinAccordionPanel = tradeinAccordion ? tradeinAccordion.querySelector('[data-tradein-accordion-panel]') : null;
+        const tradeinAccordionAction = tradeinAccordion ? tradeinAccordion.querySelector('[data-tradein-accordion-action]') : null;
+        const conditionCards = tradeinForm ? tradeinForm.querySelector('[data-condition-card]') : null;
+        const conditionGrid = tradeinForm ? tradeinForm.querySelector('[data-condition-grid]') : null;
+        const conditionEmptyState = tradeinForm ? tradeinForm.querySelector('[data-condition-empty]') : null;
+        const conditionSummary = tradeinForm ? tradeinForm.querySelector('[data-condition-summary]') : null;
+        const conditionBadge = tradeinForm ? tradeinForm.querySelector('[data-condition-count-badge]') : null;
+        const conditionModal = document.getElementById('condition-modal');
+        const conditionCloseButtons = conditionModal ? conditionModal.querySelectorAll('[data-close-condition-modal]') : [];
+        const conditionForm = conditionModal ? conditionModal.querySelector('[data-condition-form]') : null;
+        const conditionFormAction = conditionForm ? conditionForm.getAttribute('action') : '';
+        const conditionIdInput = conditionModal ? conditionModal.querySelector('[data-condition-id]') : null;
+        const conditionFields = conditionModal ? conditionModal.querySelectorAll('[data-condition-field]') : [];
+        const conditionErrorNode = conditionModal ? conditionModal.querySelector('[data-condition-error]') : null;
+        const conditionItemsContainer = conditionModal ? conditionModal.querySelector('[data-condition-items]') : null;
+        const conditionEmptyModalState = conditionModal ? conditionModal.querySelector('[data-condition-empty]') : null;
+        const conditionRowTemplate = conditionModal ? conditionModal.querySelector('[data-condition-row-template]') : null;
+
+        function clearFieldError(event) {
+            const field = event && event.target ? event.target : null;
+            if (!field) {
+                return;
+            }
+            const fieldContainer = field.closest('.form-field');
+            if (!fieldContainer) {
+                return;
+            }
+            const errorNode = fieldContainer.querySelector('.field-error');
+            if (errorNode) {
+                errorNode.innerHTML = '';
+                errorNode.hidden = true;
+            }
+        }
+
+        function openConditionModal() {
+            if (!conditionModal) {
+                return;
+            }
+            resetConditionForm();
+            conditionModal.setAttribute('aria-hidden', 'false');
+            conditionModal.classList.add('is-visible');
+            const focusable = conditionModal.querySelector('button, [href], input, select, textarea');
+            if (focusable && typeof focusable.focus === 'function') {
+                focusable.focus();
+            }
+        }
+
+        function closeConditionModal() {
+            if (!conditionModal) {
+                return;
+            }
+            conditionModal.classList.remove('is-visible');
+            conditionModal.setAttribute('aria-hidden', 'true');
+            clearConditionError();
+        }
+
+        function clearConditionError() {
+            if (conditionErrorNode) {
+                conditionErrorNode.textContent = '';
+                conditionErrorNode.hidden = true;
+            }
+        }
+
+        function resetConditionForm() {
+            if (!conditionForm) {
+                return;
+            }
+            conditionForm.reset();
+            clearConditionError();
+            if (conditionIdInput) {
+                conditionIdInput.value = '';
+            }
+            conditionForm.querySelector('[data-condition-submit]').textContent = 'Guardar condición';
+        }
+
+        function populateConditionForm(data) {
+            if (!conditionForm) {
+                return;
+            }
+            if (conditionIdInput) {
+                conditionIdInput.value = data.id || '';
+            }
+            conditionFields.forEach(function (field) {
+                const key = field.getAttribute('data-condition-field');
+                if (!key) return;
+                field.value = data[key] || '';
+            });
+            const submitBtn = conditionForm.querySelector('[data-condition-submit]');
+            if (submitBtn) {
+                submitBtn.textContent = data.id ? 'Actualizar condición' : 'Guardar condición';
+            }
+            clearConditionError();
+        }
+
+        function buildConditionCardMarkup(condition) {
+            const wrapper = document.createElement('label');
+            wrapper.className = 'tradein-condition-option';
+            wrapper.setAttribute('data-condition-option', '');
+            wrapper.htmlFor = `condicion-${condition.id}`;
+            wrapper.innerHTML = `
+                <input type="checkbox" id="condicion-${condition.id}" name="condiciones" value="${condition.id}"
+                    data-condition-checkbox data-condition-name="${condition.nombre}">
+                <div class="tradein-condition-option__content">
+                    <span class="tradein-condition-option__title">${condition.nombre}</span>
+                    ${condition.descripcion ? `<span class="tradein-condition-option__subtitle">${condition.descripcion}</span>` : ''}
+                </div>
+            `;
+            return wrapper;
+        }
+
+        function updateConditionSummary() {
+            if (!tradeinForm) {
+                return;
+            }
+            const selectedCheckboxes = Array.from(tradeinForm.querySelectorAll('[data-condition-checkbox]:checked'));
+            if (conditionBadge) {
+                conditionBadge.textContent = selectedCheckboxes.length;
+            }
+            if (!conditionSummary) {
+                return;
+            }
+            if (selectedCheckboxes.length === 0) {
+                conditionSummary.textContent = 'Selecciona las condiciones que describen el producto recibido.';
+                return;
+            }
+            const names = selectedCheckboxes.map(cb => cb.getAttribute('data-condition-name') || cb.value);
+            conditionSummary.textContent = names.join(', ');
+        }
+
+        function renderConditionCheckboxes(conditions, selectedIds) {
+            if (!tradeinForm || !conditionGrid || !conditionCards) {
+                return;
+            }
+            conditionGrid.innerHTML = '';
+            const hasConditions = Array.isArray(conditions) && conditions.length > 0;
+            if (!hasConditions) {
+                if (conditionEmptyState) {
+                    conditionEmptyState.hidden = false;
+                }
+                conditionGrid.hidden = true;
+                updateConditionSummary();
+                return;
+            }
+            if (conditionEmptyState) {
+                conditionEmptyState.hidden = true;
+            }
+            conditionGrid.hidden = false;
+            const selectedSet = new Set((selectedIds || []).map(String));
+            conditions.forEach((condition) => {
+                const checkboxLabel = buildConditionCardMarkup(condition);
+                const checkbox = checkboxLabel.querySelector('input[type="checkbox"]');
+                if (selectedSet.has(String(condition.id))) {
+                    checkbox.checked = true;
+                }
+                conditionGrid.appendChild(checkboxLabel);
+            });
+            updateConditionSummary();
+        }
+
+        function renderConditionModalList(conditions) {
+            if (!conditionItemsContainer || !conditionRowTemplate) {
+                return;
+            }
+            conditionItemsContainer.innerHTML = '';
+            const hasConditions = Array.isArray(conditions) && conditions.length > 0;
+            if (!hasConditions) {
+                if (conditionEmptyModalState) {
+                    conditionEmptyModalState.hidden = false;
+                }
+                return;
+            }
+            if (conditionEmptyModalState) {
+                conditionEmptyModalState.hidden = true;
+            }
+            conditions.forEach((condition) => {
+                const template = conditionRowTemplate.content ? conditionRowTemplate.content.cloneNode(true) : null;
+                if (!template) {
+                    return;
+                }
+                const item = template.querySelector('[data-condition-item]');
+                item.setAttribute('data-condition-id', condition.id);
+                const titleNode = item.querySelector('[data-condition-item-title]');
+                const descriptionNode = item.querySelector('[data-condition-item-description]');
+                const editButton = item.querySelector('[data-condition-edit]');
+                if (titleNode) {
+                    titleNode.textContent = condition.nombre;
+                }
+                if (descriptionNode) {
+                    if (condition.descripcion) {
+                        descriptionNode.textContent = condition.descripcion;
+                        descriptionNode.classList.remove('is-muted');
+                    } else {
+                        descriptionNode.textContent = 'Sin descripción';
+                        descriptionNode.classList.add('is-muted');
+                    }
+                }
+                if (editButton) {
+                    editButton.dataset.conditionData = JSON.stringify(condition);
+                }
+                conditionItemsContainer.appendChild(item);
+            });
+        }
+
+        function handleConditionEditClick(event) {
+            const button = event.currentTarget;
+            if (!button || !button.dataset.conditionData) {
+                return;
+            }
+            try {
+                const data = JSON.parse(button.dataset.conditionData);
+                populateConditionForm(data);
+                openConditionModal();
+            } catch (error) {
+                console.error('No se pudo parsear la data de la condición', error);
+            }
+        }
+
+        function getSelectedConditionIds() {
+            if (!tradeinForm) {
+                return [];
+            }
+            return Array.from(tradeinForm.querySelectorAll('[data-condition-checkbox]:checked')).map(cb => cb.value);
+        }
+
+        function syncConditionSelections(selectedIds) {
+            if (!tradeinForm) {
+                return;
+            }
+            const stringIds = new Set((selectedIds || []).map(String));
+            tradeinForm.querySelectorAll('[data-condition-checkbox]').forEach(function (checkbox) {
+                checkbox.checked = stringIds.has(checkbox.value);
+            });
+            updateConditionSummary();
+        }
+
+        function attachConditionCheckboxListeners() {
+            if (!tradeinForm) {
+                return;
+            }
+            tradeinForm.querySelectorAll('[data-condition-checkbox]').forEach(function (checkbox) {
+                checkbox.addEventListener('change', updateConditionSummary);
+            });
+        }
+
+        function refreshConditions(conditions, options) {
+            const opts = Object.assign({ selected: getSelectedConditionIds() }, options || {});
+            renderConditionCheckboxes(conditions, opts.selected);
+            renderConditionModalList(conditions);
+            attachConditionCheckboxListeners();
+            wireConditionModalButtons();
+        }
+
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        async function submitConditionForm(event) {
+            if (!conditionForm) {
+                return;
+            }
+            event.preventDefault();
+            clearConditionError();
+            const formData = new FormData(conditionForm);
+            formData.set('action', 'create_condition');
+            try {
+                const response = await fetch(conditionFormAction, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCookie('csrftoken') || '',
+                    },
+                    body: formData,
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload.success) {
+                    const message = payload && payload.error ? payload.error : 'No se pudo guardar la condición.';
+                    if (conditionErrorNode) {
+                        conditionErrorNode.textContent = message;
+                        conditionErrorNode.hidden = false;
+                    }
+                    return;
+                }
+                refreshConditions(payload.all_conditions, {
+                    selected: payload.condition ? [String(payload.condition.id)] : getSelectedConditionIds(),
+                });
+                closeConditionModal();
+            } catch (error) {
+                console.error('Error guardando la condición', error);
+                if (conditionErrorNode) {
+                    conditionErrorNode.textContent = 'Ocurrió un error al guardar la condición. Inténtalo de nuevo.';
+                    conditionErrorNode.hidden = false;
+                }
+            }
+        }
+
+        async function handleConditionDelete(event) {
+            const button = event.currentTarget;
+            if (!button || !button.closest('[data-condition-item]')) {
+                return;
+            }
+            const container = button.closest('[data-condition-item]');
+            const conditionId = container.getAttribute('data-condition-id');
+            if (!conditionId) {
+                return;
+            }
+            if (!confirm('¿Seguro que deseas eliminar esta condición?')) {
+                return;
+            }
+            const formData = new FormData();
+            formData.append('action', 'delete_condition');
+            formData.append('condicion_id', conditionId);
+            try {
+                const response = await fetch(conditionFormAction, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCookie('csrftoken') || '',
+                    },
+                    body: formData,
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload.success) {
+                    throw new Error('No se pudo eliminar la condición.');
+                }
+                refreshConditions(payload.all_conditions);
+            } catch (error) {
+                console.error('Error eliminando la condición', error);
+                if (conditionErrorNode) {
+                    conditionErrorNode.textContent = 'No se pudo eliminar la condición.';
+                    conditionErrorNode.hidden = false;
+                }
+            }
+        }
+
+        function wireConditionModalButtons() {
+            if (!conditionModal) {
+                return;
+            }
+            conditionModal.querySelectorAll('[data-condition-edit]').forEach(function (button) {
+                button.addEventListener('click', handleConditionEditClick);
+            });
+            conditionModal.querySelectorAll('[data-condition-delete]').forEach(function (button) {
+                button.addEventListener('click', handleConditionDelete);
+            });
+        }
+
+        if (conditionForm) {
+            conditionForm.addEventListener('submit', submitConditionForm);
+        }
 
         function applyTradeInMode(mode, data, options) {
             if (!modal || !tradeinForm) {
@@ -796,6 +1853,12 @@
                     if (tradeinDescriptionInput) {
                         tradeinDescriptionInput.value = data.descripcion || '';
                     }
+                    if (conditionGrid && data.condicionesIds) {
+                        const selectedIds = data.condicionesIds.split(',').filter(Boolean);
+                        syncConditionSelections(selectedIds);
+                    } else {
+                        updateConditionSummary();
+                    }
                 }
                 modal.setAttribute('data-tradein-editing-id', data && data.id ? data.id : '');
             } else {
@@ -827,6 +1890,7 @@
                     if (tradeinDescriptionInput) {
                         tradeinDescriptionInput.value = '';
                     }
+                    syncConditionSelections([]);
                 }
                 modal.setAttribute('data-tradein-editing-id', '');
             }
@@ -868,15 +1932,57 @@
                 if (lastTrigger && typeof lastTrigger.focus === 'function') {
                     lastTrigger.focus();
                 }
+                if (tradeinDescriptionInput) {
+                    tradeinDescriptionInput.addEventListener('input', clearFieldError);
+                }
             });
-            applyTradeInMode('create', null, { reset: true });
         }
 
-        openButtons.forEach(btn => btn.addEventListener('click', function (event) {
-            lastTrigger = event.currentTarget || btn;
-            applyTradeInMode('create', null, { reset: true });
-            openModal();
-        }));
+        if (tradeinAccordion && tradeinAccordionToggle && tradeinAccordionPanel) {
+            tradeinAccordionToggle.addEventListener('click', function () {
+                var isExpanded = tradeinAccordionToggle.getAttribute('aria-expanded') === 'true';
+                tradeinAccordionToggle.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+                if (isExpanded) {
+                    tradeinAccordionPanel.setAttribute('hidden', '');
+                } else {
+                    tradeinAccordionPanel.removeAttribute('hidden');
+                }
+            });
+        }
+
+        if (tradeinAccordionAction) {
+            tradeinAccordionAction.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                openConditionModal();
+            });
+        }
+
+        conditionCloseButtons.forEach(function (button) {
+            button.addEventListener('click', closeConditionModal);
+        });
+
+        if (conditionModal) {
+            conditionModal.addEventListener('click', function (event) {
+                if (event.target === conditionModal) {
+                    closeConditionModal();
+                }
+            });
+            conditionModal.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeConditionModal();
+                }
+            });
+        }
+
+        openButtons.forEach(function (button) {
+            button.addEventListener('click', function () {
+                lastTrigger = button;
+                applyTradeInMode('create', null, { reset: true });
+                openModal();
+            });
+        });
         closeButtons.forEach(btn => btn.addEventListener('click', closeModal));
 
         editButtons.forEach(btn => btn.addEventListener('click', function (event) {
@@ -892,6 +1998,7 @@
                 producto: trigger.dataset.tradeinProducto || '',
                 monto: trigger.dataset.tradeinMonto || '',
                 descripcion: trigger.dataset.tradeinDescripcion || '',
+                condicionesIds: trigger.dataset.tradeinCondiciones || '',
             };
             applyTradeInMode('edit', data, { reset: true });
             openModal();
@@ -951,6 +2058,15 @@
                 tradeinFiltersForm.reset();
                 window.location.href = window.location.pathname;
             });
+        }
+
+        if (tradeinForm) {
+            attachConditionCheckboxListeners();
+            updateConditionSummary();
+        }
+
+        if (conditionModal) {
+            wireConditionModalButtons();
         }
 
         initializeTradeInModeFromDataset();

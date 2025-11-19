@@ -122,6 +122,16 @@ urlpatterns = [
         views.create_model_api,
         name="create_model_api",
     ),
+    path(
+        "inventario/impuestos/crear/",
+        views.create_tax_api,
+        name="create_tax_api",
+    ),
+    path(
+        "inventario/impuestos/<int:tax_id>/toggle/",
+        views.toggle_tax_status_api,
+        name="toggle_tax_status_api",
+    ),
     path("clientes/", views.ClientesView.as_view(), name="clientes"),
     path("proveedor/", views.ProveedorView.as_view(), name="proveedor"),
     path("compras/", views.ComprasView.as_view(), name="compras"),
