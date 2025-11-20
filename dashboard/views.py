@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from decimal import Decimal, InvalidOperation
 
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction, IntegrityError
 from django.db.models import (
@@ -62,6 +63,7 @@ from ventas.models import (
     ProductCondition,
     ProductImage,
     Producto,
+    ProductoUnitDetail,
     Proveedor,
     Venta,
     DetalleVenta,
@@ -1359,7 +1361,13 @@ class VentasView(DashboardTemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["clientes"] = Cliente.objects.all()
-        context["productos"] = Producto.objects.all()
+
+        productos_qs = (
+            Producto.objects.select_related("marca", "modelo", "impuesto")
+            .prefetch_related("unidades_detalle")
+            .order_by("nombre")
+        )
+        context["productos"] = productos_qs
         context["invoices_count"] = Venta.objects.count()
         site_config = SiteConfiguration.get_solo()
         context["global_tax_enabled"] = bool(getattr(site_config, "global_tax_enabled", False))
@@ -1468,7 +1476,369 @@ class VentasView(DashboardTemplateView):
         }
         context["credit_collection_rows"] = collection_rows
 
+        unit_options: list[dict[str, object]] = []
+        almacenamiento_map = dict(Producto.ALMACENAMIENTO_CHOICES)
+        ram_map = dict(Producto.RAM_CHOICES)
+        brand_options: dict[int, str] = {}
+        model_options: dict[int, dict[str, object]] = {}
+        color_options: set[str] = set()
+        storage_options: dict[str, str] = {}
+        ram_options: dict[str, str] = {}
+        min_price: Decimal | None = None
+        max_price: Decimal | None = None
+
+        for producto in productos_qs:
+            detalles = list(producto.unidades_detalle.all())
+            detalles_map = {detalle.unidad_index: detalle for detalle in detalles}
+
+            stock_total = max(producto.stock or 0, 0)
+            if detalles_map:
+                stock_total = max(stock_total, max(detalles_map.keys()))
+
+            if stock_total <= 0:
+                continue
+
+            if producto.marca_id and producto.marca and producto.marca.nombre:
+                brand_options[producto.marca_id] = producto.marca.nombre
+
+            if producto.modelo_id and producto.modelo:
+                model_options[producto.modelo_id] = {
+                    "id": producto.modelo_id,
+                    "name": producto.modelo.nombre,
+                    "brand_id": str(producto.modelo.marca_id) if producto.modelo.marca_id else "",
+                }
+
+            if producto.precio_venta is not None:
+                if min_price is None or producto.precio_venta < min_price:
+                    min_price = producto.precio_venta
+                if max_price is None or producto.precio_venta > max_price:
+                    max_price = producto.precio_venta
+
+            for idx in range(stock_total):
+                unidad_index = idx + 1
+                unit_data = _resolve_unit_defaults(producto, unidad_index)
+
+                color_label = (unit_data.get("color") or "").strip() or "Sin color"
+                almacenamiento_code = (unit_data.get("almacenamiento") or "").strip()
+                almacenamiento_label = unit_data.get("almacenamiento_label") or almacenamiento_map.get(
+                    almacenamiento_code,
+                    "No especificado",
+                )
+                ram_code = (unit_data.get("memoria_ram") or "").strip()
+                ram_label = unit_data.get("memoria_ram_label") or ram_map.get(
+                    ram_code,
+                    "No especificada",
+                )
+                imei_value = unit_data.get("imei") or "Sin IMEI"
+
+                if color_label and color_label.lower() != "sin color":
+                    color_options.add(color_label)
+                if almacenamiento_code:
+                    storage_options[almacenamiento_code] = almacenamiento_label or almacenamiento_code
+                if ram_code:
+                    ram_options[ram_code] = ram_label or ram_code
+
+                label_parts: list[str] = []
+                label_parts.append(f"Unidad {unidad_index}")
+                if color_label:
+                    label_parts.append(color_label)
+                if almacenamiento_label:
+                    label_parts.append(almacenamiento_label)
+                if ram_label:
+                    label_parts.append(ram_label)
+
+                unit_label = f"{producto.nombre} · " + " | ".join(label_parts)
+
+                tax_percentage = "0"
+                tax_active = False
+                if producto.impuesto and producto.impuesto.porcentaje is not None:
+                    tax_percentage = str(producto.impuesto.porcentaje)
+                    tax_active = bool(producto.impuesto.activo)
+
+                unit_options.append(
+                    {
+                        "key": f"{producto.id}:{unidad_index}",
+                        "producto_id": producto.id,
+                        "unidad_index": unidad_index,
+                        "etiqueta": unit_label,
+                        "precio": str(producto.precio_venta) if producto.precio_venta is not None else "",
+                        "stock": "1",
+                        "impuesto_porcentaje": tax_percentage,
+                        "impuesto_activo": tax_active,
+                        "imei": imei_value,
+                        "color": color_label,
+                        "almacenamiento": almacenamiento_label,
+                        "memoria_ram": ram_label,
+                        "units_json": json.dumps(
+                            [
+                                {
+                                    "index": unidad_index,
+                                    "imei": imei_value,
+                                    "color": color_label,
+                                    "almacenamiento": almacenamiento_label,
+                                    "memoria_ram": ram_label,
+                                }
+                            ]
+                        ),
+                    }
+                )
+
+        brand_list = sorted(
+            (
+                {"id": str(brand_id), "name": name}
+                for brand_id, name in brand_options.items()
+                if brand_id and name
+            ),
+            key=lambda item: item["name"].lower(),
+        )
+
+        model_list = sorted(
+            (
+                {
+                    "id": str(model_info["id"]),
+                    "name": model_info["name"],
+                    "brand_id": model_info.get("brand_id", ""),
+                }
+                for model_info in model_options.values()
+                if model_info.get("name")
+            ),
+            key=lambda item: item["name"].lower(),
+        )
+
+        color_list = sorted(color_options, key=lambda value: value.lower())
+
+        storage_list = sorted(
+            (
+                {"code": code, "label": label or code}
+                for code, label in storage_options.items()
+                if code
+            ),
+            key=lambda item: item["label"].lower(),
+        )
+
+        ram_list = sorted(
+            (
+                {"code": code, "label": label or code}
+                for code, label in ram_options.items()
+                if code
+            ),
+            key=lambda item: item["label"].lower(),
+        )
+
+        price_bounds = {
+            "min": str(min_price) if min_price is not None else "",
+            "max": str(max_price) if max_price is not None else "",
+        }
+
+        filter_payload = {
+            "brands": list(brand_list),
+            "models": model_list,
+            "colors": color_list,
+            "storage": storage_list,
+            "ram": ram_list,
+            "price": price_bounds,
+        }
+
+        context["producto_unit_options"] = unit_options
+        context["producto_filter_options"] = filter_payload
+        context["producto_filter_options_json"] = json.dumps(filter_payload, ensure_ascii=False)
+
         return context
+
+
+@login_required
+@require_GET
+def sales_product_unit_search_api(request):
+    query = (request.GET.get("query") or "").strip()
+    brand_param = (request.GET.get("brand") or "").strip()
+    model_param = (request.GET.get("model") or "").strip()
+    color_param = (request.GET.get("color") or "").strip()
+    storage_param = (request.GET.get("storage") or "").strip()
+    ram_param = (request.GET.get("ram") or "").strip()
+    price_min_param = (request.GET.get("price_min") or "").strip()
+    price_max_param = (request.GET.get("price_max") or "").strip()
+
+    has_additional_filters = any(
+        [
+            brand_param,
+            model_param,
+            color_param,
+            storage_param,
+            ram_param,
+            price_min_param,
+            price_max_param,
+        ]
+    )
+
+    if not query and not has_additional_filters:
+        return JsonResponse({"success": True, "results": []})
+
+    productos_qs = (
+        Producto.objects.filter(activo=True, stock__gt=0)
+        .select_related("marca", "modelo", "impuesto")
+        .prefetch_related("unidades_detalle")
+    )
+
+    if query:
+        search_filters = (
+            Q(nombre__icontains=query)
+            | Q(descripcion__icontains=query)
+            | Q(modelo__nombre__icontains=query)
+            | Q(marca__nombre__icontains=query)
+            | Q(imei__icontains=query)
+        )
+        productos_qs = productos_qs.filter(search_filters)
+
+    if brand_param.isdigit():
+        productos_qs = productos_qs.filter(marca_id=int(brand_param))
+
+    if model_param.isdigit():
+        productos_qs = productos_qs.filter(modelo_id=int(model_param))
+
+    price_min = None
+    price_max = None
+    if price_min_param:
+        try:
+            price_min = Decimal(price_min_param)
+        except (InvalidOperation, TypeError, ValueError):
+            price_min = None
+    if price_max_param:
+        try:
+            price_max = Decimal(price_max_param)
+        except (InvalidOperation, TypeError, ValueError):
+            price_max = None
+
+    if price_min is not None:
+        productos_qs = productos_qs.filter(precio_venta__gte=price_min)
+    if price_max is not None:
+        productos_qs = productos_qs.filter(precio_venta__lte=price_max)
+
+    productos_qs = productos_qs.order_by("nombre")[:20]
+
+    almacenamiento_map = dict(Producto.ALMACENAMIENTO_CHOICES)
+    ram_map = dict(Producto.RAM_CHOICES)
+
+    results: list[dict[str, object]] = []
+
+    for producto in productos_qs:
+        detalles = list(producto.unidades_detalle.all())
+        detalles_map = {detalle.unidad_index: detalle for detalle in detalles}
+
+        stock_total = max(producto.stock or 0, 0)
+        if detalles_map:
+            stock_total = max(stock_total, max(detalles_map.keys()))
+
+        if stock_total <= 0:
+            continue
+
+        raw_imeis = (producto.imei or "").replace("\r", "\n")
+        imeis = [valor.strip() for valor in raw_imeis.replace(",", "\n").split("\n") if valor.strip()]
+
+        raw_colores = producto.colores_disponibles or ""
+        colores = [color.strip() for color in raw_colores.split(",") if color.strip()]
+
+        unidades_serializadas: list[dict[str, object]] = []
+
+        for idx in range(stock_total):
+            unidad_index = idx + 1
+            detalle_unit = detalles_map.get(unidad_index)
+
+            if detalle_unit and detalle_unit.condicion_id:
+                condicion_nombre = detalle_unit.condicion.nombre if detalle_unit.condicion else "Sin especificar"
+            else:
+                condicion_nombre = "Sin especificar"
+
+            if detalle_unit and detalle_unit.almacenamiento:
+                almacenamiento_code = detalle_unit.almacenamiento
+                almacenamiento_label = almacenamiento_map.get(almacenamiento_code, detalle_unit.almacenamiento)
+            elif producto.almacenamiento:
+                almacenamiento_code = producto.almacenamiento
+                almacenamiento_label = almacenamiento_map.get(almacenamiento_code, producto.almacenamiento)
+            else:
+                almacenamiento_code = ""
+                almacenamiento_label = "No especificado"
+
+            if detalle_unit and detalle_unit.memoria_ram:
+                ram_code = detalle_unit.memoria_ram
+                ram_label = ram_map.get(ram_code, detalle_unit.memoria_ram)
+            elif producto.memoria_ram:
+                ram_code = producto.memoria_ram
+                ram_label = ram_map.get(ram_code, producto.memoria_ram)
+            else:
+                ram_code = ""
+                ram_label = "No especificada"
+
+            if detalle_unit and detalle_unit.imei:
+                imei_val = detalle_unit.imei
+            elif imeis:
+                imei_val = imeis[idx] if idx < len(imeis) else imeis[-1]
+            else:
+                imei_val = ""
+
+            if detalle_unit and detalle_unit.color:
+                color_val = detalle_unit.color
+            elif colores:
+                color_val = colores[idx] if idx < len(colores) else colores[idx % len(colores)]
+            else:
+                color_val = ""
+
+            match_color = True
+            match_storage = True
+            match_ram = True
+
+            if color_param:
+                match_color = (color_val or "").lower() == color_param.lower()
+            if storage_param:
+                match_storage = almacenamiento_code.lower() == storage_param.lower()
+            if ram_param:
+                match_ram = ram_code.lower() == ram_param.lower()
+
+            if not (match_color and match_storage and match_ram):
+                continue
+
+            unidades_serializadas.append(
+                {
+                    "index": unidad_index,
+                    "imei": imei_val,
+                    "color": color_val,
+                    "almacenamiento": almacenamiento_label,
+                    "memoria_ram": ram_label,
+                    "condicion": condicion_nombre,
+                }
+            )
+
+        if color_param and not unidades_serializadas:
+            continue
+        if storage_param and not unidades_serializadas:
+            continue
+        if ram_param and not unidades_serializadas:
+            continue
+
+        if not unidades_serializadas:
+            continue
+
+        tax_percentage = "0"
+        tax_active = False
+        if producto.impuesto and producto.impuesto.porcentaje is not None:
+            tax_percentage = str(producto.impuesto.porcentaje)
+            tax_active = bool(producto.impuesto.activo)
+
+        results.append(
+            {
+                "id": producto.id,
+                "nombre": producto.nombre,
+                "marca": producto.marca.nombre if producto.marca else "",
+                "modelo": producto.modelo.nombre if producto.modelo else "",
+                "stock": stock_total,
+                "precio_venta": str(producto.precio_venta) if producto.precio_venta is not None else "",
+                "unidades": unidades_serializadas,
+                "imagen": producto.imagen_principal,
+                "impuesto_porcentaje": tax_percentage,
+                "impuesto_activo": tax_active,
+            }
+        )
+
+    return JsonResponse({"success": True, "results": results})
 
 
 class CotizacionesView(DashboardTemplateView):
@@ -1623,24 +1993,509 @@ class ProductoDetailView(DashboardTemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        producto_id = kwargs.get('producto_id')
-        
+        producto_id = kwargs.get("producto_id")
         producto = get_object_or_404(
-            Producto.objects.select_related('marca', 'modelo', 'categoria', 'proveedor', 'impuesto')
-            .prefetch_related('imagenes'),
-            pk=producto_id
+            Producto.objects.select_related("marca", "modelo", "categoria", "proveedor", "impuesto"),
+            pk=producto_id,
         )
-        
-        context['producto'] = producto
-        
-        # Productos relacionados (misma marca o categoría)
-        productos_relacionados = Producto.objects.filter(
-            Q(marca=producto.marca) | Q(categoria=producto.categoria)
-        ).exclude(pk=producto.pk).filter(activo=True)[:6]
-        
-        context['productos_relacionados'] = productos_relacionados
-        
+        context["producto"] = producto
+        context["almacenamiento_choices"] = Producto.ALMACENAMIENTO_CHOICES
+        context["ram_choices"] = Producto.RAM_CHOICES
+        context["product_conditions"] = ProductCondition.objects.filter(activo=True).order_by("nombre")
+
+        almacenamiento_map = dict(Producto.ALMACENAMIENTO_CHOICES)
+        ram_map = dict(Producto.RAM_CHOICES)
+
+        detalles_qs = producto.unidades_detalle.select_related("condicion").all()
+        detalles_map = {detalle.unidad_index: detalle for detalle in detalles_qs}
+
+        stock_total = max(producto.stock or 0, 0)
+        if detalles_map:
+            stock_total = max(stock_total, max(detalles_map.keys()))
+
+        raw_imeis = (producto.imei or "").replace("\r", "\n")
+        imeis = [valor.strip() for valor in raw_imeis.replace(",", "\n").split("\n") if valor.strip()]
+
+        raw_colores = producto.colores_disponibles or ""
+        colores = [color.strip() for color in raw_colores.split(",") if color.strip()]
+
+        unidades_stock = []
+        for idx in range(stock_total):
+            detalle_unit = detalles_map.get(idx + 1)
+
+            almacenamiento_code = ""
+            almacenamiento_label = "No especificado"
+            if detalle_unit and detalle_unit.almacenamiento:
+                almacenamiento_code = detalle_unit.almacenamiento
+                almacenamiento_label = almacenamiento_map.get(almacenamiento_code, detalle_unit.almacenamiento)
+            elif producto.almacenamiento:
+                almacenamiento_code = producto.almacenamiento
+                almacenamiento_label = almacenamiento_map.get(almacenamiento_code, producto.almacenamiento)
+
+            ram_code = ""
+            ram_label = "No especificada"
+            if detalle_unit and detalle_unit.memoria_ram:
+                ram_code = detalle_unit.memoria_ram
+                ram_label = ram_map.get(ram_code, detalle_unit.memoria_ram)
+            elif producto.memoria_ram:
+                ram_code = producto.memoria_ram
+                ram_label = ram_map.get(ram_code, producto.memoria_ram)
+
+            imei_val = "Sin IMEI"
+            if detalle_unit and detalle_unit.imei:
+                imei_val = detalle_unit.imei
+            elif imeis:
+                imei_val = imeis[idx] if idx < len(imeis) else imeis[-1]
+
+            color_val = "Sin color"
+            if detalle_unit and detalle_unit.color:
+                color_val = detalle_unit.color
+            elif colores:
+                color_val = colores[idx] if idx < len(colores) else colores[idx % len(colores)]
+
+            condicion_id = ""
+            condicion_label = "Sin especificar"
+            if detalle_unit and detalle_unit.condicion:
+                condicion_id = str(detalle_unit.condicion_id)
+                condicion_label = detalle_unit.condicion.nombre
+
+            unidades_stock.append(
+                {
+                    "index": idx + 1,
+                    "imei": imei_val,
+                    "color": color_val,
+                    "almacenamiento": almacenamiento_code,
+                    "almacenamiento_label": almacenamiento_label,
+                    "memoria_ram": ram_code,
+                    "memoria_ram_label": ram_label,
+                    "producto_condicion": condicion_id,
+                    "producto_condicion_label": condicion_label,
+                    "has_custom": bool(
+                        detalle_unit
+                        and (
+                            detalle_unit.imei
+                            or detalle_unit.color
+                            or detalle_unit.almacenamiento
+                            or detalle_unit.memoria_ram
+                            or detalle_unit.condicion_id
+                        )
+                    ),
+                }
+            )
+
+        context["unidades_stock"] = unidades_stock
+        context["producto_imagenes"] = producto.imagenes_urls
         return context
+
+    def post(self, request, *args, **kwargs):
+        producto_id = kwargs.get("producto_id")
+        producto = get_object_or_404(Producto, pk=producto_id)
+
+        try:
+            unidad_index = int(request.POST.get("unidad_index", 0))
+        except (TypeError, ValueError):
+            unidad_index = 0
+        imei = request.POST.get("imei", "").strip() or None
+        color = request.POST.get("color", "").strip() or None
+        almacenamiento = (request.POST.get("almacenamiento", "") or "").strip()
+        memoria_ram = (request.POST.get("memoria_ram", "") or "").strip()
+
+        if unidad_index <= 0:
+            messages.error(request, "Índice de unidad inválido.")
+            return redirect("dashboard:producto_detail", producto_id=producto.pk)
+
+        detalle, _ = ProductoUnitDetail.objects.get_or_create(
+            producto=producto,
+            unidad_index=unidad_index,
+        )
+
+        detalle.imei = imei
+        detalle.color = color
+        detalle.almacenamiento = almacenamiento
+        detalle.memoria_ram = memoria_ram
+        detalle.save(update_fields=["imei", "color", "almacenamiento", "memoria_ram"])
+
+        messages.success(request, f"Unidad {unidad_index} actualizada correctamente.")
+        return redirect("dashboard:producto_detail", producto_id=producto.pk)
+
+
+def _resolve_unit_defaults(producto: Producto, unidad_index: int) -> dict[str, str | int | bool]:
+    """Devuelve la información base para una unidad combinando detalle específico y valores generales."""
+
+    almacenamiento_map = dict(Producto.ALMACENAMIENTO_CHOICES)
+    ram_map = dict(Producto.RAM_CHOICES)
+
+    raw_imeis = (producto.imei or "").replace("\r", "\n")
+    imeis = [valor.strip() for valor in raw_imeis.replace(",", "\n").split("\n") if valor.strip()]
+
+    raw_colores = producto.colores_disponibles or ""
+    colores = [color.strip() for color in raw_colores.split(",") if color.strip()]
+
+    detalle_unit = producto.unidades_detalle.filter(unidad_index=unidad_index).first()
+
+    almacenamiento_code: str | None = None
+    almacenamiento_label: str | None = None
+    if detalle_unit and detalle_unit.almacenamiento:
+        almacenamiento_code = detalle_unit.almacenamiento
+        almacenamiento_label = almacenamiento_map.get(almacenamiento_code, detalle_unit.almacenamiento)
+    elif producto.almacenamiento:
+        almacenamiento_code = producto.almacenamiento
+        almacenamiento_label = almacenamiento_map.get(almacenamiento_code, producto.almacenamiento)
+
+    ram_code: str | None = None
+    ram_label: str | None = None
+    if detalle_unit and detalle_unit.memoria_ram:
+        ram_code = detalle_unit.memoria_ram
+        ram_label = ram_map.get(ram_code, detalle_unit.memoria_ram)
+    elif producto.memoria_ram:
+        ram_code = producto.memoria_ram
+        ram_label = ram_map.get(ram_code, producto.memoria_ram)
+
+    condicion_id: str | None = None
+    condicion_label: str | None = None
+    if detalle_unit and detalle_unit.condicion:
+        condicion_id = str(detalle_unit.condicion_id)
+        condicion_label = detalle_unit.condicion.nombre
+
+    imei_val: str | None = None
+    if detalle_unit and detalle_unit.imei:
+        imei_val = detalle_unit.imei
+    elif imeis:
+        idx = unidad_index - 1
+        if 0 <= idx < len(imeis):
+            imei_val = imeis[idx]
+        else:
+            imei_val = imeis[-1]
+
+    color_val: str | None = None
+    if detalle_unit and detalle_unit.color:
+        color_val = detalle_unit.color
+    elif colores:
+        idx = unidad_index - 1
+        if 0 <= idx < len(colores):
+            color_val = colores[idx]
+        elif colores:
+            color_val = colores[idx % len(colores)]
+
+    return {
+        "index": unidad_index,
+        "imei": imei_val or "",
+        "color": color_val or "",
+        "almacenamiento": almacenamiento_code or "",
+        "almacenamiento_label": almacenamiento_label or "No especificado",
+        "memoria_ram": ram_code or "",
+        "memoria_ram_label": ram_label or "No especificada",
+        "producto_condicion": condicion_id or "",
+        "producto_condicion_label": condicion_label or "Sin especificar",
+        "precio_compra": str(producto.precio_compra) if producto.precio_compra is not None else "",
+        "precio_venta": str(producto.precio_venta) if producto.precio_venta is not None else "",
+        "has_custom": bool(
+            detalle_unit
+            and (
+                detalle_unit.imei
+                or detalle_unit.color
+                or detalle_unit.almacenamiento
+                or detalle_unit.memoria_ram
+                or detalle_unit.condicion_id
+            )
+        ),
+    }
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def producto_unit_detail_api(request, producto_id: int, unidad_index: int):
+    producto = get_object_or_404(Producto, pk=producto_id)
+
+    if unidad_index <= 0:
+        return JsonResponse(
+            {"success": False, "message": "Índice de unidad inválido."},
+            status=400,
+        )
+
+    def _serialize_product(product_obj: Producto) -> dict[str, str]:
+        return {
+            "precio_compra": str(product_obj.precio_compra) if product_obj.precio_compra is not None else "",
+            "precio_venta": str(product_obj.precio_venta) if product_obj.precio_venta is not None else "",
+        }
+
+    if request.method == "GET":
+        unit_data = _resolve_unit_defaults(producto, unidad_index)
+        return JsonResponse({"success": True, "unit": unit_data, "product": _serialize_product(producto)})
+
+    imei = None
+    color = None
+    almacenamiento = None
+    memoria_ram = None
+    condicion_obj = None
+
+    precio_compra = None
+    precio_venta = None
+
+    if request.content_type == "application/json":
+        try:
+            payload = json.loads(request.body or "{}")
+        except json.JSONDecodeError:
+            payload = {}
+        imei = (payload.get("imei") or "").strip() or None
+        color = (payload.get("color") or "").strip() or None
+        almacenamiento = (payload.get("almacenamiento") or "").strip()
+        memoria_ram = (payload.get("memoria_ram") or "").strip()
+        condicion_value = (payload.get("producto_condicion") or payload.get("condicion") or "").strip()
+        precio_costo_raw = (payload.get("precio_costo") or "").strip()
+        precio_venta_raw = (payload.get("precio_venta") or "").strip()
+    else:
+        imei = (request.POST.get("imei") or "").strip() or None
+        color = (request.POST.get("color") or "").strip() or None
+        almacenamiento = (request.POST.get("almacenamiento") or "").strip()
+        memoria_ram = (request.POST.get("memoria_ram") or "").strip()
+        condicion_value = (request.POST.get("producto_condicion") or request.POST.get("condicion") or "").strip()
+        precio_costo_raw = (request.POST.get("precio_costo") or "").strip()
+        precio_venta_raw = (request.POST.get("precio_venta") or "").strip()
+
+    def _parse_decimal(value: str) -> Decimal | None:
+        if value in {"", None}:
+            return None
+        try:
+            decimal_value = Decimal(value)
+        except (InvalidOperation, TypeError, ValueError):
+            return None
+        return decimal_value.quantize(TWO_PLACES)
+
+    if precio_costo_raw:
+        precio_compra = _parse_decimal(precio_costo_raw)
+        if precio_compra is None or precio_compra < Decimal("0"):
+            return JsonResponse(
+                {"success": False, "message": "Precio costo inválido."},
+                status=400,
+            )
+
+    if precio_venta_raw:
+        precio_venta = _parse_decimal(precio_venta_raw)
+        if precio_venta is None or precio_venta < Decimal("0"):
+            return JsonResponse(
+                {"success": False, "message": "Precio venta inválido."},
+                status=400,
+            )
+
+    if condicion_value:
+        try:
+            condicion_id = int(condicion_value)
+        except (TypeError, ValueError):
+            return JsonResponse(
+                {"success": False, "message": "Condición inválida."},
+                status=400,
+            )
+        condicion_obj = ProductCondition.objects.filter(pk=condicion_id).first()
+        if not condicion_obj:
+            return JsonResponse(
+                {"success": False, "message": "Condición no encontrada."},
+                status=404,
+            )
+
+    try:
+        detalle, _ = ProductoUnitDetail.objects.get_or_create(
+            producto=producto,
+            unidad_index=unidad_index,
+        )
+    except IntegrityError:
+        return JsonResponse(
+            {"success": False, "message": "No se pudo actualizar la unidad."},
+            status=409,
+        )
+
+    detalle.imei = imei or ""
+    detalle.color = color or ""
+    detalle.almacenamiento = almacenamiento or ""
+    detalle.memoria_ram = memoria_ram or ""
+    detalle.condicion = condicion_obj
+    detalle.save(update_fields=["imei", "color", "almacenamiento", "memoria_ram", "condicion"])
+
+    product_updates: list[str] = []
+    if precio_compra is not None:
+        producto.precio_compra = precio_compra
+        product_updates.append("precio_compra")
+    if precio_venta is not None:
+        producto.precio_venta = precio_venta
+        product_updates.append("precio_venta")
+
+    if product_updates:
+        producto.save(update_fields=product_updates)
+
+    unit_data = _resolve_unit_defaults(producto, unidad_index)
+    return JsonResponse({"success": True, "unit": unit_data, "product": _serialize_product(producto)})
+
+
+def _serialize_condition(condition: ProductCondition) -> dict[str, str | bool]:
+    return {
+        "id": condition.pk,
+        "nombre": condition.nombre,
+        "descripcion": condition.descripcion or "",
+        "activo": condition.activo,
+        "codigo": condition.codigo or "",
+    }
+
+
+def _serialize_condition_list() -> list[dict[str, str | bool]]:
+    return [
+        _serialize_condition(cond)
+        for cond in ProductCondition.objects.all().order_by("nombre")
+    ]
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def product_condition_api(request):
+    if request.method == "GET":
+        return JsonResponse({"success": True, "conditions": _serialize_condition_list()})
+
+    if request.content_type == "application/json":
+        try:
+            payload = json.loads(request.body or "{}")
+        except json.JSONDecodeError:
+            payload = {}
+    else:
+        payload = request.POST
+
+    action = (payload.get("action") or "").strip().lower()
+    if not action:
+        return JsonResponse(
+            {"success": False, "message": "Acción no especificada."},
+            status=400,
+        )
+
+    condition_obj: ProductCondition | None = None
+
+    def _parse_condition_id(value) -> int | None:
+        if value in (None, "", 0, "0"):
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    if action in {"create", "update"}:
+        nombre = (payload.get("nombre") or "").strip()
+        descripcion = (payload.get("descripcion") or "").strip()
+        activo_raw = payload.get("activo")
+        activo = True
+        if isinstance(activo_raw, str):
+            activo = activo_raw.lower() in {"1", "true", "t", "on", "yes", "si", "sí"}
+        elif isinstance(activo_raw, (int, bool)):
+            activo = bool(activo_raw)
+
+        if not nombre:
+            return JsonResponse(
+                {"success": False, "message": "Debes indicar un nombre para la condición."},
+                status=400,
+            )
+
+        if action == "create":
+            try:
+                condition_obj = ProductCondition.objects.create(
+                    nombre=nombre,
+                    descripcion=descripcion,
+                    activo=activo,
+                )
+            except IntegrityError:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": "Ya existe una condición con ese nombre.",
+                    },
+                    status=409,
+                )
+        else:
+            condition_id = _parse_condition_id(payload.get("id") or payload.get("condicion_id"))
+            if not condition_id:
+                return JsonResponse(
+                    {"success": False, "message": "Condición inválida."},
+                    status=400,
+                )
+            condition_obj = ProductCondition.objects.filter(pk=condition_id).first()
+            if not condition_obj:
+                return JsonResponse(
+                    {"success": False, "message": "Condición no encontrada."},
+                    status=404,
+                )
+            condition_obj.nombre = nombre
+            condition_obj.descripcion = descripcion
+            condition_obj.activo = activo
+            try:
+                condition_obj.save()
+            except IntegrityError:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "message": "Ya existe una condición con ese nombre.",
+                    },
+                    status=409,
+                )
+
+        return JsonResponse(
+            {
+                "success": True,
+                "condition": _serialize_condition(condition_obj),
+                "conditions": _serialize_condition_list(),
+            },
+            status=201 if action == "create" else 200,
+        )
+
+    if action in {"toggle", "toggle_status"}:
+        condition_id = _parse_condition_id(payload.get("id") or payload.get("condicion_id"))
+        if not condition_id:
+            return JsonResponse(
+                {"success": False, "message": "Condición inválida."},
+                status=400,
+            )
+        condition_obj = ProductCondition.objects.filter(pk=condition_id).first()
+        if not condition_obj:
+            return JsonResponse(
+                {"success": False, "message": "Condición no encontrada."},
+                status=404,
+            )
+        activo_raw = payload.get("activo")
+        if activo_raw is None:
+            condition_obj.activo = not condition_obj.activo
+        else:
+            if isinstance(activo_raw, str):
+                condition_obj.activo = activo_raw.lower() in {"1", "true", "t", "on", "yes", "si", "sí"}
+            else:
+                condition_obj.activo = bool(activo_raw)
+        condition_obj.save(update_fields=["activo", "updated_at"])
+        return JsonResponse(
+            {
+                "success": True,
+                "condition": _serialize_condition(condition_obj),
+                "conditions": _serialize_condition_list(),
+            }
+        )
+
+    if action == "delete":
+        condition_id = _parse_condition_id(payload.get("id") or payload.get("condicion_id"))
+        if not condition_id:
+            return JsonResponse(
+                {"success": False, "message": "Condición inválida."},
+                status=400,
+            )
+        condition_obj = ProductCondition.objects.filter(pk=condition_id).first()
+        if not condition_obj:
+            return JsonResponse(
+                {"success": False, "message": "Condición no encontrada."},
+                status=404,
+            )
+        condition_obj.delete()
+        return JsonResponse(
+            {
+                "success": True,
+                "conditions": _serialize_condition_list(),
+            }
+        )
+
+    return JsonResponse(
+        {"success": False, "message": "Acción no soportada."},
+        status=400,
+    )
 
 
 class ClientesView(DashboardTemplateView):
