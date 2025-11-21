@@ -13,6 +13,11 @@ urlpatterns = [
         name="ventas_historial_api",
     ),
     path(
+        "ventas/productos/unidades/",
+        views.sales_product_unit_search_api,
+        name="sales_product_unit_search_api",
+    ),
+    path(
         "reportes/ventas-totales/",
         views.report_total_sales_api,
         name="report_total_sales_api",
@@ -101,7 +106,21 @@ urlpatterns = [
     path("cotizaciones/", views.CotizacionesView.as_view(), name="cotizaciones"),
     path("inventario/", views.InventarioView.as_view(), name="inventario"),
     path("inventario/recibir/", views.RecibirProductoView.as_view(), name="recibir_producto"),
-    path("inventario/<int:producto_id>/", views.ProductoDetailView.as_view(), name="producto_detail"),
+    path(
+        "inventario/condiciones/",
+        views.product_condition_api,
+        name="product_condition_api",
+    ),
+    path(
+        "inventario/<int:producto_id>/unidad/<int:unidad_index>/",
+        views.producto_unit_detail_api,
+        name="producto_unit_detail_api",
+    ),
+    path(
+        "inventario/<int:producto_id>/",
+        views.ProductoDetailView.as_view(),
+        name="producto_detail",
+    ),
     path(
         "inventario/marcas/<int:brand_id>/toggle/",
         views.toggle_brand_status_api,

@@ -1,730 +1,2365 @@
 {% extends "dashboard/base.html" %}
-{% load static %}
-
-{% block title %}{{ producto.nombre }} - Detalle{% endblock %}
-
+{% block title %}Detalle de producto{% endblock %}
+{% block page_title %}Detalle de producto{% endblock %}
 {% block content %}
-<div class="product-detail">
-    <!-- Breadcrumb -->
-    <nav class="breadcrumb">
-        <a href="{% url 'dashboard:inventario' %}" class="breadcrumb__link">
-            <i class="ri-arrow-left-line"></i>
-            Volver al inventario
-        </a>
-    </nav>
-
-    <!-- Product Header -->
-    <div class="product-header">
-        <div class="product-header__content">
-            <div class="product-header__badge">
-                {% if producto.stock > 0 %}
-                    <span class="badge badge--success">
-                        <i class="ri-checkbox-circle-line"></i>
-                        Disponible
-                    </span>
-                {% else %}
-                    <span class="badge badge--danger">
-                        <i class="ri-close-circle-line"></i>
-                        Agotado
-                    </span>
-                {% endif %}
-            </div>
-            <h1 class="product-header__title">{{ producto.nombre }}</h1>
-            <div class="product-header__meta">
-                {% if producto.marca %}
-                    <span class="meta-item">
-                        <i class="ri-building-line"></i>
-                        {{ producto.marca.nombre }}
-                    </span>
-                {% endif %}
-                {% if producto.categoria %}
-                    <span class="meta-item">
-                        <i class="ri-price-tag-3-line"></i>
-                        {{ producto.categoria.nombre }}
-                    </span>
-                {% endif %}
-                <span class="meta-item">
-                    <i class="ri-time-line"></i>
-                    Actualizado {{ producto.updated_at|date:"d/m/Y" }}
-                </span>
+<section class="product-detail"
+    data-product-id="{{ producto.id }}"
+    data-detail-path="{% url 'dashboard:producto_detail' producto.id %}"
+    data-product-name="{{ producto.nombre|default:"Producto"|escape }}"
+    data-product-marca="{{ producto.marca|default:"Sin marca"|escape }}"
+    data-product-modelo="{{ producto.modelo|default:"Sin modelo"|escape }}"
+    data-product-categoria="{{ producto.categoria|default:"Sin categoría"|escape }}"
+    data-product-almacenamiento="{{ producto.almacenamiento|default:'' }}"
+    data-product-almacenamiento-label="{{ producto.get_almacenamiento_display|default:"No especificado" }}"
+    data-product-ram="{{ producto.memoria_ram|default:'' }}"
+    data-product-ram-label="{{ producto.get_memoria_ram_display|default:"No especificada" }}"
+    data-product-proveedor="{{ producto.proveedor|default:"Sin proveedor"|escape }}"
+    data-product-costo="{{ producto.precio_compra|default_if_none:"" }}"
+    data-product-precio="{{ producto.precio_venta|default_if_none:"" }}"
+    data-product-descripcion="{{ producto.descripcion|default:""|escape }}"
+    data-product-imagen="{{ producto_imagenes.0|default:"" }}"
+    data-condition-api="{% url 'dashboard:product_condition_api' %}"
+>
+    <header class="product-detail__header">
+        <div class="product-detail__title-group">
+            <h2 class="product-detail__title">{{ producto.nombre }}</h2>
+            <div class="product-detail__meta">
+                {% if producto.marca %}<span class="product-detail__meta-item">Marca: {{ producto.marca }}</span>{% endif %}
+                {% if producto.modelo %}<span class="product-detail__meta-item">Modelo: {{ producto.modelo }}</span>{% endif %}
+                {% if producto.categoria %}<span class="product-detail__meta-item">Categoría: {{ producto.categoria }}</span>{% endif %}
             </div>
         </div>
-    </div>
+        <a class="btn btn-secondary" href="{% url 'dashboard:inventario' %}">Volver al inventario</a>
+    </header>
 
-    <!-- Product Content -->
-    <div class="product-content">
-        <!-- Product Gallery -->
-        <div class="product-gallery">
-            <div class="gallery-main">
-                {% if producto.imagen_principal %}
-                    <img src="{{ producto.imagen_principal }}" alt="{{ producto.nombre }}" class="gallery-main__image">
-                {% else %}
-                    <div class="gallery-main__placeholder">
-                        <i class="ri-image-line"></i>
-                        <span>Sin imagen</span>
-                    </div>
-                {% endif %}
-            </div>
-            
-            {% if producto.imagenes_urls|length > 1 %}
-                <div class="gallery-thumbnails">
-                    {% for imagen_url in producto.imagenes_urls %}
-                        <button type="button" class="gallery-thumbnail {% if forloop.first %}gallery-thumbnail--active{% endif %}" 
-                                data-image="{{ imagen_url }}">
-                            <img src="{{ imagen_url }}" alt="Vista {{ forloop.counter }}">
-                        </button>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </div>
-
-        <!-- Product Info -->
-        <div class="product-info">
-            <!-- Pricing Card -->
-            <div class="info-card info-card--pricing">
-                <h3 class="info-card__title">
-                    <i class="ri-money-dollar-circle-line"></i>
-                    Precios
-                </h3>
-                <div class="pricing-grid">
-                    <div class="pricing-item">
-                        <span class="pricing-label">Precio de costo</span>
-                        <span class="pricing-value pricing-value--cost">${{ producto.precio_compra|floatformat:2 }}</span>
-                    </div>
-                    <div class="pricing-item">
-                        <span class="pricing-label">Precio de venta</span>
-                        <span class="pricing-value pricing-value--sale">${{ producto.precio_venta|floatformat:2 }}</span>
-                    </div>
-                    <div class="pricing-item">
-                        <span class="pricing-label">Margen</span>
-                        <span class="pricing-value pricing-value--margin">${{ producto.margen|floatformat:2 }}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Stock Card -->
-            <div class="info-card info-card--stock">
-                <h3 class="info-card__title">
-                    <i class="ri-stack-line"></i>
-                    Inventario
-                </h3>
-                <div class="stock-status">
-                    {% if producto.stock == 0 %}
-                        <span class="stock-status__badge stock-status__badge--critical">
-                            <i class="ri-close-circle-line" aria-hidden="true"></i>
-                            Agotado
-                        </span>
-                    {% elif producto.stock <= 10 %}
-                        <span class="stock-status__badge stock-status__badge--warning">
-                            <i class="ri-alert-line" aria-hidden="true"></i>
-                            Casi agotado
-                        </span>
-                    {% endif %}
-                </div>
-                <div class="stock-grid">
-                    <div class="stock-item">
-                        <span class="stock-label">Stock actual</span>
-                        <span class="stock-value {% if producto.stock == 0 %}stock-value--none{% elif producto.stock <= 10 %}stock-value--low{% endif %}">
-                            {{ producto.stock }} unidades
-                        </span>
-                    </div>
-                    <div class="stock-item">
-                        <span class="stock-label">Stock mínimo</span>
-                        <span class="stock-value">{{ producto.stock_minimo }} unidades</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Specifications Card -->
-            <div class="info-card info-card--specs">
-                <h3 class="info-card__title">
-                    <i class="ri-settings-3-line"></i>
-                    Especificaciones
-                </h3>
-                <div class="specs-grid">
-                    {% if producto.modelo %}
-                        <div class="spec-item">
-                            <span class="spec-label">Modelo</span>
-                            <span class="spec-value">{{ producto.modelo.nombre }}</span>
+    <section class="stock-gallery" aria-label="Inventario disponible">
+        <header class="stock-gallery__header">
+            <h3 class="stock-gallery__title">Unidades en stock</h3>
+            <span class="stock-gallery__count">{{ producto.stock|default_if_none:0 }} unidades</span>
+        </header>
+        {% if unidades_stock %}
+            <div class="stock-gallery__grid">
+                {% for unidad in unidades_stock %}
+                    <article class="stock-card" data-unit-card="{{ unidad.index }}"
+                        data-unit-imei="{{ unidad.imei|escape }}"
+                        data-unit-color="{{ unidad.color|escape }}"
+                        data-unit-storage="{{ unidad.almacenamiento|default:'' }}"
+                        data-unit-storage-label="{{ unidad.almacenamiento_label|default:'No especificado' }}"
+                        data-unit-ram="{{ unidad.memoria_ram|default:'' }}"
+                        data-unit-ram-label="{{ unidad.memoria_ram_label|default:'No especificada' }}"
+                        data-unit-condition="{{ unidad.producto_condicion|default:'' }}"
+                        data-unit-condition-label="{{ unidad.producto_condicion_label|default:'Sin especificar' }}"
+                        data-unit-has-custom="{{ unidad.has_custom|yesno:'true,false' }}"
+                    >
+                        <div class="stock-card__status" aria-hidden="true">
+                            <span class="stock-card__badge" data-unit-condition-chip>
+                                {{ unidad.producto_condicion_label|default:"Sin especificar" }}
+                            </span>
                         </div>
-                    {% endif %}
-                    {% if producto.almacenamiento %}
-                        <div class="spec-item">
-                            <span class="spec-label">Almacenamiento</span>
-                            <span class="spec-value">{{ producto.get_almacenamiento_display }}</span>
-                        </div>
-                    {% endif %}
-                    {% if producto.memoria_ram %}
-                        <div class="spec-item">
-                            <span class="spec-label">Memoria RAM</span>
-                            <span class="spec-value">{{ producto.get_memoria_ram_display }}</span>
-                        </div>
-                    {% endif %}
-                    {% if producto.imei %}
-                        <div class="spec-item">
-                            <span class="spec-label">IMEI/Serie</span>
-                            <span class="spec-value">{{ producto.imei }}</span>
-                        </div>
-                    {% endif %}
-                    {% if producto.colores_disponibles %}
-                        <div class="spec-item">
-                            <span class="spec-label">Colores</span>
-                            <span class="spec-value">{{ producto.colores_disponibles }}</span>
-                        </div>
-                    {% endif %}
-                    {% if producto.proveedor %}
-                        <div class="spec-item">
-                            <span class="spec-label">Proveedor</span>
-                            <span class="spec-value">{{ producto.proveedor.nombre }}</span>
-                        </div>
-                    {% endif %}
-                    {% if producto.impuesto %}
-                        <div class="spec-item">
-                            <span class="spec-label">Impuesto</span>
-                            <span class="spec-value">{{ producto.impuesto.nombre }} ({{ producto.impuesto.porcentaje }}%)</span>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Description Card -->
-            {% if producto.descripcion %}
-                <div class="info-card info-card--description">
-                    <h3 class="info-card__title">
-                        <i class="ri-file-text-line"></i>
-                        Descripción
-                    </h3>
-                    <div class="description-content">
-                        {{ producto.descripcion|linebreaks }}
-                    </div>
-                </div>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Related Products -->
-    {% if productos_relacionados %}
-        <div class="related-products">
-            <h2 class="related-products__title">
-                <i class="ri-links-line"></i>
-                Productos relacionados
-            </h2>
-            <div class="related-products__grid">
-                {% for producto_rel in productos_relacionados %}
-                    <a href="{% url 'dashboard:producto_detail' producto_rel.id %}" class="product-card">
-                        <div class="product-card__image">
-                            {% if producto_rel.imagen_principal %}
-                                <img src="{{ producto_rel.imagen_principal }}" alt="{{ producto_rel.nombre }}">
+                        <div class="stock-card__thumb" aria-hidden="true">
+                            {% if producto_imagenes %}
+                                <img src="{{ producto_imagenes.0 }}" alt="Imagen de {{ producto.nombre }}" loading="lazy">
                             {% else %}
-                                <div class="product-card__placeholder">
-                                    <i class="ri-image-line"></i>
-                                </div>
+                                <span class="stock-card__placeholder" aria-hidden="true">📱</span>
                             {% endif %}
                         </div>
-                        <div class="product-card__content">
-                            <h4 class="product-card__title">{{ producto_rel.nombre }}</h4>
-                            {% if producto_rel.marca %}
-                                <p class="product-card__brand">{{ producto_rel.marca.nombre }}</p>
-                            {% endif %}
-                            <div class="product-card__price">${{ producto_rel.precio_venta|floatformat:2 }}</div>
-                            <div class="product-card__stock">
-                                {% if producto_rel.stock > 0 %}
-                                    <span class="stock-badge stock-badge--available">{{ producto_rel.stock }} disponibles</span>
-                                {% else %}
-                                    <span class="stock-badge stock-badge--out">Agotado</span>
-                                {% endif %}
+                        <div class="stock-card__body">
+                            <h4 class="stock-card__title">Unidad {{ unidad.index }}</h4>
+                            <ul class="stock-card__specs">
+                                <li>IMEI: <span data-unit-imei>{{ unidad.imei }}</span></li>
+                                <li>Color: <span data-unit-color>{{ unidad.color }}</span></li>
+                                <li>Almacenamiento: <span data-unit-storage>{{ unidad.almacenamiento_label|default:"No especificado" }}</span></li>
+                                <li>RAM: <span data-unit-ram>{{ unidad.memoria_ram_label|default:"No especificada" }}</span></li>
+                            </ul>
+                            <div class="stock-card__actions" aria-label="Acciones de la unidad">
+                                <button type="button"
+                                    class="stock-card__action stock-card__action--view"
+                                    data-open-unit-modal
+                                    data-unit-index="{{ unidad.index }}"
+                                >
+                                    Ver
+                                </button>
+                                <button type="button"
+                                    class="stock-card__action stock-card__action--edit"
+                                    data-open-edit-modal
+                                    data-unit-index="{{ unidad.index }}"
+                                >
+                                    Editar
+                                </button>
                             </div>
                         </div>
-                    </a>
+                    </article>
                 {% endfor %}
             </div>
-        </div>
-    {% endif %}
-</div>
+        {% else %}
+            <div class="stock-gallery__empty">
+                <span class="stock-gallery__empty-icon" aria-hidden="true">📦</span>
+                <p>No hay unidades registradas en inventario.</p>
+            </div>
+        {% endif %}
+    </section>
+</section>
 
 <style>
     .product-detail {
-        max-width: 1200px;
-        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
         padding: 24px;
     }
 
-    .breadcrumb {
-        margin-bottom: 24px;
-    }
-
-    .breadcrumb__link {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--color-accent-500);
-        text-decoration: none;
-        font-weight: 500;
-        padding: 8px 12px;
-        border-radius: 8px;
-        background: var(--color-surface-soft);
-        border: 1px solid var(--color-border-subtle);
-    }
-
-    .breadcrumb__link:hover {
-        background: var(--color-accent-50);
-        border-color: var(--color-accent-200);
-    }
-
-    .product-header {
-        background: linear-gradient(135deg, var(--color-surface-card), var(--color-surface-soft));
-        border-radius: 16px;
-        padding: 32px;
-        margin-bottom: 32px;
-        border: 1px solid var(--color-border-subtle);
-    }
-
-    .product-header__badge {
-        margin-bottom: 16px;
-    }
-
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .badge--success {
-        background: rgba(34, 197, 94, 0.1);
-        color: #16a34a;
-        border: 1px solid rgba(34, 197, 94, 0.2);
-    }
-
-    .badge--danger {
-        background: rgba(239, 68, 68, 0.1);
-        color: #dc2626;
-        border: 1px solid rgba(239, 68, 68, 0.2);
-    }
-
-    .product-header__title {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: var(--color-text-main);
-        margin: 0 0 16px;
-        line-height: 1.2;
-    }
-
-    .product-header__meta {
+    .product-detail__header {
         display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
         flex-wrap: wrap;
         gap: 16px;
     }
 
-    .meta-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        color: var(--color-text-muted);
-        font-size: 0.9rem;
+    .product-detail__title {
+        margin: 0;
+        font-size: 1.8rem;
+        color: #273c75;
     }
 
-    .product-content {
+    .product-detail__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 8px;
+        color: #636e72;
+        font-weight: 600;
+    }
+
+    .product-detail__meta-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(39, 60, 117, 0.08);
+        border-radius: 999px;
+        padding: 6px 12px;
+    }
+
+    .stock-gallery {
+        background: #ffffff;
+        border-radius: 20px;
+        border: 1px solid #e6e8ef;
+        padding: 24px;
+        box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .stock-gallery__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .stock-gallery__title {
+        margin: 0;
+        font-size: 1.2rem;
+        color: #2c3e50;
+    }
+
+    .stock-gallery__count {
+        font-weight: 600;
+        color: #273c75;
+    }
+
+    .stock-gallery__grid {
         display: grid;
-        grid-template-columns: minmax(260px, 360px) 1fr;
-        gap: 32px;
-        margin-bottom: 48px;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 16px;
+    }
+
+    .stock-card {
+        border: 1px solid #e3e6f0;
+        border-radius: 16px;
+        overflow: hidden;
+        background: linear-gradient(180deg, rgba(39, 60, 117, 0.07), rgba(39, 60, 117, 0.02));
+        display: flex;
+        flex-direction: column;
+        min-height: 180px;
+        position: relative;
+    }
+
+    .stock-card__status {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        pointer-events: none;
+    }
+
+    .stock-card__badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        background: rgba(99, 110, 114, 0.14);
+        color: #2d3436;
+        box-shadow: 0 4px 10px rgba(47, 54, 64, 0.12);
+    }
+
+    .stock-card__badge--neutral {
+        background: rgba(99, 110, 114, 0.18);
+        color: #2d3436;
+    }
+
+    .stock-card__badge--success {
+        background: rgba(46, 204, 113, 0.18);
+        color: #207245;
+    }
+
+    .stock-card__badge--warning {
+        background: rgba(243, 156, 18, 0.22);
+        color: #a65a00;
+    }
+
+    .stock-card__badge--info {
+        background: rgba(52, 152, 219, 0.2);
+        color: #1a73b8;
+    }
+
+    .stock-card__badge--danger {
+        background: rgba(231, 76, 60, 0.22);
+        color: #b8322a;
+    }
+
+    .stock-card__thumb {
+        height: 120px;
+        background: rgba(39, 60, 117, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+    }
+
+    .stock-card__thumb img {
+        max-height: 100%;
+        max-width: 100%;
+        object-fit: contain;
+    }
+
+    .stock-card__placeholder {
+        font-size: 2rem;
+        color: #273c75;
+    }
+
+    .stock-card__body {
+        padding: 14px 16px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .stock-card__title {
+        margin: 0;
+        font-size: 1rem;
+        color: #273c75;
+        font-weight: 700;
+    }
+
+    .stock-card__specs {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        color: #57606f;
+        font-size: 0.85rem;
+    }
+
+    .stock-gallery__empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 12px;
+        padding: 40px 16px;
+        color: #95a5a6;
+    }
+
+    .stock-gallery__empty-icon {
+        font-size: 2.5rem;
+    }
+
+    @media (max-width: 640px) {
+        .product-detail {
+            padding: 16px;
+            gap: 24px;
+        }
+
+        .stock-gallery {
+            padding: 18px;
+        }
+
+        .stock-gallery__grid {
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        }
+    }
+
+    .stock-card__actions {
+        display: flex;
+        gap: 10px;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: auto;
+        padding-top: 14px;
+        border-top: 1px solid rgba(39, 60, 117, 0.12);
+    }
+
+    .stock-card__action {
+        flex: 1 1 0;
+        background: #ffffff;
+        border: 1px solid #d7dbe8;
+        color: #3f4d75;
+        border-radius: 9px;
+        padding: 8px 14px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        text-align: center;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        box-shadow: inset 0 0 0 1px rgba(39, 60, 117, 0.04);
+    }
+
+    .stock-card__action:focus-visible {
+        outline: 2px solid rgba(39, 60, 117, 0.45);
+        outline-offset: 2px;
+    }
+
+    .stock-card__action--view {
+        background: linear-gradient(135deg, #273c75, #4074d5);
+        color: #ffffff;
+        border-color: rgba(39, 60, 117, 0.75);
+    }
+
+    .stock-card__action--view:hover {
+        box-shadow: 0 8px 18px rgba(39, 60, 117, 0.18);
+        transform: translateY(-1px);
+    }
+
+    .stock-card__action--edit {
+        background: #ffffff;
+        border-color: rgba(39, 60, 117, 0.2);
+        color: #273c75;
+        cursor: pointer;
+    }
+
+    .stock-card__action--edit:hover {
+        box-shadow: inset 0 0 0 1px rgba(39, 60, 117, 0.18);
+        transform: translateY(-1px);
+    }
+
+    .product-modal {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        z-index: 1200;
+    }
+
+    .product-modal[hidden] {
+        display: none;
+    }
+
+    .product-modal__backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.55);
+        backdrop-filter: blur(4px);
+    }
+
+    .product-modal__dialog {
+        position: relative;
+        background: #ffffff;
+        border-radius: 20px;
+        max-width: 640px;
+        width: 100%;
+        padding: 32px 38px 32px 32px;
+        box-shadow: 0 32px 60px rgba(15, 23, 42, 0.18);
+        display: grid;
+        gap: 20px;
+    }
+
+    .product-modal__close {
+        position: absolute;
+        top: 18px;
+        right: 18px;
+        border: none;
+        background: transparent;
+        font-size: 1.4rem;
+        color: #636e72;
+        cursor: pointer;
+    }
+
+    .product-modal__heading {
+        margin: 0;
+        font-size: 1.5rem;
+        color: #273c75;
+    }
+
+    .product-modal__layout {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: 180px 1fr;
+    }
+
+    .product-modal__media {
+        background: #f4f6fb;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        padding: 12px;
+    }
+
+    .product-modal__media img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    .product-modal__media-placeholder {
+        font-size: 3rem;
+        color: #273c75;
+    }
+
+    .product-modal__body {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .unit-detail {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .unit-detail__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .unit-detail__title {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-width: 100%;
+    }
+
+    .unit-detail__subtitle {
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #95a5a6;
+    }
+
+    .unit-detail__name {
+        margin: 0;
+        font-size: 1.35rem;
+        color: #273c75;
+        word-break: break-word;
+    }
+
+    .unit-detail__chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .unit-detail__chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(39, 60, 117, 0.1);
+        color: #273c75;
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.35px;
+    }
+
+    .unit-detail__status {
+        min-width: 0;
+        text-align: center;
+        align-self: flex-start;
+    }
+
+    .unit-detail__content {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         align-items: start;
     }
 
-    .product-gallery {
+    .unit-detail__column {
         display: flex;
         flex-direction: column;
-        gap: 16px;
-        max-width: 360px;
-        width: 100%;
-        margin: 0 auto;
+        gap: 18px;
     }
 
-    .gallery-main {
-        aspect-ratio: 1;
-        max-height: 360px;
+    .unit-detail__media {
+        background: #f4f6fb;
+        border: 1px solid rgba(39, 60, 117, 0.12);
         border-radius: 16px;
-        overflow: hidden;
-        background: var(--color-surface-soft);
-        border: 1px solid var(--color-border-subtle);
+        min-height: 220px;
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 16px;
+        overflow: hidden;
     }
 
-    .gallery-main__image {
-        max-height: 100%;
-        max-width: 100%;
-        width: auto;
-        height: auto;
+    .unit-detail__media img {
+        width: 100%;
+        height: 100%;
         object-fit: contain;
     }
 
-    .gallery-main__placeholder {
-        width: 100%;
-        height: 100%;
+    .unit-detail__group {
+        background: #ffffff;
+        border: 1px solid rgba(39, 60, 117, 0.12);
+        border-radius: 16px;
+        padding: 18px;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: var(--color-text-muted);
-        font-size: 3rem;
+        gap: 12px;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
     }
 
-    .gallery-thumbnails {
-        display: flex;
-        gap: 8px;
-        overflow-x: auto;
-        padding: 4px;
+    .unit-detail__group-label {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #273c75;
+        text-transform: uppercase;
+        letter-spacing: 0.35px;
     }
 
-    .gallery-thumbnail {
-        flex-shrink: 0;
-        width: 80px;
-        height: 80px;
-        border-radius: 8px;
-        overflow: hidden;
-        border: 2px solid transparent;
-        background: none;
-        cursor: pointer;
+    .unit-detail__description .product-modal__description {
+        color: #4b5563;
     }
 
-    .gallery-thumbnail--active {
-        border-color: var(--color-accent-500);
-    }
-
-    .gallery-thumbnail img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .product-info {
+    .unit-detail__grid {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 24px;
-        align-content: start;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     }
 
-    .info-card {
-        background: var(--color-surface-card);
-        border-radius: 12px;
-        padding: 24px;
-        border: 1px solid var(--color-border-subtle);
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
+    .unit-detail__grid--compact {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     }
 
-    .info-card__title {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 1.2rem;
-        font-weight: 600;
-        color: var(--color-text-main);
-        margin: 0 0 16px;
-    }
-
-    .pricing-grid, .stock-grid, .specs-grid {
-        display: grid;
-        gap: 16px;
-    }
-
-    .pricing-grid {
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    }
-
-    .pricing-item, .stock-item {
+    .unit-detail__grid > div {
         display: flex;
         flex-direction: column;
         gap: 4px;
     }
 
-    .pricing-label, .stock-label {
-        font-size: 0.85rem;
-        color: var(--color-text-muted);
+    .product-modal__subtitle {
+        margin: 0;
+        color: #57606f;
+        font-weight: 600;
+        letter-spacing: 0.4px;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        font-weight: 500;
     }
 
-    .pricing-value {
-        font-size: 1.5rem;
-        font-weight: 700;
+    .product-modal__meta {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     }
 
-    .pricing-value--cost {
-        color: #f59e0b;
-    }
-
-    .pricing-value--sale {
-        color: #10b981;
-    }
-
-    .pricing-value--margin {
-        color: var(--color-accent-500);
-    }
-
-    .stock-value {
-        font-size: 1.2rem;
-        font-weight: 600;
-        color: var(--color-text-main);
-    }
-
-    .stock-value--low {
-        color: #f59e0b;
-    }
-
-    .stock-value--none {
-        color: #dc2626;
-    }
-
-    .stock-alert {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px;
-        background: rgba(239, 68, 68, 0.1);
-        color: #dc2626;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        font-weight: 500;
-        margin-top: 12px;
-    }
-
-    .stock-status {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-bottom: 16px;
-    }
-
-    .stock-status__badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        border-radius: 999px;
-        padding: 6px 14px;
-        font-weight: 600;
-        font-size: 0.85rem;
+    .product-modal__meta dt {
+        font-size: 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.4px;
+        color: #95a5a6;
+        margin-bottom: 4px;
     }
 
-    .stock-status__badge--warning {
-        background: rgba(245, 158, 11, 0.16);
-        color: #b45309;
-        border: 1px solid rgba(245, 158, 11, 0.28);
-    }
-
-    .stock-status__badge--critical {
-        background: rgba(239, 68, 68, 0.16);
-        color: #b91c1c;
-        border: 1px solid rgba(239, 68, 68, 0.28);
-    }
-
-    .specs-grid {
-        grid-template-columns: 1fr;
-        gap: 12px;
-    }
-
-    .spec-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 0;
-        border-bottom: 1px solid var(--color-border-faint);
-    }
-
-    .spec-item:last-child {
-        border-bottom: none;
-    }
-
-    .spec-label {
-        font-weight: 500;
-        color: var(--color-text-muted);
-    }
-
-    .spec-value {
+    .product-modal__meta dd {
+        margin: 0;
         font-weight: 600;
-        color: var(--color-text-main);
+        color: #2d3436;
     }
 
-    .info-card--description {
-        padding: 18px;
-        gap: 12px;
-    }
-
-    .info-card--description .info-card__title {
-        font-size: 1.05rem;
-        gap: 6px;
-    }
-
-    .description-content {
-        color: var(--color-text-main);
-        line-height: 1.5;
+    .product-modal__description {
+        margin: 0;
+        color: #636e72;
+        line-height: 1.6;
         font-size: 0.95rem;
     }
 
-    .related-products {
-        margin-top: 48px;
+    .product-modal__footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
     }
 
-    .related-products__title {
+    .product-modal__dialog--compact {
+        max-width: 420px;
+    }
+
+    .product-modal__subtitle {
+        margin: 0;
+        color: #57606f;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+    }
+
+    .product-modal__unit-tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: rgba(39, 60, 117, 0.08);
+        color: #273c75;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    .product-modal__form {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        margin-top: 12px;
+    }
+
+    .product-modal__error {
+        background: rgba(235, 87, 87, 0.12);
+        color: #c0392b;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .product-modal__form-row {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+
+    .product-modal__form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .product-modal__form-label {
+        font-size: 0.78rem;
+        letter-spacing: 0.2px;
+        font-weight: 600;
+        color: #4b5d94;
+    }
+
+    .product-modal__form-field input,
+    .product-modal__form-field select {
+        border: 1px solid #dcdde1;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        background-color: #fff;
+    }
+
+    .product-modal__form-field input:focus,
+    .product-modal__form-field select:focus {
+        outline: none;
+        border-color: rgba(39, 60, 117, 0.6);
+        box-shadow: 0 0 0 2px rgba(39, 60, 117, 0.12);
+    }
+
+    .product-modal__specs {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .product-modal__specs-caption {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #364152;
+        letter-spacing: 0.35px;
+    }
+
+    .product-modal__specs-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        align-items: stretch;
+    }
+
+    @media (min-width: 928px) {
+        .product-modal__specs-grid {
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }
+    }
+
+    .product-modal__spec-card {
+        border: 1px solid rgba(39, 60, 117, 0.12);
+        background: #ffffff;
+        box-shadow: none;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .product-modal__spec-card:hover,
+    .product-modal__spec-card:focus-within {
+        border-color: rgba(39, 60, 117, 0.24);
+        box-shadow: 0 6px 12px rgba(39, 60, 117, 0.12);
+    }
+
+    .product-modal__spec-card--static {
+        background: linear-gradient(180deg, rgba(236, 240, 255, 0.45), rgba(236, 240, 255, 0.15));
+        border-color: rgba(39, 60, 117, 0.18);
+    }
+
+    .product-modal__spec-header {
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--color-text-main);
-        margin: 0 0 24px;
     }
 
-    .related-products__grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 24px;
+    .product-modal__spec-header--with-action {
+        justify-content: space-between;
     }
 
-    .product-card {
-        display: block;
-        background: var(--color-surface-card);
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid var(--color-border-subtle);
-        text-decoration: none;
-        color: inherit;
+    .product-modal__spec-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
     }
 
-    .product-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-        border-color: var(--color-accent-200);
-    }
-
-    .product-card__image {
-        aspect-ratio: 4/3;
-        background: var(--color-surface-soft);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .product-card__image img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .product-card__placeholder {
-        width: 100%;
-        height: 100%;
-        display: flex;
+    .product-modal__spec-action {
+        border: none;
+        background: rgba(39, 60, 117, 0.1);
+        color: #273c75;
+        border-radius: 8px;
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: var(--color-text-muted);
-        font-size: 2rem;
+        cursor: pointer;
+        transition: background-color 0.15s ease, transform 0.15s ease;
     }
 
-    .product-card__content {
-        padding: 16px;
+    .product-modal__spec-action:hover,
+    .product-modal__spec-action:focus-visible {
+        background: rgba(39, 60, 117, 0.2);
+        transform: translateY(-1px);
     }
 
-    .product-card__title {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--color-text-main);
-        margin: 0 0 4px;
-        line-height: 1.3;
-    }
-
-    .product-card__brand {
-        font-size: 0.85rem;
-        color: var(--color-text-muted);
-        margin: 0 0 8px;
-    }
-
-    .product-card__price {
-        font-size: 1.2rem;
+    .product-modal__spec-value {
+        display: block;
         font-weight: 700;
-        color: var(--color-accent-500);
-        margin-bottom: 8px;
+        color: #273c75;
+        font-size: 1.05rem;
     }
 
-    .stock-badge {
-        display: inline-block;
-        padding: 4px 8px;
+    .product-modal__accordion {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .product-modal__accordion-item {
+        border: 1px solid rgba(39, 60, 117, 0.12);
         border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 600;
+        overflow: hidden;
+        background: #f8f9ff;
+        box-shadow: none;
+    }
+
+    .product-modal__accordion-item[open] {
+        background: linear-gradient(145deg, rgba(236, 240, 255, 0.45), #ffffff);
+    }
+
+    .product-modal__accordion-summary {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 12px 16px;
+        font-weight: 700;
+        color: #273c75;
+        letter-spacing: 0.5px;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        position: relative;
     }
 
-    .stock-badge--available {
-        background: rgba(34, 197, 94, 0.1);
-        color: #16a34a;
+    .product-modal__accordion-summary::-webkit-details-marker {
+        display: none;
     }
 
-    .stock-badge--out {
-        background: rgba(239, 68, 68, 0.1);
-        color: #dc2626;
+    .product-modal__accordion-icon {
+        width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        border: 1px solid rgba(39, 60, 117, 0.3);
+        color: #273c75;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        transition: transform 0.2s ease;
+    }
+
+    .product-modal__accordion-item[open] .product-modal__accordion-icon {
+        transform: rotate(180deg);
+    }
+
+    .product-modal__accordion-body {
+        padding: 0 16px 16px;
+        display: grid;
+        gap: 14px;
+    }
+
+    .product-modal__form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .unit-detail__grid dt {
+        margin: 0;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: #95a5a6;
+    }
+
+    .unit-detail__grid dd {
+        margin: 0;
+        font-weight: 600;
+        color: #2d3436;
+    }
+
+    .condition-manager__form {
+        display: grid;
+        gap: 12px;
+    }
+
+    .condition-manager__fields {
+        display: grid;
+        gap: 12px;
+    }
+
+    .condition-manager__row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .condition-manager__list {
+        border: 1px solid rgba(39, 60, 117, 0.16);
+        border-radius: 10px;
+        max-height: 220px;
+        overflow-y: auto;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: rgba(246, 248, 252, 0.8);
+    }
+
+    .condition-manager__empty {
+        padding: 16px;
+        text-align: center;
+        color: #636e72;
+        font-size: 0.95rem;
+    }
+
+    .condition-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #ffffff;
+        border: 1px solid rgba(39, 60, 117, 0.12);
+    }
+
+    .condition-item__meta {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .condition-item__title {
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .condition-item__badge {
+        font-size: 0.72rem;
+        padding: 2px 6px;
+        border-radius: 12px;
+        text-transform: uppercase;
+        background: rgba(39, 60, 117, 0.12);
+        color: #273c75;
+        font-weight: 600;
+    }
+
+    .condition-item__badge--inactive {
+        background: rgba(192, 57, 43, 0.15);
+        color: #c0392b;
+    }
+
+    .condition-item__actions {
+        display: flex;
+        gap: 6px;
+    }
+
+    .condition-manager__error {
+        color: #c0392b;
+        background: rgba(231, 76, 60, 0.1);
+        border: 1px solid rgba(231, 76, 60, 0.2);
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+
+    .condition-manager__footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .product-modal__spec-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: rgba(39, 60, 117, 0.08);
+        color: #273c75;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+    }
+
+    .product-modal__spec-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #273c75;
+    }
+
+    .product-modal__form-field select {
+        appearance: none;
+        background-image: linear-gradient(45deg, transparent 50%, rgba(39, 60, 117, 0.6) 50%), linear-gradient(135deg, rgba(39, 60, 117, 0.6) 50%, transparent 50%);
+        background-position: calc(100% - 18px) calc(50% - 4px), calc(100% - 12px) calc(50% - 4px);
+        background-size: 6px 6px, 6px 6px;
+        background-repeat: no-repeat;
+        padding-right: 42px;
+    }
+
+    .product-modal__accordion {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .product-modal__accordion-item {
+        border: 1px solid rgba(39, 60, 117, 0.12);
+        border-radius: 12px;
+        overflow: hidden;
+        background: #f8f9ff;
+        box-shadow: none;
+    }
+
+    .product-modal__accordion-item[open] {
+        background: linear-gradient(145deg, rgba(236, 240, 255, 0.45), #ffffff);
+    }
+
+    .product-modal__accordion-summary {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 12px 16px;
+        font-weight: 700;
+        color: #273c75;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        position: relative;
+    }
+
+    .product-modal__accordion-summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .product-modal__accordion-icon {
+        width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        border: 1px solid rgba(39, 60, 117, 0.3);
+        color: #273c75;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        transition: transform 0.2s ease;
+    }
+
+    .product-modal__accordion-item[open] .product-modal__accordion-icon {
+        transform: rotate(180deg);
+    }
+
+    .product-modal__accordion-body {
+        padding: 0 16px 16px;
+        display: grid;
+        gap: 14px;
+    }
+
+    .product-modal__form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .unit-detail__chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(39, 60, 117, 0.08);
+        color: #273c75;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.35px;
+    }
+
+    .unit-detail__chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
     }
 
     @media (max-width: 768px) {
-        .product-detail {
-            padding: 16px;
-        }
-
-        .product-header {
+        .product-modal__dialog {
             padding: 24px;
         }
 
-        .product-header__title {
-            font-size: 2rem;
+        .product-modal__layout {
+            grid-template-columns: 1fr;
         }
 
-        .product-content {
+        .unit-detail__content {
             grid-template-columns: 1fr;
+        }
+
+        .unit-detail__media {
+            height: 160px;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .product-detail {
+            padding: 16px;
             gap: 24px;
         }
 
-        .product-info {
-            grid-template-columns: 1fr;
+        .stock-gallery {
+            padding: 18px;
         }
 
-        .related-products__grid {
-            grid-template-columns: 1fr;
+        .stock-gallery__grid {
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         }
+
+        .product-modal {
+            padding: 16px;
+        }
+
+        .product-modal__dialog {
+            padding: 20px;
+        }
+
+        .unit-detail__title {
+            min-width: 0;
+        }
+    }
+
+    body.modal-open {
+        overflow: hidden;
     }
 </style>
 
+<div class="product-modal" data-product-modal hidden>
+    <div class="product-modal__backdrop" data-close-modal></div>
+    <div class="product-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="unitModalTitle">
+        <button type="button" class="product-modal__close" data-close-modal aria-label="Cerrar modal">×</button>
+        <div class="product-modal__body">
+            <div class="unit-detail">
+                <div class="unit-detail__header">
+                    <div class="unit-detail__title">
+                        <span class="unit-detail__subtitle">Producto</span>
+                        <h3 class="unit-detail__name" id="unitModalTitle" data-modal-product-name>{{ producto.nombre }}</h3>
+                        <div class="unit-detail__chips">
+                            {% if producto.marca %}<span class="unit-detail__chip">Marca: {{ producto.marca }}</span>{% endif %}
+                            {% if producto.modelo %}<span class="unit-detail__chip">Modelo: {{ producto.modelo }}</span>{% endif %}
+                            {% if producto.categoria %}<span class="unit-detail__chip">Categoría: {{ producto.categoria }}</span>{% endif %}
+                        </div>
+                    </div>
+                    <span class="stock-card__badge stock-card__badge--neutral unit-detail__status" data-modal-unit-status>Sin especificar</span>
+                </div>
+                <div class="unit-detail__content">
+                    <div class="unit-detail__column">
+                        <div class="unit-detail__media">
+                            {% if producto_imagenes %}
+                                <img src="{{ producto_imagenes.0 }}" alt="Imagen de {{ producto.nombre }}" data-modal-image>
+                            {% else %}
+                                <span class="product-modal__media-placeholder" aria-hidden="true">📱</span>
+                            {% endif %}
+                        </div>
+                        <div class="unit-detail__group unit-detail__description">
+                            <span class="unit-detail__group-label">Descripción del producto</span>
+                            <p class="product-modal__description">{{ producto.descripcion|default:"Sin descripción disponible." }}</p>
+                        </div>
+                    </div>
+                    <div class="unit-detail__column">
+                        <div class="unit-detail__group">
+                            <span class="unit-detail__group-label">Información general</span>
+                            <dl class="unit-detail__grid">
+                                <div>
+                                    <dt>Almacenamiento</dt>
+                                    <dd data-modal-product-storage>{{ producto.get_almacenamiento_display|default:"No especificado" }}</dd>
+                                </div>
+                                <div>
+                                    <dt>RAM</dt>
+                                    <dd data-modal-product-ram>{{ producto.get_memoria_ram_display|default:"No especificada" }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Proveedor</dt>
+                                    <dd>{{ producto.proveedor|default:"Sin proveedor" }}</dd>
+                                </div>
+                                <div>
+                                    <dt>Precio costo</dt>
+                                    <dd data-modal-product-cost>—</dd>
+                                </div>
+                                <div>
+                                    <dt>Precio venta</dt>
+                                    <dd data-modal-product-price>—</dd>
+                                </div>
+                            </dl>
+                        </div>
+                        <div class="unit-detail__group">
+                            <span class="unit-detail__group-label">Unidad seleccionada</span>
+                            <dl class="unit-detail__grid unit-detail__grid--compact">
+                                <div>
+                                    <dt>Número de unidad</dt>
+                                    <dd data-modal-unit-index>—</dd>
+                                </div>
+                                <div>
+                                    <dt>IMEI / Serie</dt>
+                                    <dd data-modal-unit-imei>—</dd>
+                                </div>
+                                <div>
+                                    <dt>Color</dt>
+                                    <dd data-modal-unit-color>—</dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="product-modal__footer">
+            <button type="button" class="btn btn-secondary" data-close-modal>Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div class="product-modal product-modal--edit" data-edit-modal hidden>
+    <div class="product-modal__backdrop" data-close-edit-modal></div>
+    <div class="product-modal__dialog product-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+        <button type="button" class="product-modal__close" data-close-edit-modal aria-label="Cerrar modal">×</button>
+        <div class="product-modal__body">
+            <h3 class="product-modal__heading" id="editModalTitle">Editar unidad</h3>
+            <span class="product-modal__unit-tag" data-edit-modal-unit>Unidad —</span>
+            <p class="product-modal__subtitle">Unidad seleccionada</p>
+            <dl class="product-modal__meta">
+                <div>
+                    <dt>Número de unidad</dt>
+                    <dd data-edit-modal-unit-index>—</dd>
+                </div>
+                <div>
+                    <dt>IMEI / Serie</dt>
+                    <dd data-edit-modal-unit-imei>—</dd>
+                </div>
+                <div>
+                    <dt>Color</dt>
+                    <dd data-edit-modal-unit-color>—</dd>
+                </div>
+                <div>
+                    <dt>Almacenamiento</dt>
+                    <dd data-edit-modal-unit-storage>—</dd>
+                </div>
+                <div>
+                    <dt>RAM</dt>
+                    <dd data-edit-modal-unit-ram>—</dd>
+                </div>
+            </dl>
+            <form class="product-modal__form" method="post" data-edit-modal-form>
+                {% csrf_token %}
+                <input type="hidden" name="unidad_index" value="" data-edit-input-index>
+                <div class="product-modal__accordion">
+                    <details class="product-modal__accordion-item" open>
+                        <summary class="product-modal__accordion-summary">
+                            Información editable
+                            <span class="product-modal__accordion-icon" aria-hidden="true">⌄</span>
+                        </summary>
+                        <div class="product-modal__accordion-body">
+                            <div class="product-modal__form-row">
+                                <label class="product-modal__form-field">
+                                    <span class="product-modal__form-label">IMEI / Serie</span>
+                                    <input type="text" name="imei" data-edit-input-imei placeholder="Ingresa IMEI o número de serie">
+                                </label>
+                                <label class="product-modal__form-field">
+                                    <span class="product-modal__form-label">Color</span>
+                                    <input type="text" name="color" data-edit-input-color placeholder="Ingresa color de la unidad">
+                                </label>
+                            </div>
+                        </div>
+                    </details>
+                    <details class="product-modal__accordion-item">
+                        <summary class="product-modal__accordion-summary">
+                            Configuración técnica
+                            <span class="product-modal__accordion-icon" aria-hidden="true">⌄</span>
+                        </summary>
+                        <div class="product-modal__accordion-body">
+                            <div class="product-modal__specs">
+                                <div class="product-modal__specs-grid">
+                                    <label class="product-modal__spec-card product-modal__form-field">
+                                        <span class="product-modal__spec-header">
+                                            <span class="product-modal__spec-icon" aria-hidden="true">💾</span>
+                                            <span class="product-modal__spec-title">Almacenamiento</span>
+                                        </span>
+                                        <select name="almacenamiento" data-edit-input-storage>
+                                            <option value="">No especificado</option>
+                                            {% for value, label in almacenamiento_choices %}
+                                                <option value="{{ value }}">{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </label>
+                                    <label class="product-modal__spec-card product-modal__form-field">
+                                        <span class="product-modal__spec-header">
+                                            <span class="product-modal__spec-icon" aria-hidden="true">⚡</span>
+                                            <span class="product-modal__spec-title">Memoria RAM</span>
+                                        </span>
+                                        <select name="memoria_ram" data-edit-input-ram>
+                                            <option value="">No especificada</option>
+                                            {% for value, label in ram_choices %}
+                                                <option value="{{ value }}">{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </label>
+                                    <label class="product-modal__spec-card product-modal__form-field">
+                                        <span class="product-modal__spec-header product-modal__spec-header--with-action">
+                                            <span class="product-modal__spec-label">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">🎯</span>
+                                                <span class="product-modal__spec-title">Estado del producto</span>
+                                            </span>
+                                            <button type="button" class="product-modal__spec-action" data-open-condition-modal aria-label="Gestionar estados">
+                                                <span aria-hidden="true">⚙️</span>
+                                            </button>
+                                        </span>
+                                        <select name="producto_condicion" data-edit-input-condition>
+                                            <option value="">Sin especificar</option>
+                                            {% for condicion in product_conditions %}
+                                                <option value="{{ condicion.id }}">{{ condicion.nombre }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </label>
+                                    <label class="product-modal__spec-card product-modal__form-field">
+                                        <span class="product-modal__spec-header">
+                                            <span class="product-modal__spec-icon" aria-hidden="true">💰</span>
+                                            <span class="product-modal__spec-title">Precio costo</span>
+                                        </span>
+                                        <input type="number" name="precio_costo" inputmode="decimal" step="0.01" min="0" placeholder="0.00" data-edit-input-cost>
+                                    </label>
+                                    <label class="product-modal__spec-card product-modal__form-field">
+                                        <span class="product-modal__spec-header">
+                                            <span class="product-modal__spec-icon" aria-hidden="true">💵</span>
+                                            <span class="product-modal__spec-title">Precio venta</span>
+                                        </span>
+                                        <input type="number" name="precio_venta" inputmode="decimal" step="0.01" min="0" placeholder="0.00" data-edit-input-price>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+                <div class="product-modal__form-actions">
+                    <button type="button" class="btn btn-outline" data-close-edit-modal>Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="product-modal" data-condition-modal hidden>
+    <div class="product-modal__backdrop" data-close-condition-modal></div>
+    <div class="product-modal__dialog product-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="conditionModalTitle">
+        <button type="button" class="product-modal__close" data-close-condition-modal aria-label="Cerrar modal">×</button>
+        <div class="product-modal__body">
+            <h3 class="product-modal__heading" id="conditionModalTitle">Gestionar condición</h3>
+            <div class="condition-manager" data-condition-manager>
+                <form class="condition-manager__form" data-condition-form>
+                    {% csrf_token %}
+                    <input type="hidden" name="condicion_id" value="" data-condition-id>
+                    <div class="condition-manager__fields">
+                        <div class="condition-manager__row">
+                            <label class="product-modal__form-field" style="flex:1;min-width:220px;">
+                                <span class="product-modal__form-label">Nombre</span>
+                                <input type="text" name="nombre" maxlength="120" placeholder="Ej. Nuevo" data-condition-name required>
+                            </label>
+                            <label class="product-modal__form-field" style="width:160px;">
+                                <span class="product-modal__form-label">Estado</span>
+                                <select name="activo" data-condition-active>
+                                    <option value="true">Activo</option>
+                                    <option value="false">Inactivo</option>
+                                </select>
+                            </label>
+                        </div>
+                        <label class="product-modal__form-field">
+                            <span class="product-modal__form-label">Descripción</span>
+                            <textarea name="descripcion" rows="2" placeholder="Notas opcionales" data-condition-description></textarea>
+                        </label>
+                    </div>
+                    <div class="condition-manager__row" style="justify-content:flex-end;">
+                        <button type="button" class="btn btn-outline" data-condition-reset>Nuevo</button>
+                        <button type="submit" class="btn btn-primary" data-condition-submit>Guardar</button>
+                    </div>
+                    <div class="condition-manager__error" data-condition-error hidden></div>
+                </form>
+                <div class="condition-manager__list" data-condition-list>
+                    <div class="condition-manager__empty" data-condition-empty>Sin condiciones registradas.</div>
+                </div>
+            </div>
+        </div>
+        <div class="product-modal__footer condition-manager__footer">
+            <button type="button" class="btn btn-secondary" data-close-condition-modal>Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Gallery functionality
-        const thumbnails = document.querySelectorAll('.gallery-thumbnail');
-        const mainImage = document.querySelector('.gallery-main__image');
+    document.addEventListener("DOMContentLoaded", function () {
+        var detailSection = document.querySelector(".product-detail");
+        var viewModal = document.querySelector("[data-product-modal]");
+        var editModal = document.querySelector("[data-edit-modal]");
+        var conditionModal = document.querySelector("[data-condition-modal]");
 
-        thumbnails.forEach(thumbnail => {
-            thumbnail.addEventListener('click', function() {
-                const imageUrl = this.dataset.image;
-                
-                // Update main image
-                if (mainImage && imageUrl) {
-                    mainImage.src = imageUrl;
+        if (!detailSection || (!viewModal && !editModal && !conditionModal)) {
+            return;
+        }
+
+        var body = document.body;
+        var productData = detailSection.dataset || {};
+        function formatCurrency(value) {
+            if (value === null || value === undefined || value === "") {
+                return "—";
+            }
+            var number = Number(value);
+            if (Number.isNaN(number)) {
+                return value;
+            }
+            return new Intl.NumberFormat("es-DO", {
+                style: "currency",
+                currency: "DOP",
+                minimumFractionDigits: 2,
+            }).format(number);
+        }
+        var productId = parseInt(productData.productId || "0", 10);
+        var detailPath = productData.detailPath || "";
+        var conditionApiUrl = productData.conditionApi || "";
+
+        var modalUnitIndex = viewModal ? viewModal.querySelector("[data-modal-unit-index]") : null;
+        var modalUnitImei = viewModal ? viewModal.querySelector("[data-modal-unit-imei]") : null;
+        var modalUnitColor = viewModal ? viewModal.querySelector("[data-modal-unit-color]") : null;
+        var modalProductName = viewModal ? viewModal.querySelector("[data-modal-product-name]") : null;
+        var modalProductStorage = viewModal ? viewModal.querySelector("[data-modal-product-storage]") : null;
+        var modalProductRam = viewModal ? viewModal.querySelector("[data-modal-product-ram]") : null;
+        var modalProductCost = viewModal ? viewModal.querySelector("[data-modal-product-cost]") : null;
+        var modalProductPrice = viewModal ? viewModal.querySelector("[data-modal-product-price]") : null;
+        var modalImage = viewModal ? viewModal.querySelector("[data-modal-image]") : null;
+        var editModalUnitTag = editModal ? editModal.querySelector("[data-edit-modal-unit]") : null;
+        var editModalUnitIndex = editModal ? editModal.querySelector("[data-edit-modal-unit-index]") : null;
+        var editModalUnitImei = editModal ? editModal.querySelector("[data-edit-modal-unit-imei]") : null;
+        var editModalUnitColor = editModal ? editModal.querySelector("[data-edit-modal-unit-color]") : null;
+        var editModalUnitStorage = editModal ? editModal.querySelector("[data-edit-modal-unit-storage]") : null;
+        var editModalUnitRam = editModal ? editModal.querySelector("[data-edit-modal-unit-ram]") : null;
+        var editModalForm = editModal ? editModal.querySelector("[data-edit-modal-form]") : null;
+        var editInputIndex = editModal ? editModal.querySelector("[data-edit-input-index]") : null;
+        var editInputImei = editModal ? editModal.querySelector("[data-edit-input-imei]") : null;
+        var editInputColor = editModal ? editModal.querySelector("[data-edit-input-color]") : null;
+        var editInputStorage = editModal ? editModal.querySelector("[data-edit-input-storage]") : null;
+        var editInputRam = editModal ? editModal.querySelector("[data-edit-input-ram]") : null;
+        var editInputCondition = editModal ? editModal.querySelector("[data-edit-input-condition]") : null;
+        var editInputCost = editModal ? editModal.querySelector("[data-edit-input-cost]") : null;
+        var editInputPrice = editModal ? editModal.querySelector("[data-edit-input-price]") : null;
+        var editCsrfInput = editModalForm ? editModalForm.querySelector('input[name="csrfmiddlewaretoken"]') : null;
+
+        var conditionManager = conditionModal ? conditionModal.querySelector("[data-condition-manager]") : null;
+        var conditionForm = conditionManager ? conditionManager.querySelector("[data-condition-form]") : null;
+        var conditionIdInput = conditionManager ? conditionManager.querySelector("[data-condition-id]") : null;
+        var conditionNameInput = conditionManager ? conditionManager.querySelector("[data-condition-name]") : null;
+        var conditionDescriptionInput = conditionManager ? conditionManager.querySelector("[data-condition-description]") : null;
+        var conditionActiveInput = conditionManager ? conditionManager.querySelector("[data-condition-active]") : null;
+        var conditionSubmitButton = conditionManager ? conditionManager.querySelector("[data-condition-submit]") : null;
+        var conditionResetButton = conditionManager ? conditionManager.querySelector("[data-condition-reset]") : null;
+        var conditionErrorBox = conditionManager ? conditionManager.querySelector("[data-condition-error]") : null;
+        var conditionList = conditionManager ? conditionManager.querySelector("[data-condition-list]") : null;
+        var conditionEmptyState = conditionManager ? conditionManager.querySelector("[data-condition-empty]") : null;
+
+        var conditionState = {
+            loaded: false,
+            loading: false,
+            items: [],
+        };
+
+        function showInlineError(message) {
+            if (!editModalForm) {
+                return;
+            }
+            var alertBox = editModalForm.querySelector(".product-modal__error");
+            if (!alertBox) {
+                alertBox = document.createElement("div");
+                alertBox.className = "product-modal__error";
+                editModalForm.prepend(alertBox);
+            }
+            alertBox.textContent = message;
+        }
+
+        function clearInlineError() {
+            if (!editModalForm) {
+                return;
+            }
+            var alertBox = editModalForm.querySelector(".product-modal__error");
+            if (alertBox) {
+                alertBox.remove();
+            }
+        }
+
+        function lockBody() {
+            body.classList.add("modal-open");
+        }
+
+        function unlockBodyIfNoModal() {
+            var viewOpen = viewModal && !viewModal.hasAttribute("hidden");
+            var editOpen = editModal && !editModal.hasAttribute("hidden");
+            var conditionOpen = conditionModal && !conditionModal.hasAttribute("hidden");
+            if (!viewOpen && !editOpen && !conditionOpen) {
+                body.classList.remove("modal-open");
+            }
+        }
+
+        function resolveUnitCard(unitIndex) {
+            return detailSection.querySelector('[data-unit-card="' + unitIndex + '"]');
+        }
+
+        function parseCardData(unitIndex) {
+            var card = resolveUnitCard(unitIndex);
+            if (!card) {
+                return {
+                    imei: "",
+                    color: "",
+                    almacenamiento: "",
+                    almacenamiento_label: "No especificado",
+                    memoria_ram: "",
+                    memoria_ram_label: "No especificada",
+                    producto_condicion: "",
+                    producto_condicion_label: "Sin especificar",
+                    has_custom: false,
+                };
+            }
+            return {
+                imei: card.dataset.unitImei || "",
+                color: card.dataset.unitColor || "",
+                almacenamiento: card.dataset.unitStorage || "",
+                almacenamiento_label: card.dataset.unitStorageLabel || "No especificado",
+                memoria_ram: card.dataset.unitRam || "",
+                memoria_ram_label: card.dataset.unitRamLabel || "No especificada",
+                producto_condicion: card.dataset.unitCondition || "",
+                producto_condicion_label: card.dataset.unitConditionLabel || "Sin especificar",
+                has_custom: card.dataset.unitHasCustom === "true",
+            };
+        }
+
+        function syncProductData(productInfo) {
+            if (!productInfo || !detailSection) {
+                return;
+            }
+
+            var hasUpdates = false;
+
+            if (Object.prototype.hasOwnProperty.call(productInfo, "precio_compra")) {
+                var compraValue = productInfo.precio_compra;
+                if (compraValue === null || compraValue === undefined) {
+                    compraValue = "";
                 }
+                detailSection.dataset.productCosto = String(compraValue);
+                hasUpdates = true;
+                if (editInputCost && document.activeElement !== editInputCost) {
+                    editInputCost.value = String(compraValue);
+                }
+            }
 
-                // Update active thumbnail
-                thumbnails.forEach(t => t.classList.remove('gallery-thumbnail--active'));
-                this.classList.add('gallery-thumbnail--active');
+            if (Object.prototype.hasOwnProperty.call(productInfo, "precio_venta")) {
+                var ventaValue = productInfo.precio_venta;
+                if (ventaValue === null || ventaValue === undefined) {
+                    ventaValue = "";
+                }
+                detailSection.dataset.productPrecio = String(ventaValue);
+                hasUpdates = true;
+                if (editInputPrice && document.activeElement !== editInputPrice) {
+                    editInputPrice.value = String(ventaValue);
+                }
+            }
+
+            if (!hasUpdates) {
+                return;
+            }
+
+            if (modalProductCost) {
+                modalProductCost.textContent = formatCurrency(productData.productCosto || "");
+            }
+            if (modalProductPrice) {
+                modalProductPrice.textContent = formatCurrency(productData.productPrecio || "");
+            }
+        }
+
+        function buildUnitUrl(unitIndex) {
+            if (!productId || !unitIndex) {
+                return null;
+            }
+            var base = detailPath || window.location.pathname;
+            if (!base.endsWith("/")) {
+                base += "/";
+            }
+            return base + "unidad/" + unitIndex + "/";
+        }
+
+        function updateCardDisplay(unitIndex, unitData) {
+            var card = resolveUnitCard(unitIndex);
+            if (!card) {
+                return;
+            }
+            card.dataset.unitImei = unitData.imei || "";
+            card.dataset.unitColor = unitData.color || "";
+            card.dataset.unitStorage = unitData.almacenamiento || "";
+            card.dataset.unitStorageLabel = unitData.almacenamiento_label || "No especificado";
+            card.dataset.unitRam = unitData.memoria_ram || "";
+            card.dataset.unitRamLabel = unitData.memoria_ram_label || "No especificada";
+            card.dataset.unitCondition = unitData.producto_condicion || "";
+            card.dataset.unitConditionLabel = unitData.producto_condicion_label || "Sin especificar";
+            card.dataset.unitHasCustom = unitData.has_custom ? "true" : "false";
+
+            var imeiTarget = card.querySelector("[data-unit-imei]");
+            var colorTarget = card.querySelector("[data-unit-color]");
+            var storageTarget = card.querySelector("[data-unit-storage]");
+            var ramTarget = card.querySelector("[data-unit-ram]");
+
+            if (imeiTarget) {
+                imeiTarget.textContent = unitData.imei || "Sin IMEI";
+            }
+            if (colorTarget) {
+                colorTarget.textContent = unitData.color || "Sin color";
+            }
+            if (storageTarget) {
+                storageTarget.textContent = unitData.almacenamiento_label || "No especificado";
+            }
+            if (ramTarget) {
+                ramTarget.textContent = unitData.memoria_ram_label || "No especificada";
+            }
+            var conditionTarget = card.querySelector("[data-unit-condition]");
+            if (conditionTarget) {
+                conditionTarget.textContent = unitData.producto_condicion_label || "Sin especificar";
+            }
+            var badge = card.querySelector("[data-unit-condition-chip]");
+            if (badge) {
+                var badgeClass = resolveConditionClass(unitData.producto_condicion_label || "");
+                badge.className = "stock-card__badge" + (badgeClass ? " " + badgeClass : "");
+                badge.textContent = unitData.producto_condicion_label || "Sin especificar";
+            }
+
+            card.querySelectorAll("[data-open-unit-modal]").forEach(function (btn) {
+                btn.dataset.unitIndex = unitIndex;
             });
+            card.querySelectorAll("[data-open-edit-modal]").forEach(function (btn) {
+                btn.dataset.unitIndex = unitIndex;
+            });
+        }
+
+        function hydrateViewModal(unitIndex, unitData) {
+            if (!viewModal) {
+                return;
+            }
+
+            if (modalProductName && productData.productName) {
+                modalProductName.textContent = productData.productName;
+            }
+
+            var statusChip = detailSection.querySelector('[data-unit-card="' + unitIndex + '"] [data-unit-condition-chip]');
+            var modalStatusChip = viewModal.querySelector('[data-modal-unit-status]');
+
+            if (modalUnitIndex) {
+                modalUnitIndex.textContent = unitIndex || "—";
+            }
+            if (modalUnitImei) {
+                modalUnitImei.textContent = (unitData && unitData.imei) ? unitData.imei : "Sin IMEI";
+            }
+            if (modalUnitColor) {
+                modalUnitColor.textContent = (unitData && unitData.color) ? unitData.color : "Sin color";
+            }
+            if (modalProductStorage) {
+                var fallbackStorage = productData.productAlmacenamientoLabel || "No especificado";
+                modalProductStorage.textContent = (unitData && unitData.almacenamiento_label) ? unitData.almacenamiento_label : fallbackStorage;
+            }
+            if (modalProductRam) {
+                var fallbackRam = productData.productRamLabel || "No especificada";
+                modalProductRam.textContent = (unitData && unitData.memoria_ram_label) ? unitData.memoria_ram_label : fallbackRam;
+            }
+            if (modalProductCost) {
+                modalProductCost.textContent = formatCurrency(productData.productCosto || "");
+            }
+            if (modalProductPrice) {
+                modalProductPrice.textContent = formatCurrency(productData.productPrecio || "");
+            }
+
+            if (modalStatusChip) {
+                var label = (unitData && unitData.producto_condicion_label) ? unitData.producto_condicion_label : (statusChip ? statusChip.textContent : "Sin especificar");
+                var badgeClass = resolveConditionClass(label || "");
+                modalStatusChip.className = "stock-card__badge unit-detail__status" + (badgeClass ? " " + badgeClass : "");
+                modalStatusChip.textContent = label || "Sin especificar";
+            }
+
+            if (modalImage && productData.productImagen) {
+                modalImage.setAttribute("src", productData.productImagen);
+                modalImage.setAttribute("alt", "Imagen de " + (productData.productName || "producto"));
+            }
+        }
+
+        function resolveConditionClass(label) {
+            if (!label) {
+                return "stock-card__badge--neutral";
+            }
+            var normalized = label.trim().toLowerCase();
+            if (
+                normalized === "sin especificar" ||
+                normalized.includes("sin especific") ||
+                normalized.includes("sin estado")
+            ) {
+                return "stock-card__badge--neutral";
+            }
+            if (
+                normalized.includes("nuevo") ||
+                normalized.includes("excelente") ||
+                normalized.includes("clase a") ||
+                normalized.includes("a+") ||
+                normalized.includes("a+")
+            ) {
+                return "stock-card__badge--success";
+            }
+            if (
+                normalized.includes("usado") ||
+                normalized.includes("semi") ||
+                normalized.includes("clase b") ||
+                normalized.includes("b+")
+            ) {
+                return "stock-card__badge--warning";
+            }
+            if (
+                normalized.includes("clase c") ||
+                normalized.includes("repar") ||
+                normalized.includes("dañ") ||
+                normalized.includes("averiado")
+            ) {
+                return "stock-card__badge--danger";
+            }
+            return "stock-card__badge--info";
+        }
+
+        detailSection.querySelectorAll("[data-unit-card]").forEach(function (card) {
+            var indexValue = card.getAttribute("data-unit-card");
+            if (!indexValue) {
+                return;
+            }
+            var data = parseCardData(indexValue);
+            updateCardDisplay(indexValue, data);
+        });
+
+        function openViewModal(button) {
+            if (!viewModal) {
+                return;
+            }
+            var unitIndex = button.getAttribute("data-unit-index");
+            if (!unitIndex) {
+                return;
+            }
+
+            var initialData = parseCardData(unitIndex);
+            hydrateViewModal(unitIndex, initialData);
+
+            viewModal.removeAttribute("hidden");
+            lockBody();
+            var closeBtn = viewModal.querySelector("[data-close-modal]");
+            if (closeBtn) {
+                closeBtn.focus();
+            }
+
+            var unitUrl = buildUnitUrl(unitIndex);
+            if (!unitUrl) {
+                return;
+            }
+
+            fetch(unitUrl, {
+                credentials: "same-origin",
+                headers: {
+                    "Accept": "application/json"
+                }
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("No se pudo cargar la unidad");
+                    }
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (!data.success) {
+                        throw new Error(data.message || "No se pudo cargar la unidad");
+                    }
+                    var unitData = data.unit || {};
+                    hydrateViewModal(unitIndex, unitData);
+                    updateCardDisplay(unitIndex, unitData);
+                })
+                .catch(function (error) {
+                    console.error(error);
+                });
+        }
+
+        function closeViewModal() {
+            if (!viewModal || viewModal.hasAttribute("hidden")) {
+                return;
+            }
+            viewModal.setAttribute("hidden", "hidden");
+            unlockBodyIfNoModal();
+        }
+
+        function hydrateEditModal(unitIndex, unitData) {
+            if (!editModal) {
+                return;
+            }
+
+            if (editModalUnitTag) {
+                var label = unitIndex || "—";
+                editModalUnitTag.textContent = "Unidad " + label;
+            }
+            if (editInputIndex) {
+                editInputIndex.value = unitIndex || "";
+            }
+            if (editModalUnitIndex) {
+                editModalUnitIndex.textContent = unitIndex || "—";
+            }
+            if (editInputCost) {
+                var resolvedCost = productData.productCosto || "";
+                if (unitData && Object.prototype.hasOwnProperty.call(unitData, "precio_compra")) {
+                    resolvedCost = unitData.precio_compra || "";
+                }
+                editInputCost.value = resolvedCost;
+            }
+            if (editInputPrice) {
+                var resolvedPrice = productData.productPrecio || "";
+                if (unitData && Object.prototype.hasOwnProperty.call(unitData, "precio_venta")) {
+                    resolvedPrice = unitData.precio_venta || "";
+                }
+                editInputPrice.value = resolvedPrice;
+            }
+            if (editInputImei) {
+                editInputImei.value = unitData && unitData.imei ? unitData.imei : "";
+            }
+            if (editInputColor) {
+                editInputColor.value = unitData && unitData.color ? unitData.color : "";
+            }
+            if (editInputStorage) {
+                editInputStorage.value = unitData && unitData.almacenamiento ? unitData.almacenamiento : "";
+            }
+            if (editInputRam) {
+                editInputRam.value = unitData && unitData.memoria_ram ? unitData.memoria_ram : "";
+            }
+            if (editModalUnitImei) {
+                editModalUnitImei.textContent = (unitData && unitData.imei) ? unitData.imei : "Sin IMEI";
+            }
+            if (editModalUnitColor) {
+                editModalUnitColor.textContent = (unitData && unitData.color) ? unitData.color : "Sin color";
+            }
+            if (editModalUnitStorage) {
+                editModalUnitStorage.textContent = (unitData && unitData.almacenamiento_label) ? unitData.almacenamiento_label : "No especificado";
+            }
+            if (editModalUnitRam) {
+                editModalUnitRam.textContent = (unitData && unitData.memoria_ram_label) ? unitData.memoria_ram_label : "No especificada";
+            }
+            if (editInputCondition && unitData && Object.prototype.hasOwnProperty.call(unitData, "producto_condicion")) {
+                editInputCondition.value = unitData.producto_condicion || "";
+            }
+        }
+
+        function openEditModal(button) {
+            if (!editModal) {
+                return;
+            }
+            var unitIndex = button.getAttribute("data-unit-index");
+            if (!unitIndex) {
+                return;
+            }
+
+            var initialData = parseCardData(unitIndex);
+            hydrateEditModal(unitIndex, initialData);
+            clearInlineError();
+
+            editModal.removeAttribute("hidden");
+            lockBody();
+            var closeBtnInitial = editModal.querySelector("[data-close-edit-modal]");
+            if (closeBtnInitial) {
+                closeBtnInitial.focus();
+            }
+
+            var unitUrl = buildUnitUrl(unitIndex);
+            if (!unitUrl) {
+                return;
+            }
+
+            fetch(unitUrl, {
+                credentials: "same-origin",
+                headers: {
+                    "Accept": "application/json"
+                }
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("No se pudo cargar la unidad");
+                    }
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (!data.success) {
+                        throw new Error(data.message || "No se pudo cargar la unidad");
+                    }
+                    var unitData = data.unit || {};
+                    if (data.product) {
+                        syncProductData(data.product);
+                    }
+                    hydrateEditModal(unitIndex, unitData);
+                })
+                .catch(function (error) {
+                    console.error(error);
+                });
+        }
+
+        function closeEditModal() {
+            if (!editModal || editModal.hasAttribute("hidden")) {
+                return;
+            }
+            editModal.setAttribute("hidden", "hidden");
+            unlockBodyIfNoModal();
+        }
+
+        function handleEditFormSubmit(event) {
+            if (!editModalForm) {
+                return;
+            }
+            event.preventDefault();
+
+            var unitIndexValue = editInputIndex ? (editInputIndex.value || "").trim() : "";
+            if (!unitIndexValue) {
+                showInlineError("No se pudo identificar la unidad.");
+                return;
+            }
+
+            var unitUrl = buildUnitUrl(unitIndexValue);
+            if (!unitUrl) {
+                showInlineError("No se pudo determinar la ruta de actualización.");
+                return;
+            }
+
+            clearInlineError();
+
+            var formData = new FormData(editModalForm);
+            if (editInputCondition) {
+                formData.set("producto_condicion", editInputCondition.value || "");
+            }
+            if (editInputCost) {
+                formData.set("precio_costo", (editInputCost.value || "").toString().trim());
+            }
+            if (editInputPrice) {
+                formData.set("precio_venta", (editInputPrice.value || "").toString().trim());
+            }
+
+            fetch(unitUrl, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRFToken": editCsrfInput ? editCsrfInput.value : "",
+                    "Accept": "application/json",
+                },
+                body: formData,
+            })
+                .then(function (response) {
+                    return response.json().then(function (payload) {
+                        if (!response.ok || !payload.success) {
+                            var message = payload && payload.message ? payload.message : "No se pudo guardar la unidad.";
+                            throw new Error(message);
+                        }
+                        return payload;
+                    });
+                })
+                .then(function (payload) {
+                    var unitData = payload.unit || {};
+                    if (payload.product) {
+                        syncProductData(payload.product);
+                    }
+                    updateCardDisplay(unitIndexValue, unitData);
+                    hydrateEditModal(unitIndexValue, unitData);
+                    clearInlineError();
+                    closeEditModal();
+                })
+                .catch(function (error) {
+                    console.error(error);
+                    showInlineError(error.message || "Ocurrió un error al guardar la unidad.");
+                });
+        }
+
+        function showConditionError(message) {
+            if (!conditionErrorBox) {
+                return;
+            }
+            if (message) {
+                conditionErrorBox.textContent = message;
+                conditionErrorBox.hidden = false;
+            } else {
+                conditionErrorBox.textContent = "";
+                conditionErrorBox.hidden = true;
+            }
+        }
+
+        function resetConditionForm() {
+            if (!conditionForm) {
+                return;
+            }
+            conditionForm.reset();
+            if (conditionIdInput) {
+                conditionIdInput.value = "";
+            }
+            if (conditionActiveInput) {
+                conditionActiveInput.value = "true";
+            }
+            if (conditionSubmitButton) {
+                conditionSubmitButton.textContent = "Guardar";
+            }
+            showConditionError("");
+        }
+
+        function renderConditionSelect(items) {
+            if (!editInputCondition) {
+                return;
+            }
+            var previous = editInputCondition.value;
+            editInputCondition.innerHTML = "";
+            var emptyOption = document.createElement("option");
+            emptyOption.value = "";
+            emptyOption.textContent = "Sin especificar";
+            editInputCondition.appendChild(emptyOption);
+            var found = false;
+            items.filter(function (item) { return item.activo; }).forEach(function (item) {
+                var option = document.createElement("option");
+                option.value = String(item.id);
+                option.textContent = item.nombre;
+                if (!found && previous && String(item.id) === previous) {
+                    option.selected = true;
+                    found = true;
+                }
+                editInputCondition.appendChild(option);
+            });
+            if (previous && !found) {
+                editInputCondition.value = "";
+            }
+        }
+
+        function renderConditionList(items) {
+            if (!conditionList) {
+                return;
+            }
+            conditionList.querySelectorAll(".condition-item").forEach(function (node) {
+                node.remove();
+            });
+            if (!items || !items.length) {
+                if (conditionEmptyState) {
+                    conditionEmptyState.hidden = false;
+                }
+                return;
+            }
+            if (conditionEmptyState) {
+                conditionEmptyState.hidden = true;
+            }
+
+            items.forEach(function (item) {
+                var wrapper = document.createElement("div");
+                wrapper.className = "condition-item";
+                wrapper.dataset.conditionId = item.id;
+
+                var meta = document.createElement("div");
+                meta.className = "condition-item__meta";
+                var title = document.createElement("div");
+                title.className = "condition-item__title";
+                title.textContent = item.nombre;
+                var badge = document.createElement("span");
+                badge.className = "condition-item__badge" + (item.activo ? "" : " condition-item__badge--inactive");
+                badge.textContent = item.activo ? "Activo" : "Inactivo";
+                title.appendChild(badge);
+                meta.appendChild(title);
+                var descriptionText = (item.descripcion || "").trim();
+                if (descriptionText) {
+                    var desc = document.createElement("div");
+                    desc.textContent = descriptionText;
+                    meta.appendChild(desc);
+                }
+                wrapper.appendChild(meta);
+
+                var actions = document.createElement("div");
+                actions.className = "condition-item__actions";
+
+                var editBtn = document.createElement("button");
+                editBtn.type = "button";
+                editBtn.className = "btn btn-outline";
+                editBtn.textContent = "Editar";
+                editBtn.addEventListener("click", function () {
+                    if (!conditionForm) {
+                        return;
+                    }
+                    if (conditionIdInput) {
+                        conditionIdInput.value = item.id;
+                    }
+                    if (conditionNameInput) {
+                        conditionNameInput.value = item.nombre;
+                    }
+                    if (conditionDescriptionInput) {
+                        conditionDescriptionInput.value = item.descripcion || "";
+                    }
+                    if (conditionActiveInput) {
+                        conditionActiveInput.value = item.activo ? "true" : "false";
+                    }
+                    if (conditionSubmitButton) {
+                        conditionSubmitButton.textContent = "Actualizar";
+                    }
+                    showConditionError("");
+                    if (conditionNameInput) {
+                        conditionNameInput.focus();
+                    }
+                });
+                actions.appendChild(editBtn);
+
+                var toggleBtn = document.createElement("button");
+                toggleBtn.type = "button";
+                toggleBtn.className = "btn btn-outline";
+                toggleBtn.textContent = item.activo ? "Inactivar" : "Activar";
+                toggleBtn.addEventListener("click", function () {
+                    submitConditionAction("toggle", { id: item.id, activo: !item.activo });
+                });
+                actions.appendChild(toggleBtn);
+
+                var deleteBtn = document.createElement("button");
+                deleteBtn.type = "button";
+                deleteBtn.className = "btn btn-danger";
+                deleteBtn.textContent = "Eliminar";
+                deleteBtn.addEventListener("click", function () {
+                    if (confirm("¿Eliminar este estado?")) {
+                        submitConditionAction("delete", { id: item.id });
+                    }
+                });
+                actions.appendChild(deleteBtn);
+
+                wrapper.appendChild(actions);
+                conditionList.appendChild(wrapper);
+            });
+        }
+
+        function syncConditionUI(items, highlightId) {
+            conditionState.items = items || [];
+            renderConditionSelect(conditionState.items);
+            renderConditionList(conditionState.items);
+            showConditionError("");
+            if (highlightId && editInputCondition) {
+                editInputCondition.value = String(highlightId);
+            }
+        }
+
+        function fetchConditions() {
+            if (!conditionApiUrl || conditionState.loading) {
+                return Promise.resolve();
+            }
+            conditionState.loading = true;
+            return fetch(conditionApiUrl, {
+                credentials: "same-origin",
+                headers: {
+                    "Accept": "application/json",
+                },
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("No se pudieron cargar los estados.");
+                    }
+                    return response.json();
+                })
+                .then(function (payload) {
+                    conditionState.loaded = true;
+                    syncConditionUI(payload.conditions || []);
+                })
+                .catch(function (error) {
+                    console.error(error);
+                    showConditionError(error.message || "Error al cargar los estados.");
+                })
+                .finally(function () {
+                    conditionState.loading = false;
+                });
+        }
+
+        function ensureConditionsLoaded() {
+            if (!conditionState.loaded) {
+                return fetchConditions();
+            }
+            return Promise.resolve();
+        }
+
+        function getConditionCsrf() {
+            if (conditionForm) {
+                var csrfField = conditionForm.querySelector('input[name="csrfmiddlewaretoken"]');
+                if (csrfField) {
+                    return csrfField.value;
+                }
+            }
+            if (editCsrfInput) {
+                return editCsrfInput.value;
+            }
+            return "";
+        }
+
+        function submitConditionAction(action, data, options) {
+            if (!conditionApiUrl) {
+                showConditionError("No se encontró la ruta para gestionar estados.");
+                return;
+            }
+            var payload = new FormData();
+            payload.append("action", action);
+            if (data) {
+                Object.keys(data).forEach(function (key) {
+                    var value = data[key];
+                    if (value !== undefined && value !== null) {
+                        payload.append(key, value);
+                    }
+                });
+            }
+
+            return fetch(conditionApiUrl, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRFToken": getConditionCsrf(),
+                },
+                body: payload,
+            })
+                .then(function (response) {
+                    return response.json().then(function (body) {
+                        if (!response.ok || !body.success) {
+                            var message = body && body.message ? body.message : "No se pudo completar la acción.";
+                            throw new Error(message);
+                        }
+                        return body;
+                    });
+                })
+                .then(function (body) {
+                    var createdOrUpdated = body.condition ? body.condition.id : null;
+                    syncConditionUI(body.conditions || [], createdOrUpdated);
+                    if (options && options.resetForm) {
+                        resetConditionForm();
+                    }
+                    return body;
+                })
+                .catch(function (error) {
+                    console.error(error);
+                    showConditionError(error.message || "No se pudo completar la acción.");
+                });
+        }
+
+        function handleConditionFormSubmit(event) {
+            if (!conditionForm) {
+                return;
+            }
+            event.preventDefault();
+            var nombre = conditionNameInput ? conditionNameInput.value.trim() : "";
+            if (!nombre) {
+                showConditionError("Indica un nombre.");
+                if (conditionNameInput) {
+                    conditionNameInput.focus();
+                }
+                return;
+            }
+            var formData = {
+                nombre: nombre,
+                descripcion: conditionDescriptionInput ? conditionDescriptionInput.value.trim() : "",
+                activo: conditionActiveInput ? conditionActiveInput.value : "true",
+            };
+            if (conditionIdInput && conditionIdInput.value) {
+                formData.id = conditionIdInput.value;
+                submitConditionAction("update", formData, { resetForm: true });
+            } else {
+                submitConditionAction("create", formData, { resetForm: true });
+            }
+        }
+
+        function openConditionModal() {
+            if (!conditionModal) {
+                return;
+            }
+            ensureConditionsLoaded().finally(function () {
+                conditionModal.removeAttribute("hidden");
+                lockBody();
+                if (conditionNameInput) {
+                    conditionNameInput.focus();
+                } else {
+                    var closeBtn = conditionModal.querySelector("[data-close-condition-modal]");
+                    if (closeBtn) {
+                        closeBtn.focus();
+                    }
+                }
+            });
+        }
+
+        function closeConditionModal() {
+            if (!conditionModal || conditionModal.hasAttribute("hidden")) {
+                return;
+            }
+            conditionModal.setAttribute("hidden", "hidden");
+            unlockBodyIfNoModal();
+        }
+
+        if (viewModal) {
+            detailSection.querySelectorAll("[data-open-unit-modal]").forEach(function (button) {
+                button.addEventListener("click", function () {
+                    openViewModal(button);
+                });
+            });
+
+            viewModal.querySelectorAll("[data-close-modal]").forEach(function (element) {
+                element.addEventListener("click", closeViewModal);
+            });
+
+            viewModal.addEventListener("click", function (event) {
+                if (event.target === viewModal) {
+                    closeViewModal();
+                }
+            });
+        }
+
+        if (editModal) {
+            detailSection.querySelectorAll("[data-open-edit-modal]").forEach(function (button) {
+                button.addEventListener("click", function () {
+                    openEditModal(button);
+                });
+            });
+
+            editModal.querySelectorAll("[data-close-edit-modal]").forEach(function (element) {
+                element.addEventListener("click", closeEditModal);
+            });
+
+            editModal.addEventListener("click", function (event) {
+                if (event.target === editModal) {
+                    closeEditModal();
+                }
+            });
+
+            editModal.querySelectorAll("[data-open-condition-modal]").forEach(function (button) {
+                button.addEventListener("click", function () {
+                    openConditionModal();
+                });
+            });
+
+            if (editModalForm) {
+                editModalForm.addEventListener("submit", handleEditFormSubmit);
+            }
+        }
+
+        if (conditionModal) {
+            conditionModal.querySelectorAll("[data-close-condition-modal]").forEach(function (element) {
+                element.addEventListener("click", closeConditionModal);
+            });
+
+            conditionModal.addEventListener("click", function (event) {
+                if (event.target === conditionModal) {
+                    closeConditionModal();
+                }
+            });
+            if (conditionForm) {
+                conditionForm.addEventListener("submit", handleConditionFormSubmit);
+            }
+            if (conditionResetButton) {
+                conditionResetButton.addEventListener("click", function () {
+                    resetConditionForm();
+                });
+            }
+        }
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                var handled = false;
+                if (viewModal && !viewModal.hasAttribute("hidden")) {
+                    closeViewModal();
+                    handled = true;
+                }
+                if (editModal && !editModal.hasAttribute("hidden")) {
+                    closeEditModal();
+                    handled = true;
+                }
+                if (conditionModal && !conditionModal.hasAttribute("hidden")) {
+                    closeConditionModal();
+                    handled = true;
+                }
+                if (handled) {
+                    event.preventDefault();
+                }
+            }
         });
     });
 </script>

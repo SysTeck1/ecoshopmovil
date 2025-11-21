@@ -407,6 +407,45 @@ class Producto(TimeStampedModel):
         return urls
 
 
+class ProductoUnitDetail(TimeStampedModel):
+    """Información granular por unidad de inventario."""
+
+    producto = models.ForeignKey(
+        Producto,
+        on_delete=models.CASCADE,
+        related_name="unidades_detalle",
+    )
+    unidad_index = models.PositiveIntegerField()
+    imei = models.CharField(max_length=20, blank=True)
+    color = models.CharField(max_length=60, blank=True)
+    almacenamiento = models.CharField(
+        max_length=10,
+        choices=Producto.ALMACENAMIENTO_CHOICES,
+        blank=True,
+    )
+    memoria_ram = models.CharField(
+        max_length=10,
+        choices=Producto.RAM_CHOICES,
+        blank=True,
+    )
+    condicion = models.ForeignKey(
+        "ProductCondition",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="unidades_producto",
+    )
+
+    class Meta:
+        verbose_name = "Unidad de producto"
+        verbose_name_plural = "Unidades de producto"
+        ordering = ("producto", "unidad_index")
+        unique_together = ("producto", "unidad_index")
+
+    def __str__(self) -> str:
+        return f"{self.producto} - Unidad {self.unidad_index}"
+
+
 class Compra(TimeStampedModel):
     numero_pedido = models.CharField(max_length=32, unique=True)
     proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT, related_name="compras")

@@ -144,9 +144,9 @@
                                     aria-label="Eliminar producto {{ producto.nombre }}">
                                     <span class="icon">🗑️</span>
                                 </button>
-                                <a href="{% url 'dashboard:producto_detail' producto.id %}" class="btn btn-info btn-icon btn-icon--sm" title="Ver detalle completo">
+                                <a href="{% url 'dashboard:producto_detail' producto.id %}" class="btn btn-info btn-icon btn-icon--sm" title="Ver producto">
                                     <span class="icon">👁️</span>
-                                    <span class="sr-only">Detalle</span>
+                                    <span class="sr-only">Ver producto</span>
                                 </a>
                             </div>
                         </td>
@@ -240,7 +240,7 @@
                         <select name="modelo" class="select-control select-control--compact" data-model-select>
                             <option value="">Sin modelo</option>
                             {% for modelo in modelos_catalogo %}
-                                <option value="{{ modelo.id }}">{{ modelo }}</option>
+                                <option value="{{ modelo.id }}">{{ modelo.nombre }}</option>
                             {% endfor %}
                         </select>
                         <button type="button" class="btn-icon btn-icon--ghost" data-action="buscar-modelo" title="Buscar modelo">
@@ -272,20 +272,21 @@
                     </select>
                 </label>
                 <label class="form-field">
-                    <span class="form-label">IMEI / Serie</span>
-                    <input type="text" name="imei" placeholder="Opcional">
+                    <span class="form-label">Stock actual</span>
+                    <input type="number" name="stock" min="0" step="1" placeholder="0">
                 </label>
                 <label class="form-field">
-                    <span class="form-label">Colores disponibles</span>
-                    <input type="text" name="colores_disponibles" placeholder="Negro, Azul, Dorado">
+                    <span class="form-label">Alerta de stock mínimo</span>
+                    <input type="number" name="stock_minimo" min="0" step="1" placeholder="Ej. 5">
                 </label>
                 <label class="form-field">
-                    <span class="form-label">Precio de costo</span>
-                    <input type="number" name="precio_compra" min="0" step="0.01" placeholder="0.00">
-                </label>
-                <label class="form-field">
-                    <span class="form-label">Precio de venta</span>
-                    <input type="number" name="precio_venta" min="0" step="0.01" placeholder="0.00">
+                    <span class="form-label">Proveedor</span>
+                    <select name="proveedor" class="select-control" data-provider-select>
+                        <option value="">Sin proveedor</option>
+                        {% for proveedor in proveedores_catalogo %}
+                            <option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>
+                        {% endfor %}
+                    </select>
                 </label>
                 <label class="form-field">
                     <span class="form-label">Impuesto aplicado</span>
@@ -308,37 +309,11 @@
                         </button>
                     </div>
                 </label>
-                <label class="form-field">
-                    <span class="form-label">Stock actual</span>
-                    <input type="number" name="stock" min="0" step="1" placeholder="0">
-                </label>
-                <label class="form-field">
-                    <span class="form-label">Alerta de stock mínimo</span>
-                    <input type="number" name="stock_minimo" min="0" step="1" placeholder="Ej. 5">
-                </label>
-                <label class="form-field">
-                    <span class="form-label">Proveedor</span>
-                    <select name="proveedor" class="select-control" data-provider-select>
-                        <option value="">Sin proveedor</option>
-                        {% for proveedor in proveedores_catalogo %}
-                            <option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
                 <label class="form-field form-field--full">
                     <span class="form-label">Imagen principal</span>
                     <input type="file" name="imagen" accept="image/*">
                 </label>
-                <label class="form-field form-field--full form-field--checkbox">
-                    <span class="form-label">Estado del producto</span>
-                    <label class="checkbox-toggle">
-                        <input type="checkbox" name="activo" checked>
-                        <span class="checkbox-toggle__track">
-                            <span class="checkbox-toggle__thumb"></span>
-                        </span>
-                        <span class="checkbox-toggle__label">Activo</span>
-                    </label>
-                </label>
+                <input type="hidden" name="activo" value="true">
             </div>
 
             <div class="modal-actions">
@@ -583,29 +558,18 @@
             <h2 id="edit-product-title">Editar producto</h2>
             <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
         </div>
-        <form class="modal-form" data-edit-form method="post">
+        <form class="modal-form" data-edit-form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" name="action" value="update">
             <input type="hidden" name="producto_id" data-edit-id>
             <div class="form-grid">
                 <label class="form-field form-field--full">
-                    <span class="form-label">Título</span>
-                    <input type="text" name="nombre" data-edit-name required>
+                    <span class="form-label">Título del producto</span>
+                    <input type="text" name="nombre" data-edit-name placeholder="Ej. iPhone 14 Pro" required>
                 </label>
                 <label class="form-field form-field--full">
-                    <span class="form-label">Marca</span>
-                    <div class="form-field__group form-field__group--compact">
-                        <select name="marca" data-edit-brand class="select-control select-control--compact" data-brand-select>
-                            <option value="">Sin marca</option>
-                            {% for marca in marcas_catalogo %}
-                                <option value="{{ marca.id }}">{{ marca.nombre }}</option>
-                            {% endfor %}
-                        </select>
-                        <button type="button" class="btn-icon btn-icon--ghost" data-action="buscar-marca" title="Buscar marca">
-                            <span class="icon-search" aria-hidden="true"></span>
-                            <span class="sr-only">Buscar Marca</span>
-                        </button>
-                    </div>
+                    <span class="form-label">Características</span>
+                    <textarea name="descripcion" rows="3" data-edit-description placeholder="Breve descripción técnica"></textarea>
                 </label>
                 <label class="form-field form-field--full">
                     <span class="form-label">Categoría</span>
@@ -616,22 +580,28 @@
                         {% endfor %}
                     </select>
                 </label>
-                <label class="form-field form-field--full">
-                    <span class="form-label">Proveedor</span>
-                    <select name="proveedor" data-edit-provider class="select-control">
-                        <option value="">Sin proveedor</option>
-                        {% for proveedor in proveedores_catalogo %}
-                            <option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>
-                        {% endfor %}
-                    </select>
+                <label class="form-field">
+                    <span class="form-label">Marca</span>
+                    <div class="form-field__group form-field__group--compact">
+                        <select name="marca" data-edit-brand class="select-control select-control--compact" data-brand-select>
+                            <option value="">Sin marca</option>
+                            {% for marca in marcas_catalogo %}
+                                <option value="{{ marca.id }}">{{ marca.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn-icon btn-icon--ghost" data-action="buscar-marca" title="Buscar marca">
+                            <span aria-hidden="true">🔍</span>
+                            <span class="sr-only">Buscar Marca</span>
+                        </button>
+                    </div>
                 </label>
-                <label class="form-field form-field--full">
+                <label class="form-field">
                     <span class="form-label">Modelo</span>
                     <div class="form-field__group form-field__group--compact">
                         <select name="modelo" data-edit-model class="select-control select-control--compact" data-model-select>
                             <option value="">Sin modelo</option>
                             {% for modelo in modelos_catalogo %}
-                                <option value="{{ modelo.id }}">{{ modelo }}</option>
+                                <option value="{{ modelo.id }}">{{ modelo.nombre }}</option>
                             {% endfor %}
                         </select>
                         <button type="button" class="btn-icon btn-icon--ghost" data-action="buscar-modelo" title="Buscar modelo">
@@ -663,20 +633,21 @@
                     </select>
                 </label>
                 <label class="form-field">
-                    <span class="form-label">IMEI / Serie</span>
-                    <input type="text" name="imei" data-edit-imei>
+                    <span class="form-label">Stock actual</span>
+                    <input type="number" name="stock" min="0" step="1" data-edit-stock placeholder="0">
                 </label>
                 <label class="form-field">
-                    <span class="form-label">Colores disponibles</span>
-                    <input type="text" name="colores_disponibles" data-edit-colors placeholder="Negro, Azul, Dorado">
+                    <span class="form-label">Alerta de stock mínimo</span>
+                    <input type="number" name="stock_minimo" min="0" step="1" data-edit-stockmin placeholder="Ej. 5">
                 </label>
                 <label class="form-field">
-                    <span class="form-label">Precio de costo</span>
-                    <input type="number" name="precio_compra" min="0" step="0.01" data-edit-cost placeholder="0.00">
-                </label>
-                <label class="form-field">
-                    <span class="form-label">Precio de venta</span>
-                    <input type="number" name="precio_venta" min="0" step="0.01" data-edit-price placeholder="0.00">
+                    <span class="form-label">Proveedor</span>
+                    <select name="proveedor" data-edit-provider class="select-control">
+                        <option value="">Sin proveedor</option>
+                        {% for proveedor in proveedores_catalogo %}
+                            <option value="{{ proveedor.id }}">{{ proveedor.nombre }}</option>
+                        {% endfor %}
+                    </select>
                 </label>
                 <label class="form-field">
                     <span class="form-label">Impuesto aplicado</span>
@@ -699,17 +670,9 @@
                         </button>
                     </div>
                 </label>
-                <label class="form-field">
-                    <span class="form-label">Stock actual</span>
-                    <input type="number" name="stock" min="0" step="1" data-edit-stock placeholder="0">
-                </label>
-                <label class="form-field">
-                    <span class="form-label">Alerta de stock mínimo</span>
-                    <input type="number" name="stock_minimo" min="0" step="1" data-edit-stockmin placeholder="Ej. 5">
-                </label>
                 <label class="form-field form-field--full">
-                    <span class="form-label">Descripción</span>
-                    <textarea name="descripcion" rows="3" data-edit-description></textarea>
+                    <span class="form-label">Imagen principal</span>
+                    <input type="file" name="imagen" accept="image/*">
                 </label>
                 <label class="form-field form-field--full form-field--checkbox">
                     <span class="form-label">Estado del producto</span>
@@ -1081,6 +1044,12 @@
         cursor: pointer;
         transition: none;
         font-size: 1rem;
+    }
+
+    .btn-icon.btn-icon--sm {
+        width: 36px;
+        height: 36px;
+        padding: 0;
     }
 
     .btn-icon--ghost {

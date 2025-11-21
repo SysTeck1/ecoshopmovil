@@ -3,7 +3,10 @@
 from pathlib import Path
 import os
 
-import dj_database_url
+try:
+    import dj_database_url
+except ImportError:  # pragma: no cover - optional dependency for DATABASE_URL support
+    dj_database_url = None
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -92,7 +95,7 @@ DATABASES = {
 }
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
-if DATABASE_URL:
+if DATABASE_URL and dj_database_url is not None:
     DATABASES['default'] = dj_database_url.config(
         default=DATABASE_URL,
         conn_max_age=600,

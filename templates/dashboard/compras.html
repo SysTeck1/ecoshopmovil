@@ -187,14 +187,6 @@
                     </div>
                 </label>
                 <label class="form-field">
-                    <span class="form-label">Precio costo</span>
-                    <input type="text" name="precio_compra" data-product-cost readonly>
-                </label>
-                <label class="form-field">
-                    <span class="form-label">Precio venta</span>
-                    <input type="text" name="precio_venta" data-product-price readonly>
-                </label>
-                <label class="form-field">
                     <span class="form-label">Nueva cantidad</span>
                     <input type="number" name="cantidad" min="1" step="1" value="{{ purchase_form_values.cantidad|default:'' }}" required>
                 </label>
@@ -275,7 +267,6 @@
                             <th>Nombre</th>
                             <th>Categoría</th>
                             <th>Stock</th>
-                            <th>Precio costo</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -285,20 +276,17 @@
                                 <td>{{ producto.nombre }}</td>
                                 <td>{{ producto.categoria.nombre|default:"-" }}</td>
                                 <td>{{ producto.stock }}</td>
-                                <td>{{ producto.precio_compra }} RD$</td>
                                 <td>
                                     <button type="button" class="btn btn-primary btn-small" data-select-product
                                         data-product-id="{{ producto.id }}"
-                                        data-product-name="{{ producto.nombre }}"
-                                        data-product-cost="{{ producto.precio_compra }}"
-                                        data-product-price="{{ producto.precio_venta }}">
+                                        data-product-name="{{ producto.nombre }}">
                                         Seleccionar
                                     </button>
                                 </td>
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="5" class="browser-empty">No hay productos registrados.</td>
+                                <td colspan="4" class="browser-empty">No hay productos registrados.</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -334,14 +322,6 @@
                     <tr>
                         <th>Cantidad agregada</th>
                         <td data-view-quantity>-</td>
-                    </tr>
-                    <tr>
-                        <th>Precio costo</th>
-                        <td data-view-cost>-</td>
-                    </tr>
-                    <tr>
-                        <th>Precio venta</th>
-                        <td data-view-price>-</td>
                     </tr>
                     <tr>
                         <th>Stock anterior</th>
