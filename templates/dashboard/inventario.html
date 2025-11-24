@@ -7,7 +7,40 @@
         <p class="inventory-description">
             Administra el catálogo de productos disponibles en tu inventario. Crea nuevos artículos y mantén actualizados sus datos.
         </p>
-        <button type="button" class="btn btn-primary" id="open-create-product">Crear producto</button>
+        <div class="inventory-header__actions">
+            <div class="btn-group">
+                <button type="button" class="btn btn-primary" id="open-create-product">Crear producto básico</button>
+                <div class="btn-dropdown">
+                    <button type="button" class="btn btn-primary btn-dropdown__toggle" data-dropdown-toggle>
+                        <span class="btn__icon">⚡</span>
+                        Crear por tipo
+                        <span class="btn__chevron">▼</span>
+                    </button>
+                    <div class="btn-dropdown__menu" data-dropdown-menu>
+                        <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=phone" class="btn-dropdown__item">
+                            <span class="btn-dropdown__icon">📱</span>
+                            Teléfonos
+                        </a>
+                        <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=accessory" class="btn-dropdown__item">
+                            <span class="btn-dropdown__icon">🔌</span>
+                            Accesorios
+                        </a>
+                        <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=laptop" class="btn-dropdown__item">
+                            <span class="btn-dropdown__icon">💻</span>
+                            Laptops
+                        </a>
+                        <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=tablet" class="btn-dropdown__item">
+                            <span class="btn-dropdown__icon">📟</span>
+                            Tablets
+                        </a>
+                        <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=gaming" class="btn-dropdown__item">
+                            <span class="btn-dropdown__icon">🎮</span>
+                            Gaming
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     
     <div class="filter-toolbar" data-filter-toolbar>
@@ -26,7 +59,20 @@
                     <select id="category-filter">
                         <option value="">Todas las categorías</option>
                         {% for categoria in categorias_catalogo %}
-                            <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
+                            <option value="{{ categoria.id }}" data-category-type="{{ categoria.tipo_producto|default:'' }}">{{ categoria.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                    <i class="ri-arrow-down-s-line filter-toolbar__chevron"></i>
+                </div>
+            </div>
+            <div class="filter-toolbar__field">
+                <span class="filter-toolbar__label">Tipo de producto</span>
+                <div class="filter-toolbar__control filter-toolbar__control--icon">
+                    <i class="ri-stackshare-line filter-toolbar__icon"></i>
+                    <select id="type-filter">
+                        <option value="">Todos los tipos</option>
+                        {% for value, label in tipos_producto_catalogo %}
+                            <option value="{{ value }}">{{ label }}</option>
                         {% endfor %}
                     </select>
                     <i class="ri-arrow-down-s-line filter-toolbar__chevron"></i>
@@ -87,6 +133,7 @@
             <thead>
                 <tr>
                     <th>Título</th>
+                    <th>Tipo</th>
                     <th>Categoría</th>
                     <th>Modelo</th>
                     <th>Precio costo</th>
@@ -100,7 +147,26 @@
             <tbody>
                 {% for producto in productos_page %}
                     <tr>
-                        <td>{{ producto.nombre }}</td>
+                        <td>
+                            <div class="inventory-title">
+                                <span class="inventory-title__text">{{ producto.nombre }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if producto.tipo_producto %}
+                                <span class="product-type-badge product-type-badge--{{ producto.tipo_producto }}" title="{{ producto.get_tipo_producto_display }}">
+                                    {% if producto.tipo_producto == 'phone' %}📱 Teléfono
+                                    {% elif producto.tipo_producto == 'accessory' %}🔌 Accesorio
+                                    {% elif producto.tipo_producto == 'laptop' %}💻 Laptop
+                                    {% elif producto.tipo_producto == 'tablet' %}📟 Tablet
+                                    {% elif producto.tipo_producto == 'gaming' %}🎮 Gaming
+                                    {% else %}{{ producto.get_tipo_producto_display }}
+                                    {% endif %}
+                                </span>
+                            {% else %}
+                                <span class="product-type-badge product-type-badge--general">🔧 General</span>
+                            {% endif %}
+                        </td>
                         <td>{{ producto.categoria.nombre|default:"Sin categoría" }}</td>
                         <td>{{ producto.modelo|default:"-" }}</td>
                         <td>{{ producto.precio_compra|default:"0.00" }} RD$</td>
@@ -128,6 +194,7 @@
                                     data-product-uses-global="{{ producto.usar_impuesto_global|yesno:'true,false' }}"
                                     data-product-stock="{{ producto.stock|default_if_none:0 }}"
                                     data-product-stockmin="{{ producto.stock_minimo|default_if_none:0 }}"
+                                    data-product-type="{{ producto.tipo_producto|default:'' }}"
                                     data-product-imei="{{ producto.imei|default:'' }}"
                                     data-product-colors="{{ producto.colores_disponibles|default:'' }}"
                                     data-product-proveedor="{% if producto.proveedor %}{{ producto.proveedor.nombre }}{% endif %}"
@@ -893,7 +960,73 @@
         text-align: right;
     }
 
-    .inventory-actions {
+    .inventory-table th:nth-child(2),
+.inventory-table td.actions-column {
+    width: 160px;
+}
+
+.product-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.product-type-badge--phone {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.product-type-badge--accessory {
+    background: #f0fdf4;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+.product-type-badge--laptop {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+.product-type-badge--tablet {
+    background: #fdf2f8;
+    color: #be185d;
+    border-color: #fbcfe8;
+}
+
+.product-type-badge--gaming {
+    background: #f3e8ff;
+    color: #7c3aed;
+    border-color: #ddd6fe;
+}
+
+.product-type-badge--general {
+    background: #f3f4f6;
+    color: #374151;
+    border-color: #d1d5db;
+}
+
+.inventory-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.inventory-table th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.inventory-actions {
         display: flex;
         align-items: center;
         justify-content: flex-start;
@@ -2717,6 +2850,91 @@
             }
         }
 
+        /* Dropdown styles */
+        .inventory-header__actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0;
+            position: relative;
+        }
+
+        .btn-dropdown {
+            position: relative;
+        }
+
+        .btn-dropdown__toggle {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            border-left: 1px solid rgba(255,255,255,0.2);
+            padding-left: 12px;
+            padding-right: 12px;
+        }
+
+        .btn-dropdown__toggle .btn__chevron {
+            margin-left: 4px;
+            font-size: 12px;
+            transition: transform 0.2s ease;
+        }
+
+        .btn-dropdown__toggle[aria-expanded="true"] .btn__chevron {
+            transform: rotate(180deg);
+        }
+
+        .btn-dropdown__menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            min-width: 200px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all 0.2s ease;
+        }
+
+        .btn-dropdown__menu[data-show="true"] {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .btn-dropdown__item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: #374151;
+            text-decoration: none;
+            border-bottom: 1px solid #f3f4f6;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-dropdown__item:last-child {
+            border-bottom: none;
+        }
+
+        .btn-dropdown__item:hover {
+            background-color: #f9fafb;
+        }
+
+        .btn-dropdown__icon {
+            font-size: 18px;
+        }
+
+        #open-create-product {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
         @media (max-width: 768px) {
             .filters-row {
                 grid-template-columns: 1fr;
@@ -2750,4 +2968,51 @@
             }
         }
     </style>
+
+    <script>
+        // Dropdown functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropdownToggle = document.querySelector('[data-dropdown-toggle]');
+            const dropdownMenu = document.querySelector('[data-dropdown-menu]');
+            
+            if (dropdownToggle && dropdownMenu) {
+                dropdownToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const isOpen = dropdownMenu.getAttribute('data-show') === 'true';
+                    
+                    if (isOpen) {
+                        closeDropdown();
+                    } else {
+                        openDropdown();
+                    }
+                });
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!dropdownToggle.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                        closeDropdown();
+                    }
+                });
+                
+                // Close dropdown on escape key
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        closeDropdown();
+                    }
+                });
+                
+                function openDropdown() {
+                    dropdownMenu.setAttribute('data-show', 'true');
+                    dropdownToggle.setAttribute('aria-expanded', 'true');
+                }
+                
+                function closeDropdown() {
+                    dropdownMenu.setAttribute('data-show', 'false');
+                    dropdownToggle.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+    </script>
 {% endblock %}

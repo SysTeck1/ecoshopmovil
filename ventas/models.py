@@ -11,6 +11,16 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 
+# Choices globales para tipos de producto
+TIPO_PRODUCTO_CHOICES = [
+    ('phone', 'Teléfonos'),
+    ('accessory', 'Accesorios'),
+    ('laptop', 'Laptops'),
+    ('tablet', 'Tablets'),
+    ('gaming', 'Gaming'),
+]
+
+
 class TimeStampedModel(models.Model):
     """Modelo base con marcas de tiempo."""
 
@@ -149,6 +159,13 @@ class Categoria(TimeStampedModel):
         blank=True,
     )
     nombre = models.CharField(max_length=120, unique=True)
+    tipo_producto = models.CharField(
+        max_length=20,
+        choices=TIPO_PRODUCTO_CHOICES,
+        blank=True,
+        null=True,
+        help_text="Tipo de producto al que pertenece esta categoría"
+    )
     activo = models.BooleanField(default=True)
 
     class Meta:
@@ -286,8 +303,9 @@ class Impuesto(TimeStampedModel):
 class Producto(TimeStampedModel):
     """Inventario principal de teléfonos y accesorios."""
 
+    TIPO_PRODUCTO_CHOICES = TIPO_PRODUCTO_CHOICES
+
     ALMACENAMIENTO_CHOICES = [
-        ("8GB", "8 GB"),
         ("16GB", "16 GB"),
         ("32GB", "32 GB"),
         ("64GB", "64 GB"),
@@ -308,6 +326,12 @@ class Producto(TimeStampedModel):
         ("16GB", "16 GB"),
     ]
 
+    tipo_producto = models.CharField(
+        max_length=20,
+        choices=TIPO_PRODUCTO_CHOICES,
+        default='phone',
+        help_text="Tipo de producto que determina los campos específicos disponibles"
+    )
     nombre = models.CharField(max_length=150)
     marca = models.ForeignKey(
         "Marca",
@@ -428,12 +452,49 @@ class ProductoUnitDetail(TimeStampedModel):
         choices=Producto.RAM_CHOICES,
         blank=True,
     )
+    vida_bateria = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text="Descripción de la vida útil o estado de la batería",
+    )
+    codigo_barras = models.CharField(
+        max_length=32,
+        unique=True,
+        editable=False,
+        blank=True,
+        help_text="Código único generado automáticamente para escaneo con pistola",
+    )
     condicion = models.ForeignKey(
         "ProductCondition",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="unidades_producto",
+    )
+    usar_impuesto_global = models.BooleanField(
+        default=True,
+        help_text="Si está habilitado, esta unidad usará la tasa global configurada.",
+    )
+    impuesto = models.ForeignKey(
+        Impuesto,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="detalles_unidad",
+    )
+    precio_compra = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Precio de compra específico para esta unidad",
+    )
+    precio_venta = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Precio de venta específico para esta unidad",
     )
 
     class Meta:
@@ -444,6 +505,60 @@ class ProductoUnitDetail(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.producto} - Unidad {self.unidad_index}"
+    
+    def save(self, *args, **kwargs):
+        if not self.codigo_barras:
+            self.codigo_barras = self._generate_unique_barcode()
+        super().save(*args, **kwargs)
+    
+    def _generate_unique_barcode(self):
+        import secrets
+        while True:
+            candidate = f"UNI-{secrets.token_hex(4).upper()}"
+            if not ProductoUnitDetail.objects.filter(codigo_barras=candidate).exists():
+                return candidate
+
+
+class ProductoSpecificFields(TimeStampedModel):
+    """Campos específicos dinámicos para cada tipo de producto"""
+    
+    producto = models.OneToOneField(
+        Producto,
+        on_delete=models.CASCADE,
+        related_name="specific_fields"
+    )
+    
+    # Campos para teléfonos y tablets
+    procesador = models.CharField(max_length=100, blank=True, help_text="Procesador del dispositivo")
+    pantalla = models.CharField(max_length=100, blank=True, help_text="Tamaño y tipo de pantalla")
+    sistema_operativo = models.CharField(max_length=50, blank=True, help_text="Sistema operativo")
+    
+    # Campos para accesorios
+    tipo_accesorio = models.CharField(max_length=50, blank=True, help_text="Tipo específico de accesorio")
+    compatibilidad = models.CharField(max_length=200, blank=True, help_text="Dispositivos compatibles")
+    material = models.CharField(max_length=50, blank=True, help_text="Material del producto")
+    potencia = models.CharField(max_length=50, blank=True, help_text="Potencia o capacidad")
+    
+    # Campos para laptops
+    tarjeta_grafica = models.CharField(max_length=100, blank=True, help_text="Tarjeta gráfica")
+    numero_serie = models.CharField(max_length=100, blank=True, help_text="Número de serie")
+    
+    # Campos para gaming
+    tipo_gaming = models.CharField(max_length=50, blank=True, help_text="Tipo de producto gaming")
+    plataforma = models.CharField(max_length=50, blank=True, help_text="Plataforma de gaming")
+    
+    # Campos para tablets
+    conectividad = models.CharField(max_length=50, blank=True, help_text="Tipo de conectividad")
+    
+    # Campos adicionales flexibles (JSON)
+    extra_fields = models.JSONField(default=dict, blank=True, help_text="Campos adicionales específicos")
+    
+    class Meta:
+        verbose_name = "Campos específicos del producto"
+        verbose_name_plural = "Campos específicos de productos"
+    
+    def __str__(self):
+        return f"Campos específicos - {self.producto.nombre}"
 
 
 class Compra(TimeStampedModel):
@@ -998,6 +1113,7 @@ class DetalleVenta(TimeStampedModel):
     cantidad = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
     descuento = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    unidad_index = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Detalle de venta"

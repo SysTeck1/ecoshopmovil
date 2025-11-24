@@ -47,9 +47,15 @@
                         data-unit-storage-label="{{ unidad.almacenamiento_label|default:'No especificado' }}"
                         data-unit-ram="{{ unidad.memoria_ram|default:'' }}"
                         data-unit-ram-label="{{ unidad.memoria_ram_label|default:'No especificada' }}"
+                        data-unit-battery="{{ unidad.vida_bateria|default:'' }}"
                         data-unit-condition="{{ unidad.producto_condicion|default:'' }}"
                         data-unit-condition-label="{{ unidad.producto_condicion_label|default:'Sin especificar' }}"
                         data-unit-has-custom="{{ unidad.has_custom|yesno:'true,false' }}"
+                        data-unit-use-global="{{ unidad.usar_impuesto_global|yesno:'true,false' }}"
+                        data-unit-tax-id="{{ unidad.impuesto_id }}"
+                        data-unit-tax-label="{{ unidad.impuesto_label|default:'Impuesto global' }}"
+                        data-unit-tax-rate="{{ unidad.impuesto_porcentaje|default:'' }}"
+                        data-unit-tax-active="{{ unidad.impuesto_activo|yesno:'true,false' }}"
                     >
                         <div class="stock-card__status" aria-hidden="true">
                             <span class="stock-card__badge" data-unit-condition-chip>
@@ -60,16 +66,68 @@
                             {% if producto_imagenes %}
                                 <img src="{{ producto_imagenes.0 }}" alt="Imagen de {{ producto.nombre }}" loading="lazy">
                             {% else %}
-                                <span class="stock-card__placeholder" aria-hidden="true">📱</span>
+                                {% if producto.tipo_producto == 'phone' %}
+                                    <span class="stock-card__placeholder stock-card__placeholder--phone" aria-hidden="true">📱</span>
+                                {% elif producto.tipo_producto == 'tablet' %}
+                                    <span class="stock-card__placeholder stock-card__placeholder--tablet" aria-hidden="true">📱</span>
+                                {% elif producto.tipo_producto == 'laptop' %}
+                                    <span class="stock-card__placeholder stock-card__placeholder--laptop" aria-hidden="true">💻</span>
+                                {% elif producto.tipo_producto == 'accessory' %}
+                                    <span class="stock-card__placeholder stock-card__placeholder--accessory" aria-hidden="true">🎧</span>
+                                {% elif producto.tipo_producto == 'gaming' %}
+                                    <span class="stock-card__placeholder stock-card__placeholder--gaming" aria-hidden="true">🎮</span>
+                                {% else %}
+                                    <span class="stock-card__placeholder" aria-hidden="true">📦</span>
+                                {% endif %}
                             {% endif %}
                         </div>
                         <div class="stock-card__body">
                             <h4 class="stock-card__title">Unidad {{ unidad.index }}</h4>
                             <ul class="stock-card__specs">
-                                <li>IMEI: <span data-unit-imei>{{ unidad.imei }}</span></li>
-                                <li>Color: <span data-unit-color>{{ unidad.color }}</span></li>
-                                <li>Almacenamiento: <span data-unit-storage>{{ unidad.almacenamiento_label|default:"No especificado" }}</span></li>
-                                <li>RAM: <span data-unit-ram>{{ unidad.memoria_ram_label|default:"No especificada" }}</span></li>
+                                {% if producto.tipo_producto == 'phone' or producto.tipo_producto == 'tablet' %}
+                                <li><span class="spec-icon">📱</span> <span data-unit-imei>{{ unidad.imei|default:"Sin IMEI" }}</span></li>
+                                {% endif %}
+                                <li><span class="spec-icon">🎨</span> <span data-unit-color>{{ unidad.color|default:"Sin color" }}</span></li>
+                                {% if producto.tipo_producto == 'phone' or producto.tipo_producto == 'tablet' or producto.tipo_producto == 'laptop' %}
+                                <li><span class="spec-icon">💾</span> <span data-unit-storage>{{ unidad.almacenamiento_label|default:"No especificado" }}</span></li>
+                                <li><span class="spec-icon">⚡</span> <span data-unit-ram>{{ unidad.memoria_ram_label|default:"No especificada" }}</span></li>
+                                {% endif %}
+                                {% if specific_fields %}
+                                    {% if producto.tipo_producto == 'phone' or producto.tipo_producto == 'tablet' or producto.tipo_producto == 'laptop' %}
+                                        {% if specific_fields.procesador %}
+                                        <li><span class="spec-icon">⚙️</span> <span>{{ specific_fields.procesador|truncatechars:15 }}</span></li>
+                                        {% endif %}
+                                        {% if specific_fields.pantalla %}
+                                        <li><span class="spec-icon">🖥️</span> <span>{{ specific_fields.pantalla|truncatechars:15 }}</span></li>
+                                        {% endif %}
+                                    {% elif producto.tipo_producto == 'laptop' %}
+                                        {% if specific_fields.procesador %}
+                                        <li><span class="spec-icon">⚙️</span> <span>{{ specific_fields.procesador|truncatechars:15 }}</span></li>
+                                        {% endif %}
+                                        {% if specific_fields.tarjeta_grafica %}
+                                        <li><span class="spec-icon">🎮</span> <span>{{ specific_fields.tarjeta_grafica|truncatechars:15 }}</span></li>
+                                        {% endif %}
+                                    {% elif producto.tipo_producto == 'accessory' %}
+                                        {% if specific_fields.tipo_accesorio %}
+                                        <li><span class="spec-icon">🎧</span> <span>{{ specific_fields.tipo_accesorio|truncatechars:15 }}</span></li>
+                                        {% endif %}
+                                        {% if specific_fields.material %}
+                                        <li><span class="spec-icon">🔧</span> <span>{{ specific_fields.material|truncatechars:15 }}</span></li>
+                                        {% endif %}
+                                    {% elif producto.tipo_producto == 'gaming' %}
+                                        {% if specific_fields.tipo_gaming %}
+                                        <li><span class="spec-icon">🎮</span> <span>{{ specific_fields.tipo_gaming|truncatechars:15 }}</span></li>
+                                        {% endif %}
+                                        {% if specific_fields.plataforma %}
+                                        <li><span class="spec-icon">🕹️</span> <span>{{ specific_fields.plataforma|truncatechars:15 }}</span></li>
+                                        {% endif %}
+                                    {% endif %}
+                                {% endif %}
+                                {% if producto.tipo_producto == 'phone' or producto.tipo_producto == 'tablet' or producto.tipo_producto == 'laptop' %}
+                                <li><span class="spec-icon">🔋</span> <span data-unit-battery>{% if unidad.vida_bateria %}{{ unidad.vida_bateria }}%{% else %}Sin dato{% endif %}</span></li>
+                                {% endif %}
+                                <li><span class="spec-icon">🏷️</span> <span data-unit-barcode>{{ unidad.codigo_barras|default:'Generando...' }}</span></li>
+                                <li><span class="spec-icon">🧾</span> <span data-unit-tax>{{ unidad.impuesto_label|default:'Impuesto global' }}</span></li>
                             </ul>
                             <div class="stock-card__actions" aria-label="Acciones de la unidad">
                                 <button type="button"
@@ -86,6 +144,16 @@
                                 >
                                     Editar
                                 </button>
+                                {% if unidad.codigo_barras %}
+                                <button type="button"
+                                    class="stock-card__action stock-card__action--print"
+                                    data-print-label
+                                    data-unit-id="{{ unidad.id }}"
+                                    title="Imprimir etiqueta"
+                                >
+                                    🏷️
+                                </button>
+                                {% endif %}
                             </div>
                         </div>
                     </article>
@@ -106,6 +174,29 @@
         flex-direction: column;
         gap: 32px;
         padding: 24px;
+    }
+
+    .product-modal--tax .product-modal__dialog {
+        max-width: 380px;
+    }
+
+    .product-modal--tax .product-modal__subtitle {
+        font-size: 0.85rem;
+        color: #636e72;
+        margin-bottom: 4px;
+    }
+
+    .product-modal--tax .product-modal__form-field input {
+        width: 100%;
+    }
+
+    .product-modal--tax-manager,
+    .product-modal--tax-create {
+        z-index: 1400;
+    }
+
+    .product-modal--tax-manager .product-modal__dialog {
+        max-width: 720px;
     }
 
     .product-detail__header {
@@ -172,7 +263,7 @@
 
     .stock-gallery__grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        grid-template-columns: repeat(5, 1fr);
         gap: 16px;
     }
 
@@ -252,6 +343,28 @@
     .stock-card__placeholder {
         font-size: 2rem;
         color: #273c75;
+    }
+
+    .stock-card__placeholder--phone { font-size: 2.2rem; }
+    .stock-card__placeholder--tablet { font-size: 2.1rem; }
+    .stock-card__placeholder--laptop { font-size: 2.3rem; }
+    .stock-card__placeholder--accessory { font-size: 2.1rem; }
+    .stock-card__placeholder--gaming { font-size: 2.2rem; }
+
+    .spec-icon {
+        font-size: 0.9rem;
+        margin-right: 6px;
+        opacity: 0.8;
+        display: inline-block;
+        width: 20px;
+        text-align: center;
+    }
+
+    .stock-card__specs li {
+        display: flex;
+        align-items: center;
+        font-size: 0.85rem;
+        gap: 4px;
     }
 
     .stock-card__body {
@@ -366,7 +479,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 24px;
+        padding: 0;
         z-index: 1200;
     }
 
@@ -386,11 +499,13 @@
         background: #ffffff;
         border-radius: 20px;
         max-width: 640px;
-        width: 100%;
+        max-height: 90vh;
+        width: 90%;
         padding: 32px 38px 32px 32px;
         box-shadow: 0 32px 60px rgba(15, 23, 42, 0.18);
         display: grid;
         gap: 20px;
+        overflow-y: auto;
     }
 
     .product-modal__close {
@@ -449,6 +564,13 @@
         gap: 20px;
     }
 
+    .unit-detail__content {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: repeat(2, 1fr);
+        align-items: start;
+    }
+
     .unit-detail__header {
         display: flex;
         justify-content: space-between;
@@ -493,19 +615,21 @@
         border-radius: 999px;
         background: rgba(39, 60, 117, 0.1);
         color: #273c75;
-        font-size: 0.78rem;
-        font-weight: 600;
-        letter-spacing: 0.35px;
-    }
 
-    .unit-detail__status {
-        min-width: 0;
-        text-align: center;
-        align-self: flex-start;
-    }
+.unit-detail__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 16px;
+}
 
-    .unit-detail__content {
-        display: grid;
+.unit-detail__title {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 100%;
+}
         gap: 18px;
         grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         align-items: start;
@@ -711,9 +835,33 @@
         align-items: stretch;
     }
 
-    @media (min-width: 928px) {
+    @media (max-width: 768px) {
+        .stock-gallery__grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
         .product-modal__specs-grid {
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (min-width: 769px) and (max-width: 1024px) {
+        .stock-gallery__grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        
+        .product-modal__specs-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (min-width: 1025px) {
+        .stock-gallery__grid {
+            grid-template-columns: repeat(5, 1fr);
+        }
+        
+        .product-modal__specs-grid {
+            grid-template-columns: repeat(2, 1fr);
         }
     }
 
@@ -1074,7 +1222,7 @@
         }
 
         .unit-detail__content {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr);
         }
 
         .unit-detail__media {
@@ -1107,10 +1255,100 @@
         .unit-detail__title {
             min-width: 0;
         }
+
+        .unit-detail__content {
+            grid-template-columns: 1fr;
+        }
     }
 
     body.modal-open {
         overflow: hidden;
+    }
+
+    .product-modal__dialog {
+        padding: 20px;
+    }
+
+    .unit-detail__title {
+        min-width: 0;
+    }
+
+    .product-modal__tax-group {
+        overflow: hidden;
+    }
+
+    .product-modal__form-actions {
+        gap: 14px;
+        justify-content: flex-end;
+        align-items: center;
+        margin-top: 4px;
+    }
+
+    .product-modal__form-actions .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 12px 22px;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        font-size: 0.95rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .product-modal__form-actions .btn:focus-visible {
+        outline: 3px solid rgba(39, 60, 117, 0.25);
+        outline-offset: 2px;
+    }
+
+    .btn--ghost {
+        background: linear-gradient(135deg, rgba(39, 60, 117, 0.08), rgba(64, 116, 213, 0.1));
+        border: 1px solid rgba(39, 60, 117, 0.35);
+        color: #273c75;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+    }
+
+    .btn--ghost:hover {
+        background: linear-gradient(135deg, rgba(39, 60, 117, 0.16), rgba(64, 116, 213, 0.22));
+        border-color: rgba(39, 60, 117, 0.5);
+        transform: translateY(-1px);
+    }
+
+    .btn--elevated {
+        border: none;
+        color: #ffffff;
+        background: linear-gradient(135deg, #273c75, #6c5ce7);
+        box-shadow: 0 14px 32px rgba(108, 92, 231, 0.35);
+    }
+
+    .btn--elevated::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.35), transparent 55%);
+        opacity: 0.4;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+
+    .btn--elevated:hover {
+        box-shadow: 0 18px 40px rgba(108, 92, 231, 0.45);
+        transform: translateY(-2px);
+    }
+
+    .btn--elevated:hover::after {
+        opacity: 0.55;
+    }
+
+    .btn__icon {
+        font-size: 1rem;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
 </style>
 
@@ -1172,6 +1410,108 @@
                                 </div>
                             </dl>
                         </div>
+                        {% if specific_fields %}
+                        <div class="unit-detail__group">
+                            <span class="unit-detail__group-label">Especificaciones técnicas</span>
+                            <dl class="unit-detail__grid">
+                                {% if producto.tipo_producto == 'phone' or producto.tipo_producto == 'tablet' or producto.tipo_producto == 'laptop' %}
+                                    {% if specific_fields.procesador %}
+                                    <div>
+                                        <dt>Procesador</dt>
+                                        <dd>{{ specific_fields.procesador|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                    {% if specific_fields.pantalla %}
+                                    <div>
+                                        <dt>Pantalla</dt>
+                                        <dd>{{ specific_fields.pantalla|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                    {% if specific_fields.sistema_operativo %}
+                                    <div>
+                                        <dt>Sistema operativo</dt>
+                                        <dd>{{ specific_fields.sistema_operativo|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                    {% if producto.tipo_producto == 'tablet' and specific_fields.conectividad %}
+                                    <div>
+                                        <dt>Conectividad</dt>
+                                        <dd>{{ specific_fields.conectividad|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                {% elif producto.tipo_producto == 'laptop' %}
+                                    {% if specific_fields.procesador %}
+                                    <div>
+                                        <dt>Procesador</dt>
+                                        <dd>{{ specific_fields.procesador|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                    {% if specific_fields.pantalla %}
+                                    <div>
+                                        <dt>Pantalla</dt>
+                                        <dd>{{ specific_fields.pantalla|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                    {% if specific_fields.tarjeta_grafica %}
+                                    <div>
+                                        <dt>Tarjeta gráfica</dt>
+                                        <dd>{{ specific_fields.tarjeta_grafica|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                    {% if specific_fields.numero_serie %}
+                                    <div>
+                                        <dt>Número de serie</dt>
+                                        <dd>{{ specific_fields.numero_serie|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                {% elif producto.tipo_producto == 'accessory' %}
+                                    {% if specific_fields.tipo_accesorio %}
+                                    <div>
+                                        <dt>Tipo de accesorio</dt>
+                                        <dd>{{ specific_fields.tipo_accesorio|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                    {% if specific_fields.compatibilidad %}
+                                    <div>
+                                        <dt>Compatibilidad</dt>
+                                        <dd>{{ specific_fields.compatibilidad|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                    {% if specific_fields.material %}
+                                    <div>
+                                        <dt>Material</dt>
+                                        <dd>{{ specific_fields.material|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                    {% if specific_fields.potencia %}
+                                    <div>
+                                        <dt>Potencia/Capacidad</dt>
+                                        <dd>{{ specific_fields.potencia|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                {% elif producto.tipo_producto == 'gaming' %}
+                                    {% if specific_fields.tipo_gaming %}
+                                    <div>
+                                        <dt>Tipo gaming</dt>
+                                        <dd>{{ specific_fields.tipo_gaming|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                    {% if specific_fields.plataforma %}
+                                    <div>
+                                        <dt>Plataforma</dt>
+                                        <dd>{{ specific_fields.plataforma|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                    {% if specific_fields.potencia %}
+                                    <div>
+                                        <dt>Potencia</dt>
+                                        <dd>{{ specific_fields.potencia|default:"No especificado" }}</dd>
+                                    </div>
+                                    {% endif %}
+                                {% endif %}
+                            </dl>
+                        </div>
+                        {% endif %}
                         <div class="unit-detail__group">
                             <span class="unit-detail__group-label">Unidad seleccionada</span>
                             <dl class="unit-detail__grid unit-detail__grid--compact">
@@ -1179,13 +1519,23 @@
                                     <dt>Número de unidad</dt>
                                     <dd data-modal-unit-index>—</dd>
                                 </div>
+                                {% if producto.tipo_producto == 'phone' or producto.tipo_producto == 'tablet' %}
                                 <div>
                                     <dt>IMEI / Serie</dt>
                                     <dd data-modal-unit-imei>—</dd>
                                 </div>
+                                {% endif %}
                                 <div>
                                     <dt>Color</dt>
                                     <dd data-modal-unit-color>—</dd>
+                                </div>
+                                <div>
+                                    <dt>Vida útil batería</dt>
+                                    <dd data-modal-unit-battery>—</dd>
+                                </div>
+                                <div>
+                                    <dt>Código de barras</dt>
+                                    <dd data-modal-unit-barcode>—</dd>
                                 </div>
                             </dl>
                         </div>
@@ -1199,36 +1549,108 @@
     </div>
 </div>
 
+<div class="product-modal product-modal--tax-manager" data-tax-management-modal hidden>
+    <div class="product-modal__backdrop" data-close-tax-management></div>
+    <div class="product-modal__dialog product-modal__dialog--wide" role="dialog" aria-modal="true" aria-labelledby="taxManagementTitle">
+        <button type="button" class="product-modal__close" data-close-tax-management aria-label="Cerrar modal">×</button>
+        <div class="product-modal__body">
+            <div class="product-modal__header">
+                <h3 class="product-modal__heading" id="taxManagementTitle">Gestionar impuestos</h3>
+                <button type="button" class="btn btn-primary" data-open-tax-create>Agregar impuesto</button>
+            </div>
+            <div class="product-modal__table-wrapper">
+                <table class="lookup-table lookup-table--taxes">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Impuesto</th>
+                            <th>Porcentaje</th>
+                            <th>Estado</th>
+                            <th colspan="2">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody data-tax-table-body>
+                        {% if impuestos_catalogo %}
+                            {% for impuesto in impuestos_catalogo %}
+                                <tr data-tax-row data-tax-id="{{ impuesto.id }}" data-tax-name="{{ impuesto.nombre }}" data-tax-rate="{{ impuesto.porcentaje }}" data-tax-active="{{ impuesto.activo|yesno:'true,false' }}">
+                                    <td data-row-index>{{ forloop.counter }}</td>
+                                    <td><span class="lookup-name">{{ impuesto.nombre }}</span></td>
+                                    <td>{{ impuesto.porcentaje }}%</td>
+                                    <td>
+                                        <span class="lookup-status {% if impuesto.activo %}lookup-status--active{% else %}lookup-status--inactive{% endif %}">
+                                            {% if impuesto.activo %}Activo{% else %}Inactivo{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-outline btn--compact" data-tax-select-button>
+                                            Seleccionar
+                                        </button>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-outline btn--compact" data-tax-toggle-button data-toggle-url="{% url 'dashboard:toggle_tax_status_api' impuesto.id %}">
+                                            {% if impuesto.activo %}Inactivar{% else %}Activar{% endif %}
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr data-tax-empty>
+                                <td colspan="6">No hay impuestos registrados.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="product-modal__footer">
+            <button type="button" class="btn btn-secondary" data-close-tax-management>Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div class="product-modal product-modal--tax-create" data-tax-create-modal hidden>
+    <div class="product-modal__backdrop" data-close-tax-create></div>
+    <div class="product-modal__dialog product-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="taxCreateTitle">
+        <button type="button" class="product-modal__close" data-close-tax-create aria-label="Cerrar modal">×</button>
+        <div class="product-modal__body">
+            <h3 class="product-modal__heading" id="taxCreateTitle">Registrar impuesto</h3>
+            <form class="product-modal__form" data-tax-create-form>
+                {% csrf_token %}
+                <div class="product-modal__form-field">
+                    <span class="product-modal__form-label">Nombre</span>
+                    <input type="text" name="nombre" placeholder="Ej. ITBIS reducido" maxlength="120" data-tax-create-name required>
+                </div>
+                <div class="product-modal__form-field">
+                    <span class="product-modal__form-label">Porcentaje (%)</span>
+                    <input type="number" name="porcentaje" min="0" max="100" step="0.01" placeholder="0.00" data-tax-create-rate required>
+                </div>
+                <div class="product-modal__form-field">
+                    <label class="checkbox-toggle">
+                        <input type="checkbox" name="activo" data-tax-create-active checked>
+                        <span class="checkbox-toggle__track">
+                            <span class="checkbox-toggle__thumb"></span>
+                        </span>
+                        <span class="checkbox-toggle__label">Activo</span>
+                    </label>
+                </div>
+                <div class="product-modal__form-field" data-tax-create-error hidden>
+                    <div class="product-modal__error" data-tax-create-error-message></div>
+                </div>
+                <div class="product-modal__form-actions">
+                    <button type="button" class="btn btn-outline" data-close-tax-create>Cancelar</button>
+                    <button type="submit" class="btn btn-primary" data-tax-create-submit>Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="product-modal product-modal--edit" data-edit-modal hidden>
     <div class="product-modal__backdrop" data-close-edit-modal></div>
     <div class="product-modal__dialog product-modal__dialog--compact" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
         <button type="button" class="product-modal__close" data-close-edit-modal aria-label="Cerrar modal">×</button>
         <div class="product-modal__body">
             <h3 class="product-modal__heading" id="editModalTitle">Editar unidad</h3>
-            <span class="product-modal__unit-tag" data-edit-modal-unit>Unidad —</span>
-            <p class="product-modal__subtitle">Unidad seleccionada</p>
-            <dl class="product-modal__meta">
-                <div>
-                    <dt>Número de unidad</dt>
-                    <dd data-edit-modal-unit-index>—</dd>
-                </div>
-                <div>
-                    <dt>IMEI / Serie</dt>
-                    <dd data-edit-modal-unit-imei>—</dd>
-                </div>
-                <div>
-                    <dt>Color</dt>
-                    <dd data-edit-modal-unit-color>—</dd>
-                </div>
-                <div>
-                    <dt>Almacenamiento</dt>
-                    <dd data-edit-modal-unit-storage>—</dd>
-                </div>
-                <div>
-                    <dt>RAM</dt>
-                    <dd data-edit-modal-unit-ram>—</dd>
-                </div>
-            </dl>
             <form class="product-modal__form" method="post" data-edit-modal-form>
                 {% csrf_token %}
                 <input type="hidden" name="unidad_index" value="" data-edit-input-index>
@@ -1240,14 +1662,22 @@
                         </summary>
                         <div class="product-modal__accordion-body">
                             <div class="product-modal__form-row">
+                                {% if producto.tipo_producto == 'phone' or producto.tipo_producto == 'tablet' %}
                                 <label class="product-modal__form-field">
                                     <span class="product-modal__form-label">IMEI / Serie</span>
                                     <input type="text" name="imei" data-edit-input-imei placeholder="Ingresa IMEI o número de serie">
                                 </label>
+                                {% endif %}
                                 <label class="product-modal__form-field">
                                     <span class="product-modal__form-label">Color</span>
                                     <input type="text" name="color" data-edit-input-color placeholder="Ingresa color de la unidad">
                                 </label>
+                                {% if producto.tipo_producto == 'phone' or producto.tipo_producto == 'tablet' or producto.tipo_producto == 'laptop' %}
+                                <label class="product-modal__form-field">
+                                    <span class="product-modal__form-label">Vida útil batería (%)</span>
+                                    <input type="number" name="vida_bateria" data-edit-input-battery min="0" max="100" step="1" placeholder="0-100">
+                                </label>
+                                {% endif %}
                             </div>
                         </div>
                     </details>
@@ -1259,6 +1689,7 @@
                         <div class="product-modal__accordion-body">
                             <div class="product-modal__specs">
                                 <div class="product-modal__specs-grid">
+                                    {% if producto.tipo_producto == 'phone' or producto.tipo_producto == 'tablet' or producto.tipo_producto == 'laptop' %}
                                     <label class="product-modal__spec-card product-modal__form-field">
                                         <span class="product-modal__spec-header">
                                             <span class="product-modal__spec-icon" aria-hidden="true">💾</span>
@@ -1271,6 +1702,8 @@
                                             {% endfor %}
                                         </select>
                                     </label>
+                                    {% endif %}
+                                    {% if producto.tipo_producto == 'phone' or producto.tipo_producto == 'tablet' or producto.tipo_producto == 'laptop' %}
                                     <label class="product-modal__spec-card product-modal__form-field">
                                         <span class="product-modal__spec-header">
                                             <span class="product-modal__spec-icon" aria-hidden="true">⚡</span>
@@ -1283,6 +1716,7 @@
                                             {% endfor %}
                                         </select>
                                     </label>
+                                    {% endif %}
                                     <label class="product-modal__spec-card product-modal__form-field">
                                         <span class="product-modal__spec-header product-modal__spec-header--with-action">
                                             <span class="product-modal__spec-label">
@@ -1314,14 +1748,187 @@
                                         </span>
                                         <input type="number" name="precio_venta" inputmode="decimal" step="0.01" min="0" placeholder="0.00" data-edit-input-price>
                                     </label>
+                                    {% if producto.tipo_producto == 'phone' or producto.tipo_producto == 'tablet' or producto.tipo_producto == 'laptop' %}
+                                        {% if specific_fields.procesador %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">⚙️</span>
+                                                <span class="product-modal__spec-title">Procesador</span>
+                                            </span>
+                                            <input type="text" name="procesador" value="{{ specific_fields.procesador }}" placeholder="Ej: Snapdragon 8 Gen 2">
+                                        </label>
+                                        {% endif %}
+                                        {% if specific_fields.pantalla %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">📱</span>
+                                                <span class="product-modal__spec-title">Pantalla</span>
+                                            </span>
+                                            <input type="text" name="pantalla" value="{{ specific_fields.pantalla }}" placeholder="Ej: 6.7 pulgadas OLED">
+                                        </label>
+                                        {% endif %}
+                                        {% if specific_fields.sistema_operativo %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">🔄</span>
+                                                <span class="product-modal__spec-title">Sistema operativo</span>
+                                            </span>
+                                            <input type="text" name="sistema_operativo" value="{{ specific_fields.sistema_operativo }}" placeholder="Ej: iOS 16, Android 13">
+                                        </label>
+                                        {% endif %}
+                                        {% if producto.tipo_producto == 'tablet' and specific_fields.conectividad %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">📡</span>
+                                                <span class="product-modal__spec-title">Conectividad</span>
+                                            </span>
+                                            <input type="text" name="conectividad" value="{{ specific_fields.conectividad }}" placeholder="Ej: Wi-Fi, 4G LTE">
+                                        </label>
+                                        {% endif %}
+                                    {% elif producto.tipo_producto == 'laptop' %}
+                                        {% if specific_fields.procesador %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">⚙️</span>
+                                                <span class="product-modal__spec-title">Procesador</span>
+                                            </span>
+                                            <input type="text" name="procesador" value="{{ specific_fields.procesador }}" placeholder="Ej: Intel Core i7-12700H">
+                                        </label>
+                                        {% endif %}
+                                        {% if specific_fields.pantalla %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">💻</span>
+                                                <span class="product-modal__spec-title">Pantalla</span>
+                                            </span>
+                                            <input type="text" name="pantalla" value="{{ specific_fields.pantalla }}" placeholder="Ej: 15.6 pulgadas Full HD">
+                                        </label>
+                                        {% endif %}
+                                        {% if specific_fields.tarjeta_grafica %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">🎮</span>
+                                                <span class="product-modal__spec-title">Tarjeta gráfica</span>
+                                            </span>
+                                            <input type="text" name="tarjeta_grafica" value="{{ specific_fields.tarjeta_grafica }}" placeholder="Ej: NVIDIA RTX 3060">
+                                        </label>
+                                        {% endif %}
+                                        {% if specific_fields.numero_serie %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">🔢</span>
+                                                <span class="product-modal__spec-title">Número de serie</span>
+                                            </span>
+                                            <input type="text" name="numero_serie" value="{{ specific_fields.numero_serie }}" placeholder="Ej: SN123456789">
+                                        </label>
+                                        {% endif %}
+                                    {% elif producto.tipo_producto == 'accessory' %}
+                                        {% if specific_fields.tipo_accesorio %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">🎧</span>
+                                                <span class="product-modal__spec-title">Tipo de accesorio</span>
+                                            </span>
+                                            <input type="text" name="tipo_accesorio" value="{{ specific_fields.tipo_accesorio }}" placeholder="Ej: Auriculares, Funda, Cargador">
+                                        </label>
+                                        {% endif %}
+                                        {% if specific_fields.compatibilidad %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">🔗</span>
+                                                <span class="product-modal__spec-title">Compatibilidad</span>
+                                            </span>
+                                            <input type="text" name="compatibilidad" value="{{ specific_fields.compatibilidad }}" placeholder="Ej: iPhone 12-14, Samsung Galaxy S">
+                                        </label>
+                                        {% endif %}
+                                        {% if specific_fields.material %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">🛡️</span>
+                                                <span class="product-modal__spec-title">Material</span>
+                                            </span>
+                                            <input type="text" name="material" value="{{ specific_fields.material }}" placeholder="Ej: Silicon, Cuero, Plástico">
+                                        </label>
+                                        {% endif %}
+                                        {% if specific_fields.potencia %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">⚡</span>
+                                                <span class="product-modal__spec-title">Potencia/Capacidad</span>
+                                            </span>
+                                            <input type="text" name="potencia" value="{{ specific_fields.potencia }}" placeholder="Ej: 20W, 10000mAh">
+                                        </label>
+                                        {% endif %}
+                                    {% elif producto.tipo_producto == 'gaming' %}
+                                        {% if specific_fields.tipo_gaming %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">🎮</span>
+                                                <span class="product-modal__spec-title">Tipo gaming</span>
+                                            </span>
+                                            <input type="text" name="tipo_gaming" value="{{ specific_fields.tipo_gaming }}" placeholder="Ej: Consola, Accesorio, Juego">
+                                        </label>
+                                        {% endif %}
+                                        {% if specific_fields.plataforma %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">🕹️</span>
+                                                <span class="product-modal__spec-title">Plataforma</span>
+                                            </span>
+                                            <input type="text" name="plataforma" value="{{ specific_fields.plataforma }}" placeholder="Ej: PlayStation, Xbox, PC">
+                                        </label>
+                                        {% endif %}
+                                        {% if specific_fields.potencia %}
+                                        <label class="product-modal__spec-card product-modal__form-field">
+                                            <span class="product-modal__spec-header">
+                                                <span class="product-modal__spec-icon" aria-hidden="true">⚡</span>
+                                                <span class="product-modal__spec-title">Potencia</span>
+                                            </span>
+                                            <input type="text" name="potencia" value="{{ specific_fields.potencia }}" placeholder="Ej: 500W, 1000W">
+                                        </label>
+                                        {% endif %}
+                                    {% endif %}
+                                    <label class="product-modal__spec-card product-modal__form-field">
+                                        <span class="product-modal__spec-header">
+                                            <span class="product-modal__spec-icon" aria-hidden="true">🧾</span>
+                                            <span class="product-modal__spec-title">Impuesto aplicado</span>
+                                        </span>
+                                        <div class="product-modal__tax-group" data-edit-tax-wrapper>
+                                            <label class="checkbox-toggle">
+                                                <input type="checkbox" name="usar_impuesto_global" value="true" data-edit-input-tax-mode>
+                                                <span class="checkbox-toggle__track">
+                                                    <span class="checkbox-toggle__thumb"></span>
+                                                </span>
+                                                <span class="checkbox-toggle__label">Usar impuesto global</span>
+                                            </label>
+                                            <div class="product-modal__tax-actions">
+                                                <select name="impuesto" data-edit-input-tax hidden disabled>
+                                                    <option value="">Sin impuesto</option>
+                                                    {% for impuesto in impuestos %}
+                                                        <option value="{{ impuesto.id }}">{{ impuesto.nombre }} ({{ impuesto.porcentaje }}%)</option>
+                                                    {% endfor %}
+                                                </select>
+                                                <button type="button" class="btn btn-outline btn-sm product-modal__tax-create" data-edit-open-tax-modal>
+                                                    <span aria-hidden="true">＋</span>
+                                                    <span class="product-modal__tax-create-label">Nuevo impuesto</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
                         </div>
                     </details>
                 </div>
                 <div class="product-modal__form-actions">
-                    <button type="button" class="btn btn-outline" data-close-edit-modal>Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                    <button type="button" class="btn btn-outline btn--ghost" data-close-edit-modal>
+                        <span class="btn__icon" aria-hidden="true">✕</span>
+                        <span>Cancelar</span>
+                    </button>
+                    <button type="submit" class="btn btn-primary btn--elevated">
+                        <span class="btn__icon" aria-hidden="true">💾</span>
+                        <span>Guardar cambios</span>
+                    </button>
                 </div>
             </form>
         </div>
@@ -1375,11 +1982,41 @@
 </div>
 
 <script>
+    // Función de notificación simple
+    function showToast(message, type = 'info') {
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        // Crear una notificación simple si no existe un sistema de notificaciones
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 20px;
+            background: ${type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : type === 'warning' ? '#ffc107' : '#17a2b8'};
+            color: white;
+            border-radius: 4px;
+            z-index: 9999;
+            font-size: 14px;
+            max-width: 300px;
+            text-align: center;
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 3000);
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
         var detailSection = document.querySelector(".product-detail");
         var viewModal = document.querySelector("[data-product-modal]");
         var editModal = document.querySelector("[data-edit-modal]");
         var conditionModal = document.querySelector("[data-condition-modal]");
+        var taxModal = null;  // legacy reference no longer used
 
         if (!detailSection || (!viewModal && !editModal && !conditionModal)) {
             return;
@@ -1413,6 +2050,9 @@
         var modalProductRam = viewModal ? viewModal.querySelector("[data-modal-product-ram]") : null;
         var modalProductCost = viewModal ? viewModal.querySelector("[data-modal-product-cost]") : null;
         var modalProductPrice = viewModal ? viewModal.querySelector("[data-modal-product-price]") : null;
+        var modalUnitTax = viewModal ? viewModal.querySelector("[data-modal-unit-tax]") : null;
+        var modalUnitBattery = viewModal ? viewModal.querySelector("[data-modal-unit-battery]") : null;
+        var modalUnitBarcode = viewModal ? viewModal.querySelector("[data-modal-unit-barcode]") : null;
         var modalImage = viewModal ? viewModal.querySelector("[data-modal-image]") : null;
         var editModalUnitTag = editModal ? editModal.querySelector("[data-edit-modal-unit]") : null;
         var editModalUnitIndex = editModal ? editModal.querySelector("[data-edit-modal-unit-index]") : null;
@@ -1420,16 +2060,21 @@
         var editModalUnitColor = editModal ? editModal.querySelector("[data-edit-modal-unit-color]") : null;
         var editModalUnitStorage = editModal ? editModal.querySelector("[data-edit-modal-unit-storage]") : null;
         var editModalUnitRam = editModal ? editModal.querySelector("[data-edit-modal-unit-ram]") : null;
+        var editModalUnitTax = editModal ? editModal.querySelector("[data-edit-modal-unit-tax]") : null;
         var editModalForm = editModal ? editModal.querySelector("[data-edit-modal-form]") : null;
         var editInputIndex = editModal ? editModal.querySelector("[data-edit-input-index]") : null;
         var editInputImei = editModal ? editModal.querySelector("[data-edit-input-imei]") : null;
         var editInputColor = editModal ? editModal.querySelector("[data-edit-input-color]") : null;
         var editInputStorage = editModal ? editModal.querySelector("[data-edit-input-storage]") : null;
         var editInputRam = editModal ? editModal.querySelector("[data-edit-input-ram]") : null;
+        var editInputBattery = editModal ? editModal.querySelector("[data-edit-input-battery]") : null;
         var editInputCondition = editModal ? editModal.querySelector("[data-edit-input-condition]") : null;
         var editInputCost = editModal ? editModal.querySelector("[data-edit-input-cost]") : null;
         var editInputPrice = editModal ? editModal.querySelector("[data-edit-input-price]") : null;
+        var editInputTaxMode = editModal ? editModal.querySelector("[data-edit-input-tax-mode]") : null;
+        var editInputTax = editModal ? editModal.querySelector("[data-edit-input-tax]") : null;
         var editCsrfInput = editModalForm ? editModalForm.querySelector('input[name="csrfmiddlewaretoken"]') : null;
+        var editOpenTaxModalButton = editModal ? editModal.querySelector("[data-edit-open-tax-modal]") : null;
 
         var conditionManager = conditionModal ? conditionModal.querySelector("[data-condition-manager]") : null;
         var conditionForm = conditionManager ? conditionManager.querySelector("[data-condition-form]") : null;
@@ -1511,8 +2156,14 @@
                 almacenamiento_label: card.dataset.unitStorageLabel || "No especificado",
                 memoria_ram: card.dataset.unitRam || "",
                 memoria_ram_label: card.dataset.unitRamLabel || "No especificada",
+                vida_bateria: card.dataset.unitBattery || "",
                 producto_condicion: card.dataset.unitCondition || "",
                 producto_condicion_label: card.dataset.unitConditionLabel || "Sin especificar",
+                usar_impuesto_global: card.dataset.unitUseGlobal === "true",
+                impuesto_id: card.dataset.unitTaxId || "",
+                impuesto_label: card.dataset.unitTaxLabel || "Impuesto global",
+                impuesto_porcentaje: card.dataset.unitTaxRate || "",
+                impuesto_activo: card.dataset.unitTaxActive === "true",
                 has_custom: card.dataset.unitHasCustom === "true",
             };
         }
@@ -1553,10 +2204,14 @@
             }
 
             if (modalProductCost) {
-                modalProductCost.textContent = formatCurrency(productData.productCosto || "");
+                // Usar precio del producto actualizado que viene en productInfo
+                var resolvedCost = productInfo.precio_compra || productData.productCosto || "";
+                modalProductCost.textContent = formatCurrency(resolvedCost || "");
             }
             if (modalProductPrice) {
-                modalProductPrice.textContent = formatCurrency(productData.productPrecio || "");
+                // Usar precio del producto actualizado que viene en productInfo
+                var resolvedPrice = productInfo.precio_venta || productData.productPrecio || "";
+                modalProductPrice.textContent = formatCurrency(resolvedPrice || "");
             }
         }
 
@@ -1582,14 +2237,21 @@
             card.dataset.unitStorageLabel = unitData.almacenamiento_label || "No especificado";
             card.dataset.unitRam = unitData.memoria_ram || "";
             card.dataset.unitRamLabel = unitData.memoria_ram_label || "No especificada";
+            card.dataset.unitBattery = unitData.vida_bateria || "";
             card.dataset.unitCondition = unitData.producto_condicion || "";
             card.dataset.unitConditionLabel = unitData.producto_condicion_label || "Sin especificar";
             card.dataset.unitHasCustom = unitData.has_custom ? "true" : "false";
+            card.dataset.unitUseGlobal = unitData.usar_impuesto_global ? "true" : "false";
+            card.dataset.unitTaxId = unitData.impuesto_id || "";
+            card.dataset.unitTaxLabel = unitData.impuesto_label || "Impuesto global";
+            card.dataset.unitTaxRate = unitData.impuesto_porcentaje || "";
+            card.dataset.unitTaxActive = unitData.impuesto_activo ? "true" : "false";
 
             var imeiTarget = card.querySelector("[data-unit-imei]");
             var colorTarget = card.querySelector("[data-unit-color]");
             var storageTarget = card.querySelector("[data-unit-storage]");
             var ramTarget = card.querySelector("[data-unit-ram]");
+            var taxTarget = card.querySelector("[data-unit-tax]");
 
             if (imeiTarget) {
                 imeiTarget.textContent = unitData.imei || "Sin IMEI";
@@ -1602,6 +2264,13 @@
             }
             if (ramTarget) {
                 ramTarget.textContent = unitData.memoria_ram_label || "No especificada";
+            }
+            var batteryTarget = card.querySelector("[data-unit-battery]");
+            if (batteryTarget) {
+                batteryTarget.textContent = unitData.vida_bateria ? unitData.vida_bateria + "%" : "Sin dato";
+            }
+            if (taxTarget) {
+                taxTarget.textContent = unitData.impuesto_label || "Impuesto global";
             }
             var conditionTarget = card.querySelector("[data-unit-condition]");
             if (conditionTarget) {
@@ -1643,6 +2312,14 @@
             if (modalUnitColor) {
                 modalUnitColor.textContent = (unitData && unitData.color) ? unitData.color : "Sin color";
             }
+            if (modalUnitBattery) {
+                var batteryLabel = unitData && unitData.vida_bateria ? unitData.vida_bateria + "%" : "Sin dato";
+                modalUnitBattery.textContent = batteryLabel;
+            }
+            if (modalUnitBarcode) {
+                var barcodeLabel = unitData && unitData.codigo_barras ? unitData.codigo_barras : "Generando...";
+                modalUnitBarcode.textContent = barcodeLabel;
+            }
             if (modalProductStorage) {
                 var fallbackStorage = productData.productAlmacenamientoLabel || "No especificado";
                 modalProductStorage.textContent = (unitData && unitData.almacenamiento_label) ? unitData.almacenamiento_label : fallbackStorage;
@@ -1651,11 +2328,19 @@
                 var fallbackRam = productData.productRamLabel || "No especificada";
                 modalProductRam.textContent = (unitData && unitData.memoria_ram_label) ? unitData.memoria_ram_label : fallbackRam;
             }
+            if (modalUnitTax) {
+                var taxLabel = unitData && unitData.impuesto_label ? unitData.impuesto_label : (unitData && unitData.usar_impuesto_global ? "Impuesto global" : "Sin impuesto");
+                modalUnitTax.textContent = taxLabel || "Impuesto global";
+            }
             if (modalProductCost) {
-                modalProductCost.textContent = formatCurrency(productData.productCosto || "");
+                // Usar precio específico de la unidad si existe, sino el del producto general
+                var resolvedCost = (unitData && unitData.precio_compra) ? unitData.precio_compra : (productData.productCosto || "");
+                modalProductCost.textContent = formatCurrency(resolvedCost || "");
             }
             if (modalProductPrice) {
-                modalProductPrice.textContent = formatCurrency(productData.productPrecio || "");
+                // Usar precio específico de la unidad si existe, sino el del producto general
+                var resolvedPrice = (unitData && unitData.precio_venta) ? unitData.precio_venta : (productData.productPrecio || "");
+                modalProductPrice.textContent = formatCurrency(resolvedPrice || "");
             }
 
             if (modalStatusChip) {
@@ -1719,6 +2404,427 @@
             var data = parseCardData(indexValue);
             updateCardDisplay(indexValue, data);
         });
+
+        // Handle print label buttons
+        var printLabelButtons = document.querySelectorAll('[data-print-label]');
+        printLabelButtons.forEach(function(button) {
+            button.addEventListener('click', function() {
+                var unitId = button.getAttribute('data-unit-id');
+                if (unitId) {
+                    generateBarcodeLabel([unitId]);
+                }
+            });
+        });
+
+        function generateBarcodeLabel(unitIds) {
+            if (!unitIds || unitIds.length === 0) {
+                showToast('No se especificaron unidades para imprimir', 'warning');
+                return;
+            }
+            
+            var params = unitIds.map(id => 'units[]=' + encodeURIComponent(id)).join('&');
+            var url = '{% url "dashboard:generate_barcode_labels_api" %}?' + params;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.labels) {
+                        openPrintWindow(data.labels);
+                    } else {
+                        showToast(data.error || 'Error generando etiquetas', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Error de conexión al generar etiquetas', 'error');
+                });
+        }
+
+        function openPrintWindow(labels) {
+            var printWindow = window.open('', '_blank', 'width=800,height=600');
+            var doc = printWindow.document;
+            
+            doc.open();
+            doc.write('<!DOCTYPE html>');
+            doc.write('<html><head><title>Etiquetas</title>');
+            doc.write('<style>');
+            doc.write('body{font-family:Arial,sans-serif;margin:20px}');
+            doc.write('.label{border:1px solid #ccc;padding:10px;margin:10px 0;width:300px;display:inline-block}');
+            doc.write('.label-code{font-size:18px;font-weight:bold;text-align:center;font-family:monospace}');
+            doc.write('.label-product{font-size:14px;font-weight:bold}');
+            doc.write('.label-details{font-size:12px;color:#666}');
+            doc.write('.label-price{font-size:16px;font-weight:bold;color:#2c5aa0}');
+            doc.write('</style></head><body>');
+            doc.write('<h2>Etiquetas de Código de Barras</h2>');
+            
+            for (var i = 0; i < labels.length; i++) {
+                var label = labels[i];
+                doc.write('<div class="label">');
+                doc.write('<div class="label-code">' + label.codigo + '</div>');
+                doc.write('<div class="label-product">' + label.producto + '</div>');
+                doc.write('<div class="label-details">' + label.unidad + '</div>');
+                doc.write('<div class="label-details">IMEI: ' + label.imei + '</div>');
+                doc.write('<div class="label-details">Color: ' + label.color + '</div>');
+                doc.write('<div class="label-price">RD$ ' + label.precio + '</div>');
+                doc.write('</div>');
+            }
+            
+            doc.write('</body></html>');
+            doc.close();
+            setTimeout(function() {
+                printWindow.print();
+            }, 500);
+        }
+
+        function updateTaxModePresentation(toggle) {
+            if (!toggle || !editInputTax) {
+                return;
+            }
+            var useGlobal = toggle.checked;
+            if (useGlobal) {
+                editInputTax.setAttribute("hidden", "hidden");
+                editInputTax.disabled = true;
+            } else {
+                editInputTax.removeAttribute("hidden");
+                editInputTax.disabled = false;
+            }
+        }
+
+        function getCsrfToken() {
+            var csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+            if (csrfInput) {
+                return csrfInput.value;
+            }
+            return "";
+        }
+
+        var taxManagementModal = document.querySelector("[data-tax-management-modal]");
+        var taxCreateModal = document.querySelector("[data-tax-create-modal]");
+        var taxTableBody = taxManagementModal ? taxManagementModal.querySelector("[data-tax-table-body]") : null;
+
+        function refreshTaxRows() {
+            if (!taxTableBody) {
+                return;
+            }
+            var emptyRow = taxTableBody.querySelector("[data-tax-empty]");
+            var rows = taxTableBody.querySelectorAll("[data-tax-row]");
+            if (emptyRow) {
+                emptyRow.hidden = rows.length > 0;
+            }
+            var counter = 0;
+            rows.forEach(function (row) {
+                var indexCell = row.querySelector("[data-row-index]");
+                if (indexCell) {
+                    counter += 1;
+                    indexCell.textContent = counter;
+                }
+                attachTaxRowHandlers(row);
+            });
+        }
+
+        function appendTaxOption(taxData) {
+            if (!taxData || !editInputTax) {
+                return;
+            }
+            var option = editInputTax.querySelector('option[value="' + taxData.id + '"]');
+            if (!option) {
+                option = document.createElement("option");
+                option.value = taxData.id;
+                editInputTax.appendChild(option);
+            }
+            option.textContent = taxData.nombre + " (" + taxData.porcentaje + "%)";
+            option.dataset.taxOptionActive = taxData.activo ? "true" : "false";
+            editInputTax.value = String(taxData.id);
+        }
+
+        function updateSelectedTaxLabel(name, rate) {
+            if (editModalUnitTax) {
+                var label = name ? name + (rate ? " (" + rate + "%)" : "") : "Sin impuesto";
+                editModalUnitTax.textContent = label;
+            }
+        }
+
+        function attachTaxRowHandlers(row) {
+            if (!row) {
+                return;
+            }
+            var selectButton = row.querySelector("[data-tax-select-button]");
+            if (selectButton && selectButton.dataset.bound !== "true") {
+                selectButton.dataset.bound = "true";
+                selectButton.addEventListener("click", function () {
+                    var taxId = row.dataset.taxId;
+                    var taxName = row.dataset.taxName;
+                    var taxRate = row.dataset.taxRate;
+                    appendTaxOption({ id: taxId, nombre: taxName, porcentaje: taxRate, activo: row.dataset.taxActive === "true" });
+                    if (editInputTaxMode) {
+                        editInputTaxMode.checked = false;
+                        updateTaxModePresentation(editInputTaxMode);
+                    }
+                    updateSelectedTaxLabel(taxName, taxRate);
+                    if (taxManagementModal) {
+                        taxManagementModal.setAttribute("hidden", "hidden");
+                    }
+                    unlockBodyIfNoModal();
+                    showToast("Impuesto seleccionado: " + taxName, "success");
+                });
+            }
+
+            var toggleButton = row.querySelector("[data-tax-toggle-button]");
+            if (toggleButton && toggleButton.dataset.bound !== "true") {
+                toggleButton.dataset.bound = "true";
+                toggleButton.addEventListener("click", function () {
+                    var toggleUrl = toggleButton.dataset.toggleUrl;
+                    if (!toggleUrl) {
+                        return;
+                    }
+                    toggleButton.disabled = true;
+                    fetch(toggleUrl, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": getCsrfToken(),
+                        },
+                    })
+                        .then(function (response) {
+                            if (!response.ok) {
+                                throw new Error("No se pudo actualizar el estado del impuesto.");
+                            }
+                            return response.json();
+                        })
+                        .then(function (data) {
+                            row.dataset.taxActive = data.activo ? "true" : "false";
+                            row.dataset.taxName = data.nombre || "";
+                            row.dataset.taxRate = data.porcentaje || "0";
+                            var statusSpan = row.querySelector(".lookup-status");
+                            if (statusSpan) {
+                                statusSpan.textContent = data.activo ? "Activo" : "Inactivo";
+                                statusSpan.classList.toggle("lookup-status--active", !!data.activo);
+                                statusSpan.classList.toggle("lookup-status--inactive", !data.activo);
+                            }
+                            toggleButton.textContent = data.activo ? "Inactivar" : "Activar";
+                            toggleButton.disabled = false;
+                            appendTaxOption(data);
+                            showToast("Estado del impuesto actualizado.", "success");
+                        })
+                        .catch(function (error) {
+                            toggleButton.disabled = false;
+                            showToast(error.message || "No se pudo actualizar el impuesto.", "error");
+                        });
+                });
+            }
+        }
+
+        function openTaxManagementModal() {
+            if (!taxManagementModal) {
+                return;
+            }
+            if (editModal && !editModal.hasAttribute("hidden")) {
+                editModal.dataset.wasTemporarilyHidden = "true";
+                editModal.setAttribute("hidden", "hidden");
+            }
+            taxManagementModal.removeAttribute("hidden");
+            lockBody();
+            refreshTaxRows();
+        }
+
+        function closeTaxManagementModal() {
+            if (!taxManagementModal) {
+                return;
+            }
+            taxManagementModal.setAttribute("hidden", "hidden");
+            if (editModal && editModal.dataset.wasTemporarilyHidden === "true") {
+                delete editModal.dataset.wasTemporarilyHidden;
+                editModal.removeAttribute("hidden");
+                lockBody();
+            } else {
+                unlockBodyIfNoModal();
+            }
+        }
+
+        function openTaxCreateModal() {
+            if (!taxCreateModal) {
+                return;
+            }
+            if (taxManagementModal && !taxManagementModal.hasAttribute("hidden")) {
+                taxManagementModal.dataset.wasTemporarilyHidden = "true";
+                taxManagementModal.setAttribute("hidden", "hidden");
+            }
+            lockBody();
+            var form = taxCreateModal.querySelector("[data-tax-create-form]");
+            if (form) {
+                form.reset();
+                showTaxCreateError("");
+                var nameInput = form.querySelector("[data-tax-create-name]");
+                if (nameInput) {
+                    nameInput.focus();
+                }
+            }
+            taxCreateModal.removeAttribute("hidden");
+        }
+
+        function closeTaxCreateModal() {
+            if (!taxCreateModal) {
+                return;
+            }
+            taxCreateModal.setAttribute("hidden", "hidden");
+            if (taxManagementModal && taxManagementModal.dataset.wasTemporarilyHidden === "true") {
+                delete taxManagementModal.dataset.wasTemporarilyHidden;
+                taxManagementModal.removeAttribute("hidden");
+                refreshTaxRows();
+                lockBody();
+            } else {
+                unlockBodyIfNoModal();
+            }
+        }
+
+        function showTaxCreateError(message) {
+            if (!taxCreateModal) {
+                return;
+            }
+            var errorWrapper = taxCreateModal.querySelector("[data-tax-create-error]");
+            var messageBox = taxCreateModal.querySelector("[data-tax-create-error-message]");
+            if (!errorWrapper || !messageBox) {
+                return;
+            }
+            if (message) {
+                errorWrapper.hidden = false;
+                messageBox.textContent = message;
+            } else {
+                errorWrapper.hidden = true;
+                messageBox.textContent = "";
+            }
+        }
+
+        function addTaxRow(data) {
+            if (!taxTableBody) {
+                return;
+            }
+            var emptyRow = taxTableBody.querySelector("[data-tax-empty]");
+            if (emptyRow) {
+                emptyRow.hidden = true;
+            }
+            var row = document.createElement("tr");
+            row.dataset.taxRow = "";
+            row.dataset.taxId = data.id;
+            row.dataset.taxName = data.nombre || "";
+            row.dataset.taxRate = data.porcentaje || "0";
+            row.dataset.taxActive = data.activo ? "true" : "false";
+            row.innerHTML = [
+                '<td data-row-index></td>',
+                '<td><span class="lookup-name">' + (data.nombre || "") + '</span></td>',
+                '<td>' + (data.porcentaje || "0") + '%</td>',
+                '<td><span class="lookup-status ' + (data.activo ? 'lookup-status--active' : 'lookup-status--inactive') + '">' + (data.activo ? 'Activo' : 'Inactivo') + '</span></td>',
+                '<td><button type="button" class="btn btn-outline btn--compact" data-tax-select-button>Seleccionar</button></td>',
+                '<td><button type="button" class="btn btn-outline btn--compact" data-tax-toggle-button data-toggle-url="' + ("{% url 'dashboard:toggle_tax_status_api' 0 %}".replace(/0$/, String(data.id || ""))) + '">' + (data.activo ? 'Inactivar' : 'Activar') + '</button></td>'
+            ].join("");
+            taxTableBody.appendChild(row);
+            attachTaxRowHandlers(row);
+            refreshTaxRows();
+        }
+
+        if (editInputTaxMode) {
+            editInputTaxMode.addEventListener("change", function () {
+                updateTaxModePresentation(editInputTaxMode);
+            });
+            updateTaxModePresentation(editInputTaxMode);
+        }
+
+        if (editOpenTaxModalButton) {
+            editOpenTaxModalButton.addEventListener("click", function () {
+                if (editInputTaxMode) {
+                    editInputTaxMode.checked = false;
+                    updateTaxModePresentation(editInputTaxMode);
+                }
+                openTaxManagementModal();
+            });
+        }
+
+        if (taxManagementModal) {
+            taxManagementModal.querySelectorAll('[data-close-tax-management]').forEach(function (button) {
+                button.addEventListener("click", function () {
+                    closeTaxManagementModal();
+                });
+            });
+            var openCreateButton = taxManagementModal.querySelector('[data-open-tax-create]');
+            if (openCreateButton) {
+                openCreateButton.addEventListener("click", function () {
+                    openTaxCreateModal();
+                });
+            }
+        }
+
+        if (taxCreateModal) {
+            taxCreateModal.querySelectorAll('[data-close-tax-create]').forEach(function (button) {
+                button.addEventListener("click", function () {
+                    closeTaxCreateModal();
+                });
+            });
+            var taxCreateForm = taxCreateModal.querySelector('[data-tax-create-form]');
+            if (taxCreateForm) {
+                taxCreateForm.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    showTaxCreateError("");
+
+                    var nameInput = taxCreateForm.querySelector('[data-tax-create-name]');
+                    var rateInput = taxCreateForm.querySelector('[data-tax-create-rate]');
+                    var activeInput = taxCreateForm.querySelector('[data-tax-create-active]');
+
+                    var nombre = nameInput ? nameInput.value.trim() : "";
+                    var porcentaje = rateInput ? rateInput.value.trim() : "";
+                    var activo = activeInput ? activeInput.checked : true;
+
+                    if (!nombre) {
+                        showTaxCreateError("Ingresa el nombre del impuesto.");
+                        if (nameInput) {
+                            nameInput.focus();
+                        }
+                        return;
+                    }
+                    if (!porcentaje) {
+                        showTaxCreateError("Ingresa el porcentaje de impuesto.");
+                        if (rateInput) {
+                            rateInput.focus();
+                        }
+                        return;
+                    }
+
+                    var submitButton = taxCreateForm.querySelector('[data-tax-create-submit]');
+                    if (submitButton) {
+                        submitButton.disabled = true;
+                    }
+
+                    fetch("{% url 'dashboard:create_tax_api' %}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": getCsrfToken(),
+                        },
+                        body: JSON.stringify({ nombre: nombre, porcentaje: porcentaje, activo: activo }),
+                    })
+                        .then(function (response) {
+                            if (!response.ok) {
+                                return response.json().then(function (payload) {
+                                    throw new Error(payload && payload.error ? payload.error : "No se pudo registrar el impuesto.");
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(function (data) {
+                            appendTaxOption(data);
+                            addTaxRow(data);
+                            closeTaxCreateModal();
+                            showToast("Impuesto registrado correctamente.", "success");
+                        })
+                        .catch(function (error) {
+                            showTaxCreateError(error.message || "No se pudo registrar el impuesto.");
+                        })
+                        .finally(function () {
+                            if (submitButton) {
+                                submitButton.disabled = false;
+                            }
+                        });
+                });
+            }
+        }
 
         function openViewModal(button) {
             if (!viewModal) {
@@ -1818,6 +2924,9 @@
             if (editInputRam) {
                 editInputRam.value = unitData && unitData.memoria_ram ? unitData.memoria_ram : "";
             }
+            if (editInputBattery) {
+                editInputBattery.value = unitData && unitData.vida_bateria ? unitData.vida_bateria : "";
+            }
             if (editModalUnitImei) {
                 editModalUnitImei.textContent = (unitData && unitData.imei) ? unitData.imei : "Sin IMEI";
             }
@@ -1830,8 +2939,22 @@
             if (editModalUnitRam) {
                 editModalUnitRam.textContent = (unitData && unitData.memoria_ram_label) ? unitData.memoria_ram_label : "No especificada";
             }
+            if (editModalUnitTax) {
+                editModalUnitTax.textContent = (unitData && unitData.impuesto_label) ? unitData.impuesto_label : "Impuesto global";
+            }
+            if (editModalUnitTax) {
+                editModalUnitTax.textContent = (unitData && unitData.impuesto_label) ? unitData.impuesto_label : "Impuesto global";
+            }
             if (editInputCondition && unitData && Object.prototype.hasOwnProperty.call(unitData, "producto_condicion")) {
                 editInputCondition.value = unitData.producto_condicion || "";
+            }
+            if (editInputTaxMode) {
+                var useGlobal = !unitData || unitData.usar_impuesto_global !== false;
+                editInputTaxMode.checked = useGlobal;
+                updateTaxModePresentation(editInputTaxMode);
+            }
+            if (editInputTax && unitData) {
+                editInputTax.value = unitData.impuesto_id || "";
             }
         }
 
@@ -1881,6 +3004,7 @@
                         syncProductData(data.product);
                     }
                     hydrateEditModal(unitIndex, unitData);
+                    updateTaxModePresentation(editInputTaxMode);
                 })
                 .catch(function (error) {
                     console.error(error);
@@ -1925,6 +3049,12 @@
             if (editInputPrice) {
                 formData.set("precio_venta", (editInputPrice.value || "").toString().trim());
             }
+            if (editInputTaxMode) {
+                formData.set("usar_impuesto_global", editInputTaxMode.checked ? "true" : "false");
+            }
+            if (editInputTax) {
+                formData.set("impuesto", (editInputTax.value || "").toString().trim());
+            }
 
             fetch(unitUrl, {
                 method: "POST",
@@ -1950,10 +3080,11 @@
                     if (payload.product) {
                         syncProductData(payload.product);
                     }
-                    updateCardDisplay(unitIndexValue, unitData);
                     hydrateEditModal(unitIndexValue, unitData);
-                    clearInlineError();
+                    updateTaxModePresentation(editInputTaxMode);
+                    updateCardDisplay(unitIndexValue, unitData);
                     closeEditModal();
+                    showToast("Unidad actualizada correctamente.", "success");
                 })
                 .catch(function (error) {
                     console.error(error);

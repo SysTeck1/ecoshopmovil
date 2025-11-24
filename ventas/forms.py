@@ -15,6 +15,7 @@ from .models import (
     FiscalVoucherConfig,
     FiscalVoucherXML,
     TradeInCredit,
+    TIPO_PRODUCTO_CHOICES,
 )
 
 
@@ -309,19 +310,41 @@ class ProductoForm(forms.ModelForm):
 
 
 class CategoriaForm(forms.ModelForm):
+    tipo_producto = forms.ChoiceField(
+        choices=[("", "🔧 General (todos los tipos)"), *TIPO_PRODUCTO_CHOICES],
+        required=False,
+        label="Tipo de producto",
+        help_text="Selecciona el tipo de producto para esta categoría",
+    )
+
     class Meta:
         model = Categoria
-        fields = ["nombre"]
+        fields = ["nombre", "tipo_producto"]
         widgets = {
             "nombre": forms.TextInput(attrs={
                 "placeholder": "Ej. Accesorios",
                 "required": True,
                 "data-initial-focus": "true",
-                "autocomplete": "off",
-                "maxlength": 120,
-                "class": "category-input",
             })
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["nombre"].widget.attrs.setdefault("placeholder", "Ej. Accesorios")
+        self.fields["nombre"].widget.attrs.setdefault("required", True)
+        self.fields["nombre"].widget.attrs.setdefault("data-initial-focus", "true")
+        self.fields["tipo_producto"].widget.attrs.update({
+            "id": self.fields["tipo_producto"].widget.attrs.get("id", "category-register-type-input"),
+            "class": "modal-field__input",
+        })
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        tipo_producto = self.cleaned_data.get("tipo_producto") or None
+        instance.tipo_producto = tipo_producto
+        if commit:
+            instance.save()
+        return instance
 
     def clean_nombre(self):
         return self.cleaned_data.get("nombre", "").strip()

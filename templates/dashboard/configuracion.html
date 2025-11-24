@@ -267,6 +267,7 @@
                         <tr>
                             <th scope="col">ID</th>
                             <th scope="col">Categoría</th>
+                            <th scope="col">Tipo de producto</th>
                             <th scope="col">Estado</th>
                             <th scope="col">Acciones</th>
                         </tr>
@@ -279,9 +280,25 @@
                                     data-id="{{ categoria.id }}"
                                     data-name="{{ categoria.nombre|lower }}"
                                     data-state="{{ categoria.activo|yesno:'true,false' }}"
+                                    data-type="{{ categoria.tipo_producto|default:'' }}"
                                 >
                                     <td>{{ categoria.id }}</td>
                                     <td>{{ categoria.nombre }}</td>
+                                    <td>
+                                        {% if categoria.tipo_producto %}
+                                            <span class="product-type-badge product-type-badge--{{ categoria.tipo_producto }}">
+                                                {% if categoria.tipo_producto == 'phone' %}📱 Teléfonos
+                                                {% elif categoria.tipo_producto == 'accessory' %}🔌 Accesorios
+                                                {% elif categoria.tipo_producto == 'laptop' %}💻 Laptops
+                                                {% elif categoria.tipo_producto == 'tablet' %}📟 Tablets
+                                                {% elif categoria.tipo_producto == 'gaming' %}🎮 Gaming
+                                                {% else %}{{ categoria.get_tipo_producto_display }}
+                                                {% endif %}
+                                            </span>
+                                        {% else %}
+                                            <span class="product-type-badge product-type-badge--general">🔧 General</span>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ categoria.activo|yesno:'Activa,Inactiva' }}</td>
                                     <td>
                                         <div class="tax-actions tax-actions--compact">
@@ -291,6 +308,7 @@
                                                 data-id="{{ categoria.id }}"
                                                 data-name="{{ categoria.nombre|escape }}"
                                                 data-active="{{ categoria.activo|yesno:'true,false' }}"
+                                                data-type="{{ categoria.tipo_producto|default:'' }}"
                                                 aria-label="Editar categoría {{ categoria.nombre }}">
                                                 <span class="icon">✏️</span>
                                             </button>
@@ -356,6 +374,16 @@
                         <div class="field-error">{{ categoria_form.nombre.errors|join:", " }}</div>
                     {% endif %}
                 </div>
+                <div class="modal-field">
+                    <label class="modal-field__label" for="category-register-type-input">Tipo de producto</label>
+                    {{ categoria_form.tipo_producto }}
+                    {% if categoria_form.tipo_producto.errors %}
+                        <div class="field-error">{{ categoria_form.tipo_producto.errors|join:", " }}</div>
+                    {% endif %}
+                    {% if categoria_form.fields.tipo_producto.help_text %}
+                        <div class="modal-field__help">{{ categoria_form.fields.tipo_producto.help_text }}</div>
+                    {% endif %}
+                </div>
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn btn-ghost" data-close-category-register>Cancelar</button>
@@ -388,6 +416,17 @@
                         autocomplete="off"
                         maxlength="120"
                         data-category-edit-name>
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field__label" for="category-edit-type">Tipo de producto</label>
+                    <select id="category-edit-type" name="tipo_producto" class="modal-field__input" data-category-edit-type>
+                        <option value="">🔧 General (todos los tipos)</option>
+                        <option value="phone">📱 Teléfonos</option>
+                        <option value="accessory">🔌 Accesorios</option>
+                        <option value="laptop">💻 Laptops</option>
+                        <option value="tablet">📟 Tablets</option>
+                        <option value="gaming">🎮 Gaming</option>
+                    </select>
                 </div>
                 <div class="modal-field modal-field--inline">
                     <span class="modal-field__label">Estado actual</span>
@@ -2195,6 +2234,10 @@
                     editNameInput.value = config.name || '';
                     editNameInput.focus();
                 }
+                var typeSelect = editModal.querySelector('[data-category-edit-type]');
+                if (typeSelect) {
+                    typeSelect.value = config.type || '';
+                }
                 setStatusBadge(config.active || 'false');
                 editModal.setAttribute('aria-hidden', 'false');
                 editModal.classList.add('is-visible');
@@ -2222,6 +2265,7 @@
                     id: button.getAttribute('data-id'),
                     name: button.getAttribute('data-name'),
                     active: button.getAttribute('data-active'),
+                    type: button.getAttribute('data-type') || '',
                 };
                 openEditModal(config);
             });
@@ -2517,5 +2561,67 @@
                 });
             }
         })();
-</script>
+    </script>
+
+    <style>
+        /* Product type badges */
+        .product-type-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .product-type-badge--phone {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+
+        .product-type-badge--accessory {
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .product-type-badge--laptop {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+
+        .product-type-badge--tablet {
+            background: #fdf2f8;
+            color: #be185d;
+            border: 1px solid #fbcfe8;
+        }
+
+        .product-type-badge--gaming {
+            background: #f3e8ff;
+            color: #7c3aed;
+            border: 1px solid #ddd6fe;
+        }
+
+        .product-type-badge--general {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        /* Modal field help text */
+        .modal-field__help {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        /* Adjust table column widths */
+        .category-modal__table th:nth-child(3),
+        .category-modal__table td:nth-child(3) {
+            width: 150px;
+        }
+    </style>
 {% endblock %}

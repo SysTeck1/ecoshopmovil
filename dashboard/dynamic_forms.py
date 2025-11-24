@@ -1,0 +1,177 @@
+"""
+Formularios dinámicos para diferentes tipos de productos
+"""
+from django import forms
+from django.forms import inlineformset_factory
+from ventas.models import Producto, ProductoSpecificFields
+from ventas.product_types import product_registry, get_dynamic_form_class
+
+
+class ProductTypeSelectionForm(forms.Form):
+    """Formulario para seleccionar el tipo de producto"""
+    
+    tipo_producto = forms.ChoiceField(
+        label="Tipo de producto",
+        choices=Producto.TIPO_PRODUCTO_CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'field__control',
+            'data-product-type-selector': True
+        }),
+        help_text="Selecciona el tipo de producto para mostrar campos específicos"
+    )
+
+
+class BaseProductForm(forms.ModelForm):
+    """Formulario base para productos"""
+    
+    class Meta:
+        model = Producto
+        fields = [
+            'tipo_producto', 'nombre', 'marca', 'modelo', 'categoria', 'proveedor',
+            'descripcion', 'precio_compra', 'precio_venta', 'stock', 'stock_minimo',
+            'almacenamiento', 'memoria_ram', 'imei', 'colores_disponibles',
+            'usar_impuesto_global', 'impuesto', 'activo'
+        ]
+        widgets = {
+            'tipo_producto': forms.Select(attrs={
+                'class': 'field__control',
+                'data-product-type-selector': True
+            }),
+            'nombre': forms.TextInput(attrs={'class': 'field__control'}),
+            'descripcion': forms.Textarea(attrs={'class': 'field__control', 'rows': 3}),
+            'precio_compra': forms.NumberInput(attrs={'class': 'field__control', 'step': '0.01'}),
+            'precio_venta': forms.NumberInput(attrs={'class': 'field__control', 'step': '0.01'}),
+            'stock': forms.NumberInput(attrs={'class': 'field__control'}),
+            'stock_minimo': forms.NumberInput(attrs={'class': 'field__control'}),
+            'almacenamiento': forms.Select(attrs={'class': 'field__control'}),
+            'memoria_ram': forms.Select(attrs={'class': 'field__control'}),
+            'imei': forms.Textarea(attrs={'class': 'field__control', 'rows': 3}),
+            'colores_disponibles': forms.TextInput(attrs={'class': 'field__control'}),
+            'marca': forms.Select(attrs={'class': 'field__control'}),
+            'modelo': forms.Select(attrs={'class': 'field__control'}),
+            'categoria': forms.Select(attrs={'class': 'field__control'}),
+            'proveedor': forms.Select(attrs={'class': 'field__control'}),
+            'impuesto': forms.Select(attrs={'class': 'field__control'}),
+        }
+
+
+class ProductoSpecificFieldsForm(forms.ModelForm):
+    """Formulario para campos específicos del producto"""
+    
+    class Meta:
+        model = ProductoSpecificFields
+        exclude = ['producto', 'created_at', 'updated_at']
+        widgets = {
+            'procesador': forms.TextInput(attrs={'class': 'field__control'}),
+            'pantalla': forms.TextInput(attrs={'class': 'field__control'}),
+            'sistema_operativo': forms.TextInput(attrs={'class': 'field__control'}),
+            'tipo_accesorio': forms.TextInput(attrs={'class': 'field__control'}),
+            'compatibilidad': forms.TextInput(attrs={'class': 'field__control'}),
+            'material': forms.TextInput(attrs={'class': 'field__control'}),
+            'potencia': forms.TextInput(attrs={'class': 'field__control'}),
+            'tarjeta_grafica': forms.TextInput(attrs={'class': 'field__control'}),
+            'numero_serie': forms.TextInput(attrs={'class': 'field__control'}),
+            'tipo_gaming': forms.TextInput(attrs={'class': 'field__control'}),
+            'plataforma': forms.TextInput(attrs={'class': 'field__control'}),
+            'conectividad': forms.TextInput(attrs={'class': 'field__control'}),
+        }
+
+
+def get_product_form_fields(product_type):
+    """Obtiene los campos que deben mostrarse para un tipo de producto específico"""
+    
+    config = product_registry.get_type(product_type)
+    if not config:
+        return []
+    
+    # Campos base que siempre se muestran
+    base_fields = ['tipo_producto', 'nombre', 'marca', 'modelo', 'categoria', 'proveedor', 'descripcion', 'precio_compra', 'precio_venta', 'stock', 'stock_minimo', 'activo']
+    
+    # Campos específicos según el tipo
+    specific_fields = []
+    
+    if product_type == 'phone':
+        specific_fields = ['almacenamiento', 'memoria_ram', 'imei', 'colores_disponibles', 'usar_impuesto_global', 'impuesto']
+    elif product_type == 'accessory':
+        specific_fields = ['usar_impuesto_global', 'impuesto']
+    elif product_type == 'laptop':
+        specific_fields = ['almacenamiento', 'memoria_ram', 'usar_impuesto_global', 'impuesto']
+    elif product_type == 'tablet':
+        specific_fields = ['almacenamiento', 'memoria_ram', 'colores_disponibles', 'usar_impuesto_global', 'impuesto']
+    elif product_type == 'gaming':
+        specific_fields = ['almacenamiento', 'usar_impuesto_global', 'impuesto']
+    
+    return base_fields + specific_fields
+
+
+def get_specific_form_fields(product_type):
+    """Obtiene los campos específicos que deben mostrarse para un tipo de producto"""
+    
+    field_mapping = {
+        'phone': ['procesador', 'pantalla', 'sistema_operativo'],
+        'accessory': ['tipo_accesorio', 'compatibilidad', 'material', 'potencia'],
+        'laptop': ['procesador', 'pantalla', 'tarjeta_grafica', 'sistema_operativo', 'numero_serie'],
+        'tablet': ['procesador', 'pantalla', 'sistema_operativo', 'conectividad'],
+        'gaming': ['tipo_gaming', 'plataforma', 'numero_serie']
+    }
+    
+    return field_mapping.get(product_type, [])
+
+
+class DynamicProductForm(BaseProductForm):
+    """Formulario dinámico que se adapta según el tipo de producto"""
+    
+    def __init__(self, *args, **kwargs):
+        self.product_type = kwargs.pop('product_type', 'phone')
+        super().__init__(*args, **kwargs)
+        
+        # Obtener campos permitidos para este tipo de producto
+        allowed_fields = get_product_form_fields(self.product_type)
+        
+        # Remover campos no permitidos
+        fields_to_remove = []
+        for field_name in self.fields:
+            if field_name not in allowed_fields:
+                fields_to_remove.append(field_name)
+        
+        for field_name in fields_to_remove:
+            del self.fields[field_name]
+        
+        # Configurar el campo tipo_producto
+        if 'tipo_producto' in self.fields:
+            self.fields['tipo_producto'].initial = self.product_type
+            
+        # Hacer campos condicionales opcionales según el tipo
+        if self.product_type == 'accessory':
+            # Para accesorios, algunos campos de teléfonos no son relevantes
+            optional_fields = ['almacenamiento', 'memoria_ram', 'imei']
+            for field in optional_fields:
+                if field in self.fields:
+                    self.fields[field].required = False
+                    
+        elif self.product_type == 'gaming':
+            # Para gaming, algunos campos son opcionales
+            optional_fields = ['memoria_ram', 'imei']
+            for field in optional_fields:
+                if field in self.fields:
+                    self.fields[field].required = False
+
+
+class DynamicSpecificFieldsForm(ProductoSpecificFieldsForm):
+    """Formulario dinámico para campos específicos"""
+    
+    def __init__(self, *args, **kwargs):
+        self.product_type = kwargs.pop('product_type', 'phone')
+        super().__init__(*args, **kwargs)
+        
+        # Obtener campos permitidos para este tipo de producto
+        allowed_fields = get_specific_form_fields(self.product_type)
+        
+        # Remover campos no permitidos
+        fields_to_remove = []
+        for field_name in self.fields:
+            if field_name not in allowed_fields and field_name != 'extra_fields':
+                fields_to_remove.append(field_name)
+        
+        for field_name in fields_to_remove:
+            del self.fields[field_name]

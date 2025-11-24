@@ -18,6 +18,31 @@ urlpatterns = [
         name="sales_product_unit_search_api",
     ),
     path(
+        "ventas/productos/scan/",
+        views.scan_unit_barcode_api,
+        name="scan_unit_barcode_api",
+    ),
+    path(
+        "inventario/etiquetas/",
+        views.generate_barcode_labels_api,
+        name="generate_barcode_labels_api",
+    ),
+    path(
+        "inventario/crear-dinamico/",
+        views.dynamic_inventory_create_view,
+        name="dynamic_inventory_create",
+    ),
+    path(
+        "inventario/tipo-campos/",
+        views.get_product_type_fields_api,
+        name="get_product_type_fields_api",
+    ),
+    path(
+        "inventario/categorias-por-tipo/",
+        views.get_categories_by_type_api,
+        name="get_categories_by_type_api",
+    ),
+    path(
         "reportes/ventas-totales/",
         views.report_total_sales_api,
         name="report_total_sales_api",

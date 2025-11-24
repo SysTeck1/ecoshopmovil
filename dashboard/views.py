@@ -64,6 +64,7 @@ from ventas.models import (
     ProductImage,
     Producto,
     ProductoUnitDetail,
+    ProductoSpecificFields,
     Proveedor,
     Venta,
     DetalleVenta,
@@ -113,23 +114,38 @@ def _resolve_manual_tax_rate(porcentaje, activo):
         return Decimal("0")
 
 
-def _resolve_line_tax_rate(producto, global_tax_rate):
-    if producto is None:
+def _resolve_line_tax_rate(producto, global_tax_rate, unidad_detalle=None):
+    if producto is None and unidad_detalle is None:
         return global_tax_rate or Decimal("0")
 
-    usar_global = getattr(producto, "usar_impuesto_global", True)
-    impuesto_obj = getattr(producto, "impuesto", None)
-    impuesto_activo = getattr(impuesto_obj, "activo", False)
-    impuesto_porcentaje = getattr(impuesto_obj, "porcentaje", None)
+    unidad_detalle = unidad_detalle if unidad_detalle is not None else None
+    usar_global = True
+    unidad_impuesto = None
+
+    if unidad_detalle is not None:
+        usar_global = getattr(unidad_detalle, "usar_impuesto_global", True)
+        unidad_impuesto = getattr(unidad_detalle, "impuesto", None)
+    elif producto is not None:
+        usar_global = getattr(producto, "usar_impuesto_global", True)
+
+    producto_impuesto = getattr(producto, "impuesto", None) if producto is not None else None
 
     if usar_global:
+        fallback_impuesto = unidad_impuesto or producto_impuesto
+        impuesto_activo = getattr(fallback_impuesto, "activo", False)
+        impuesto_porcentaje = getattr(fallback_impuesto, "porcentaje", None)
         if global_tax_rate is None:
             return _resolve_manual_tax_rate(impuesto_porcentaje, impuesto_activo)
-        if not impuesto_obj or not impuesto_activo:
+        if not fallback_impuesto or not impuesto_activo:
             return Decimal("0")
         return global_tax_rate
 
-    return _resolve_manual_tax_rate(impuesto_porcentaje, impuesto_activo)
+    manual_impuesto = unidad_impuesto or producto_impuesto
+    manual_porcentaje = getattr(manual_impuesto, "porcentaje", None)
+    manual_activo = getattr(manual_impuesto, "activo", False)
+    return _resolve_manual_tax_rate(manual_porcentaje, manual_activo)
+
+
 PAYMENT_CYCLE_DAYS = 30
 COUNTDOWN_WARNING_DAYS = 10
 WHATSAPP_ALERT_DAYS = 5
@@ -145,6 +161,41 @@ def format_currency(value) -> str:
     return f"RD$ {decimal_value:,.2f}"
 
 
+def _get_unit_detail_from_product(producto: Producto | None, unidad_index: int | str | None):
+    if producto is None or unidad_index in (None, "", 0, "0"):
+        return None
+
+    try:
+        unidad_index_int = int(unidad_index)
+    except (TypeError, ValueError):
+        return None
+
+    if unidad_index_int <= 0:
+        return None
+
+    cache_attr = "_unit_detail_cache"
+    cache: dict[int, ProductoUnitDetail]
+
+    if hasattr(producto, cache_attr):
+        cache = getattr(producto, cache_attr)
+    else:
+        detalles = None
+        if hasattr(producto, "_prefetched_objects_cache"):
+            detalles = producto._prefetched_objects_cache.get("unidades_detalle")
+        if detalles is None:
+            detalles = list(producto.unidades_detalle.all())
+        cache = {detalle.unidad_index: detalle for detalle in detalles}
+        setattr(producto, cache_attr, cache)
+
+    return cache.get(unidad_index_int)
+
+
+def _resolve_unit_detail(producto: Producto | None, unit_index: int | str | None, detalle_obj: ProductoUnitDetail | None = None):
+    if detalle_obj is not None:
+        return detalle_obj
+    return _get_unit_detail_from_product(producto, unit_index)
+
+
 def compute_sale_totals(venta: Venta) -> dict[str, Decimal]:
     subtotal = Decimal("0")
     impuestos = Decimal("0")
@@ -154,7 +205,7 @@ def compute_sale_totals(venta: Venta) -> dict[str, Decimal]:
     site_config = SiteConfiguration.get_solo()
     global_tax_rate = _resolve_global_tax_rate(site_config)
 
-    for detalle in venta.detalles.all():
+    for detalle in venta.detalles.select_related("producto"):
         precio_unitario = detalle.precio_unitario or Decimal("0")
         cantidad = Decimal(detalle.cantidad or 0)
         descuento = detalle.descuento or Decimal("0")
@@ -164,8 +215,12 @@ def compute_sale_totals(venta: Venta) -> dict[str, Decimal]:
         line_subtotal = (base_amount - line_discount).quantize(TWO_PLACES)
         if line_subtotal < Decimal("0"):
             line_subtotal = Decimal("0.00")
+
         producto = getattr(detalle, "producto", None)
-        tax_rate = _resolve_line_tax_rate(producto, global_tax_rate)
+        unidad_detalle = None
+        if producto is not None:
+            unidad_detalle = _get_unit_detail_from_product(producto, getattr(detalle, "unidad_index", None))
+        tax_rate = _resolve_line_tax_rate(producto, global_tax_rate, unidad_detalle)
 
         line_tax = (line_subtotal * tax_rate).quantize(TWO_PLACES)
 
@@ -781,15 +836,7 @@ def build_product_sales_report(queryset, search_term: str | None):
     )
 
     site_config = SiteConfiguration.get_solo()
-    try:
-        if getattr(site_config, "global_tax_enabled", False):
-            global_tax_rate = Decimal(site_config.global_tax_rate or 0) / Decimal("100")
-        else:
-            global_tax_rate = None
-    except (InvalidOperation, TypeError, ValueError):
-        global_tax_rate = None
-    if global_tax_rate is not None and global_tax_rate < Decimal("0"):
-        global_tax_rate = Decimal("0")
+    global_tax_rate = _resolve_global_tax_rate(site_config)
 
     if search_term:
         search_value = search_term.strip()
@@ -831,26 +878,10 @@ def build_product_sales_report(queryset, search_term: str | None):
         if line_subtotal < Decimal("0"):
             line_subtotal = Decimal("0")
         line_subtotal = line_subtotal.quantize(TWO_PLACES)
-        if global_tax_rate is not None:
-            impuesto_obj = getattr(producto, "impuesto", None)
-            impuesto_activo = getattr(impuesto_obj, "activo", False)
-            if producto is None:
-                tax_rate = global_tax_rate
-            elif not impuesto_obj or not impuesto_activo:
-                tax_rate = Decimal("0")
-            else:
-                tax_rate = global_tax_rate
-        else:
-            impuesto_obj = getattr(producto, "impuesto", None)
-            impuesto_activo = getattr(impuesto_obj, "activo", False)
-            try:
-                tax_rate = (
-                    Decimal(impuesto_obj.porcentaje) / Decimal("100")
-                    if impuesto_obj and impuesto_obj.porcentaje is not None and impuesto_activo
-                    else Decimal("0")
-                )
-            except (InvalidOperation, TypeError, ValueError):
-                tax_rate = Decimal("0")
+        
+        # Use per-unit tax calculation
+        unidad_detalle = _get_unit_detail_from_product(producto, getattr(detalle, "unidad_index", None))
+        tax_rate = _resolve_line_tax_rate(producto, global_tax_rate, unidad_detalle)
 
         line_tax = (line_subtotal * tax_rate).quantize(TWO_PLACES)
         line_total = (line_subtotal + line_tax).quantize(TWO_PLACES)
@@ -1147,21 +1178,30 @@ def calculate_credit_totals(venta: Venta):
             subtotal = (Decimal(str(subtotal_bruto)) - Decimal(str(descuento_total))).quantize(TWO_PLACES)
             if subtotal < Decimal("0"):
                 subtotal = Decimal("0")
-            impuestos = (subtotal * TAX_RATE).quantize(TWO_PLACES)
+            # For existing sales with subtotal_bruto, use compute_sale_totals for accurate per-unit tax
+            totals = compute_sale_totals(venta)
+            impuestos = totals["impuestos"]
         except (InvalidOperation, TypeError, ValueError):
             subtotal = Decimal("0")
             impuestos = Decimal("0")
     else:
-        for detalle in venta.detalles.all():
+        site_config = SiteConfiguration.get_solo()
+        global_tax_rate = _resolve_global_tax_rate(site_config)
+        
+        for detalle in venta.detalles.select_related("producto"):
             precio_unitario = detalle.precio_unitario or Decimal("0")
             cantidad = Decimal(detalle.cantidad or 0)
             descuento = detalle.descuento or Decimal("0")
 
             base_amount = (precio_unitario * cantidad).quantize(TWO_PLACES)
-            line_tax = (base_amount * TAX_RATE).quantize(TWO_PLACES)
             line_subtotal = (base_amount - descuento).quantize(TWO_PLACES)
             if line_subtotal < Decimal("0"):
                 line_subtotal = Decimal("0.00")
+                
+            producto = detalle.producto
+            unidad_detalle = _get_unit_detail_from_product(producto, getattr(detalle, "unidad_index", None))
+            tax_rate = _resolve_line_tax_rate(producto, global_tax_rate, unidad_detalle)
+            line_tax = (line_subtotal * tax_rate).quantize(TWO_PLACES)
 
             subtotal += line_subtotal
             impuestos += line_tax
@@ -1549,34 +1589,43 @@ class VentasView(DashboardTemplateView):
 
                 unit_label = f"{producto.nombre} · " + " | ".join(label_parts)
 
-                tax_percentage = "0"
-                tax_active = False
-                if producto.impuesto and producto.impuesto.porcentaje is not None:
-                    tax_percentage = str(producto.impuesto.porcentaje)
-                    tax_active = bool(producto.impuesto.activo)
-
+                tax_percentage = unit_data.get("impuesto_porcentaje") or "0"
+                tax_active = bool(unit_data.get("impuesto_activo"))
+                usar_global = unit_data.get("usar_impuesto_global", True)
+                impuesto_id = unit_data.get("impuesto_id") or ""
+                impuesto_label = unit_data.get("impuesto_label") or "Impuesto global"
+                unidad_label = f"Unidad {unidad_index}"
+                unit_data = _resolve_unit_defaults(producto, unidad_index)
                 unit_options.append(
                     {
                         "key": f"{producto.id}:{unidad_index}",
                         "producto_id": producto.id,
                         "unidad_index": unidad_index,
                         "etiqueta": unit_label,
-                        "precio": str(producto.precio_venta) if producto.precio_venta is not None else "",
+                        # Usar precio específico de la unidad si existe, sino el del producto
+                        "precio": str(unit_data.get("precio_venta") or producto.precio_venta) if unit_data.get("precio_venta") or producto.precio_venta else "",
                         "stock": "1",
-                        "impuesto_porcentaje": tax_percentage,
-                        "impuesto_activo": tax_active,
-                        "imei": imei_value,
-                        "color": color_label,
-                        "almacenamiento": almacenamiento_label,
-                        "memoria_ram": ram_label,
+                        "impuesto_porcentaje": unit_data.get("impuesto_porcentaje") or "0",
+                        "impuesto_activo": bool(unit_data.get("impuesto_activo")),
+                        "usar_impuesto_global": unit_data.get("usar_impuesto_global", True),
+                        "impuesto_id": unit_data.get("impuesto_id") or "",
+                        "impuesto_label": unit_data.get("impuesto_label") or "Impuesto global",
+                        "imei": unit_data.get("imei") or "",
+                        "color": unit_data.get("color") or "",
+                        "almacenamiento": unit_data.get("almacenamiento_label") or "No especificado",
+                        "memoria_ram": unit_data.get("memoria_ram_label") or "No especificada",
+                        "vida_bateria": unit_data.get("vida_bateria") or "",
+                        "codigo_barras": unit_data.get("codigo_barras") or "",
                         "units_json": json.dumps(
                             [
                                 {
                                     "index": unidad_index,
-                                    "imei": imei_value,
-                                    "color": color_label,
-                                    "almacenamiento": almacenamiento_label,
-                                    "memoria_ram": ram_label,
+                                    "imei": unit_data.get("imei") or "",
+                                    "color": unit_data.get("color") or "",
+                                    "almacenamiento": unit_data.get("almacenamiento_label") or "No especificado",
+                                    "memoria_ram": unit_data.get("memoria_ram_label") or "No especificada",
+                                    "vida_bateria": unit_data.get("vida_bateria") or "",
+                                    "codigo_barras": unit_data.get("codigo_barras") or "",
                                 }
                             ]
                         ),
@@ -1742,45 +1791,22 @@ def sales_product_unit_search_api(request):
         for idx in range(stock_total):
             unidad_index = idx + 1
             detalle_unit = detalles_map.get(unidad_index)
+            unit_defaults = _resolve_unit_defaults(producto, unidad_index)
 
-            if detalle_unit and detalle_unit.condicion_id:
-                condicion_nombre = detalle_unit.condicion.nombre if detalle_unit.condicion else "Sin especificar"
-            else:
-                condicion_nombre = "Sin especificar"
-
-            if detalle_unit and detalle_unit.almacenamiento:
-                almacenamiento_code = detalle_unit.almacenamiento
-                almacenamiento_label = almacenamiento_map.get(almacenamiento_code, detalle_unit.almacenamiento)
-            elif producto.almacenamiento:
-                almacenamiento_code = producto.almacenamiento
-                almacenamiento_label = almacenamiento_map.get(almacenamiento_code, producto.almacenamiento)
-            else:
-                almacenamiento_code = ""
-                almacenamiento_label = "No especificado"
-
-            if detalle_unit and detalle_unit.memoria_ram:
-                ram_code = detalle_unit.memoria_ram
-                ram_label = ram_map.get(ram_code, detalle_unit.memoria_ram)
-            elif producto.memoria_ram:
-                ram_code = producto.memoria_ram
-                ram_label = ram_map.get(ram_code, producto.memoria_ram)
-            else:
-                ram_code = ""
-                ram_label = "No especificada"
-
-            if detalle_unit and detalle_unit.imei:
-                imei_val = detalle_unit.imei
-            elif imeis:
-                imei_val = imeis[idx] if idx < len(imeis) else imeis[-1]
-            else:
-                imei_val = ""
-
-            if detalle_unit and detalle_unit.color:
-                color_val = detalle_unit.color
-            elif colores:
-                color_val = colores[idx] if idx < len(colores) else colores[idx % len(colores)]
-            else:
-                color_val = ""
+            almacenamiento_code = (unit_defaults.get("almacenamiento") or "").strip()
+            almacenamiento_label = unit_defaults.get("almacenamiento_label") or "No especificado"
+            ram_code = (unit_defaults.get("memoria_ram") or "").strip()
+            ram_label = unit_defaults.get("memoria_ram_label") or "No especificada"
+            imei_val = unit_defaults.get("imei") or ""
+            color_val = (unit_defaults.get("color") or "").strip()
+            condicion_nombre = unit_defaults.get("producto_condicion_label") or "Sin especificar"
+            usar_impuesto_global_unit = unit_defaults.get("usar_impuesto_global", True)
+            impuesto_id_unit = unit_defaults.get("impuesto_id") or ""
+            impuesto_label_unit = unit_defaults.get("impuesto_label") or ("Impuesto global" if usar_impuesto_global_unit else "Sin impuesto")
+            impuesto_porcentaje_unit = unit_defaults.get("impuesto_porcentaje") or "0"
+            impuesto_activo_unit = bool(unit_defaults.get("impuesto_activo"))
+            vida_bateria_unit = unit_defaults.get("vida_bateria") or ""
+            codigo_barras_unit = unit_defaults.get("codigo_barras") or ""
 
             match_color = True
             match_storage = True
@@ -1803,7 +1829,14 @@ def sales_product_unit_search_api(request):
                     "color": color_val,
                     "almacenamiento": almacenamiento_label,
                     "memoria_ram": ram_label,
+                    "vida_bateria": vida_bateria_unit,
+                    "codigo_barras": codigo_barras_unit,
                     "condicion": condicion_nombre,
+                    "usar_impuesto_global": usar_impuesto_global_unit,
+                    "impuesto_id": impuesto_id_unit,
+                    "impuesto_label": impuesto_label_unit,
+                    "impuesto_porcentaje": str(impuesto_porcentaje_unit),
+                    "impuesto_activo": impuesto_activo_unit,
                 }
             )
 
@@ -1817,12 +1850,6 @@ def sales_product_unit_search_api(request):
         if not unidades_serializadas:
             continue
 
-        tax_percentage = "0"
-        tax_active = False
-        if producto.impuesto and producto.impuesto.porcentaje is not None:
-            tax_percentage = str(producto.impuesto.porcentaje)
-            tax_active = bool(producto.impuesto.activo)
-
         results.append(
             {
                 "id": producto.id,
@@ -1833,12 +1860,222 @@ def sales_product_unit_search_api(request):
                 "precio_venta": str(producto.precio_venta) if producto.precio_venta is not None else "",
                 "unidades": unidades_serializadas,
                 "imagen": producto.imagen_principal,
-                "impuesto_porcentaje": tax_percentage,
-                "impuesto_activo": tax_active,
             }
         )
 
     return JsonResponse({"success": True, "results": results})
+
+
+@login_required
+@require_GET
+def scan_unit_barcode_api(request):
+    """API endpoint for scanning unit barcodes with barcode gun."""
+    codigo = (request.GET.get("codigo") or "").strip()
+    
+    if not codigo:
+        return JsonResponse({"success": False, "error": "Código requerido"})
+    
+    try:
+        # Search by barcode
+        detalle_unit = ProductoUnitDetail.objects.select_related(
+            "producto__marca", "producto__modelo", "producto__impuesto"
+        ).get(codigo_barras=codigo, producto__activo=True)
+        
+        producto = detalle_unit.producto
+        
+        # Check if product has stock
+        if not producto.stock or producto.stock <= 0:
+            return JsonResponse({
+                "success": False, 
+                "error": f"Producto {producto.nombre} sin stock disponible"
+            })
+        
+        # Get unit defaults
+        unit_defaults = _resolve_unit_defaults(producto, detalle_unit.unidad_index)
+        
+        # Build response in same format as product selector
+        unit_data = _resolve_unit_defaults(producto, detalle_unit.unidad_index)
+        unit_data_response = {
+            "key": f"{producto.id}:{detalle_unit.unidad_index}",
+            "producto_id": producto.id,
+            "unidad_index": detalle_unit.unidad_index,
+            "etiqueta": f"{producto.nombre} - Unidad {detalle_unit.unidad_index}",
+            # Usar precio específico de la unidad si existe, sino el del producto
+            "precio": str(unit_data.get("precio_venta") or producto.precio_venta) if unit_data.get("precio_venta") or producto.precio_venta else "",
+            "stock": "1",
+            "impuesto_porcentaje": unit_defaults.get("impuesto_porcentaje") or "0",
+            "impuesto_activo": bool(unit_defaults.get("impuesto_activo")),
+            "usar_impuesto_global": unit_defaults.get("usar_impuesto_global", True),
+            "impuesto_id": unit_defaults.get("impuesto_id") or "",
+            "impuesto_label": unit_defaults.get("impuesto_label") or "Impuesto global",
+            "imei": unit_defaults.get("imei") or "",
+            "color": unit_defaults.get("color") or "",
+            "almacenamiento": unit_defaults.get("almacenamiento_label") or "No especificado",
+            "memoria_ram": unit_defaults.get("memoria_ram_label") or "No especificada",
+            "vida_bateria": unit_defaults.get("vida_bateria") or "",
+            "codigo_barras": unit_defaults.get("codigo_barras") or "",
+        }
+        
+        return JsonResponse({"success": True, "unit": unit_data_response})
+        
+    except ProductoUnitDetail.DoesNotExist:
+        return JsonResponse({
+            "success": False, 
+            "error": f"No se encontró una unidad con el código: {codigo}"
+        })
+    except Exception as e:
+        return JsonResponse({
+            "success": False, 
+            "error": f"Error interno: {str(e)}"
+        })
+
+
+@login_required 
+def dynamic_inventory_create_view(request):
+    """Vista para crear productos con formularios dinámicos según el tipo"""
+    from .dynamic_forms import DynamicProductForm, DynamicSpecificFieldsForm, get_product_form_fields, get_specific_form_fields
+    from ventas.models import ProductoSpecificFields, Marca, Modelo, Categoria, Proveedor, Impuesto
+    from ventas.product_types import product_registry
+    from django.contrib import messages
+    from django.shortcuts import redirect, render
+    
+    product_type = request.GET.get('type', 'phone')
+    
+    if request.method == 'POST':
+        form = DynamicProductForm(request.POST, request.FILES, product_type=product_type)
+        specific_form = DynamicSpecificFieldsForm(request.POST, product_type=product_type)
+        
+        if form.is_valid() and specific_form.is_valid():
+            try:
+                # Guardar producto principal
+                producto = form.save()
+                
+                # Guardar campos específicos
+                specific_fields = specific_form.save(commit=False)
+                specific_fields.producto = producto
+                specific_fields.save()
+                
+                messages.success(request, f'Producto {producto.nombre} creado exitosamente.')
+                return redirect('dashboard:inventario')
+                
+            except Exception as e:
+                messages.error(request, f'Error al crear el producto: {str(e)}')
+    else:
+        form = DynamicProductForm(product_type=product_type)
+        specific_form = DynamicSpecificFieldsForm(product_type=product_type)
+    
+    # Obtener configuración del tipo de producto
+    type_config = product_registry.get_type(product_type)
+    
+    context = {
+        'form': form,
+        'specific_form': specific_form,
+        'product_type': product_type,
+        'type_config': type_config,
+        'product_types': product_registry.get_all_types(),
+        'marcas': Marca.objects.filter(activo=True),
+        'modelos': Modelo.objects.filter(activo=True),
+        'categorias': Categoria.objects.filter(activo=True, tipo_producto__in=[product_type, None]),
+        'proveedores': Proveedor.objects.all(),
+        'impuestos': Impuesto.objects.filter(activo=True),
+        'allowed_fields': get_product_form_fields(product_type),
+        'specific_fields': get_specific_form_fields(product_type),
+    }
+    
+    return render(request, 'dashboard/dynamic_inventory_create.html', context)
+
+
+@login_required
+@require_GET
+def get_product_type_fields_api(request):
+    """API para obtener campos específicos de un tipo de producto"""
+    from .dynamic_forms import get_product_form_fields, get_specific_form_fields
+    from ventas.product_types import product_registry
+    
+    product_type = request.GET.get('type', 'phone')
+    
+    config = product_registry.get_type(product_type)
+    if not config:
+        return JsonResponse({'success': False, 'error': 'Tipo de producto no válido'})
+    
+    return JsonResponse({
+        'success': True,
+        'config': config,
+        'allowed_fields': get_product_form_fields(product_type),
+        'specific_fields': get_specific_form_fields(product_type)
+    })
+
+
+@login_required
+@require_GET
+def get_categories_by_type_api(request):
+    """API para obtener categorías filtradas por tipo de producto"""
+    from ventas.models import Categoria
+    
+    product_type = request.GET.get('type', '')
+    
+    if product_type:
+        # Obtener categorías específicas del tipo + categorías generales (sin tipo)
+        categories = Categoria.objects.filter(
+            activo=True, 
+            tipo_producto__in=[product_type, None, '']
+        ).values('id', 'nombre', 'tipo_producto')
+    else:
+        # Si no se especifica tipo, obtener todas las categorías activas
+        categories = Categoria.objects.filter(activo=True).values('id', 'nombre', 'tipo_producto')
+    
+    categories_list = list(categories)
+    
+    return JsonResponse({
+        'success': True,
+        'categories': categories_list
+    })
+
+
+@login_required
+@require_GET
+def generate_barcode_labels_api(request):
+    """Generate printable barcode labels for units."""
+    unit_ids = request.GET.getlist('units[]')
+    
+    if not unit_ids:
+        return JsonResponse({"success": False, "error": "No se especificaron unidades"})
+    
+    try:
+        units = ProductoUnitDetail.objects.select_related('producto').filter(
+            id__in=unit_ids, 
+            codigo_barras__isnull=False
+        ).exclude(codigo_barras='')
+        
+        if not units.exists():
+            return JsonResponse({"success": False, "error": "No se encontraron unidades válidas"})
+        
+        labels_data = []
+        for unit in units:
+            # Obtener datos específicos de la unidad
+            unit_defaults = _resolve_unit_defaults(unit.producto, unit.unidad_index)
+            unit_precio = unit_defaults.get("precio_venta") or unit.producto.precio_venta
+            
+            labels_data.append({
+                "codigo": unit.codigo_barras,
+                "producto": unit.producto.nombre,
+                "unidad": f"Unidad {unit.unidad_index}",
+                "precio": str(unit_precio) if unit_precio else "—",
+                "imei": unit.imei or "—",
+                "color": unit.color or "—",
+            })
+        
+        return JsonResponse({
+            "success": True, 
+            "labels": labels_data,
+            "count": len(labels_data)
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            "success": False, 
+            "error": f"Error generando etiquetas: {str(e)}"
+        })
 
 
 class CotizacionesView(DashboardTemplateView):
@@ -1854,6 +2091,12 @@ class CotizacionesView(DashboardTemplateView):
         context["quotes_page"] = page_obj
         context["quotes_pagination_querystring"] = querystring
         context["quotes_session"] = quotes_session
+        
+        # Add global tax configuration for cotizaciones
+        site_config = SiteConfiguration.get_solo()
+        context["global_tax_enabled"] = bool(getattr(site_config, "global_tax_enabled", False))
+        context["global_tax_rate"] = float((getattr(site_config, "global_tax_rate", Decimal("0")) or Decimal("0")).quantize(TWO_PLACES))
+        
         return context
 
 
@@ -1871,6 +2114,7 @@ class InventarioView(DashboardTemplateView):
 
         search_term = (request_get.get("search", "") or "").strip()
         categoria_id = (request_get.get("categoria", "") or "").strip()
+        tipo_producto = (request_get.get("tipo_producto", "") or "").strip()
         marca_id = (request_get.get("marca", "") or "").strip()
         status_value = (request_get.get("activo", "") or "").strip().lower()
         stock_filter = (request_get.get("stock", "") or "").strip().lower()
@@ -1892,6 +2136,9 @@ class InventarioView(DashboardTemplateView):
         if marca_id.isdigit():
             productos_qs = productos_qs.filter(marca_id=int(marca_id))
 
+        if tipo_producto:
+            productos_qs = productos_qs.filter(tipo_producto=tipo_producto)
+
         if status_value in {"true", "false"}:
             productos_qs = productos_qs.filter(activo=(status_value == "true"))
 
@@ -1909,8 +2156,14 @@ class InventarioView(DashboardTemplateView):
         context["productos_pagination_querystring"] = querystring
         form = kwargs.get("producto_form") or ProductoForm()
         context["producto_form"] = form
-        context.setdefault("categorias_catalogo", Categoria.objects.only("id", "nombre"))
+        categorias_qs = Categoria.objects.only("id", "nombre", "tipo_producto")
+        if tipo_producto:
+            categorias_qs = categorias_qs.filter(
+                Q(tipo_producto__isnull=True) | Q(tipo_producto="") | Q(tipo_producto=tipo_producto)
+            )
+        context.setdefault("categorias_catalogo", categorias_qs)
         context.setdefault("marcas_catalogo", Marca.objects.filter(activo=True).only("id", "nombre"))
+        context.setdefault("tipos_producto_catalogo", Producto.TIPO_PRODUCTO_CHOICES)
         context.setdefault(
             "marcas_admin_catalogo",
             Marca.objects.all().only("id", "nombre", "activo"),
@@ -1936,6 +2189,7 @@ class InventarioView(DashboardTemplateView):
             "marca": marca_id,
             "activo": status_value,
             "stock": stock_filter,
+            "tipo_producto": tipo_producto,
         }
         return context
 
@@ -1995,13 +2249,15 @@ class ProductoDetailView(DashboardTemplateView):
         context = super().get_context_data(**kwargs)
         producto_id = kwargs.get("producto_id")
         producto = get_object_or_404(
-            Producto.objects.select_related("marca", "modelo", "categoria", "proveedor", "impuesto"),
+            Producto.objects.select_related("marca", "modelo", "categoria", "proveedor", "impuesto", "specific_fields"),
             pk=producto_id,
         )
         context["producto"] = producto
         context["almacenamiento_choices"] = Producto.ALMACENAMIENTO_CHOICES
         context["ram_choices"] = Producto.RAM_CHOICES
         context["product_conditions"] = ProductCondition.objects.filter(activo=True).order_by("nombre")
+        context["impuestos"] = Impuesto.objects.filter(activo=True).order_by("nombre")
+        context["impuestos_catalogo"] = Impuesto.objects.order_by("nombre")
 
         almacenamiento_map = dict(Producto.ALMACENAMIENTO_CHOICES)
         ram_map = dict(Producto.RAM_CHOICES)
@@ -2053,14 +2309,57 @@ class ProductoDetailView(DashboardTemplateView):
             elif colores:
                 color_val = colores[idx] if idx < len(colores) else colores[idx % len(colores)]
 
+            vida_bateria_val = ""
+            if detalle_unit and detalle_unit.vida_bateria:
+                vida_bateria_val = detalle_unit.vida_bateria
+
             condicion_id = ""
             condicion_label = "Sin especificar"
             if detalle_unit and detalle_unit.condicion:
                 condicion_id = str(detalle_unit.condicion_id)
                 condicion_label = detalle_unit.condicion.nombre
 
+            usar_impuesto_global = producto.usar_impuesto_global
+            impuesto_obj = producto.impuesto if producto.impuesto else None
+            if detalle_unit:
+                usar_impuesto_global = detalle_unit.usar_impuesto_global
+                if detalle_unit.impuesto_id:
+                    impuesto_obj = detalle_unit.impuesto
+            if not usar_impuesto_global and not impuesto_obj and producto.impuesto:
+                impuesto_obj = producto.impuesto
+
+            if usar_impuesto_global:
+                impuesto_id = ""
+                impuesto_nombre = ""
+                impuesto_porcentaje = ""
+                impuesto_label = "Impuesto global"
+                impuesto_activo = True
+            else:
+                if impuesto_obj:
+                    impuesto_id = str(impuesto_obj.pk)
+                    impuesto_nombre = impuesto_obj.nombre or ""
+                    impuesto_porcentaje = (
+                        str(impuesto_obj.porcentaje)
+                        if impuesto_obj.porcentaje is not None
+                        else ""
+                    )
+                    if impuesto_nombre and impuesto_porcentaje:
+                        impuesto_label = f"{impuesto_nombre} ({impuesto_porcentaje}%)"
+                    elif impuesto_nombre:
+                        impuesto_label = impuesto_nombre
+                    else:
+                        impuesto_label = "Impuesto manual"
+                    impuesto_activo = bool(impuesto_obj.activo)
+                else:
+                    impuesto_id = ""
+                    impuesto_nombre = ""
+                    impuesto_porcentaje = ""
+                    impuesto_label = "Sin impuesto"
+                    impuesto_activo = False
+
             unidades_stock.append(
                 {
+                    "id": detalle_unit.id if detalle_unit else None,
                     "index": idx + 1,
                     "imei": imei_val,
                     "color": color_val,
@@ -2068,8 +2367,10 @@ class ProductoDetailView(DashboardTemplateView):
                     "almacenamiento_label": almacenamiento_label,
                     "memoria_ram": ram_code,
                     "memoria_ram_label": ram_label,
+                    "vida_bateria": vida_bateria_val,
                     "producto_condicion": condicion_id,
                     "producto_condicion_label": condicion_label,
+                    "codigo_barras": detalle_unit.codigo_barras if detalle_unit else "",
                     "has_custom": bool(
                         detalle_unit
                         and (
@@ -2077,14 +2378,36 @@ class ProductoDetailView(DashboardTemplateView):
                             or detalle_unit.color
                             or detalle_unit.almacenamiento
                             or detalle_unit.memoria_ram
+                            or detalle_unit.vida_bateria
                             or detalle_unit.condicion_id
+                            or not detalle_unit.usar_impuesto_global
+                            or detalle_unit.impuesto_id
                         )
                     ),
+                    "usar_impuesto_global": usar_impuesto_global,
+                    "impuesto_id": impuesto_id,
+                    "impuesto_nombre": impuesto_nombre,
+                    "impuesto_porcentaje": impuesto_porcentaje,
+                    "impuesto_label": impuesto_label,
+                    "impuesto_activo": impuesto_activo,
                 }
             )
 
         context["unidades_stock"] = unidades_stock
         context["producto_imagenes"] = producto.imagenes_urls
+        
+        # Agregar campos específicos según el tipo de producto
+        specific_fields = {}
+        if hasattr(producto, 'specific_fields') and producto.specific_fields:
+            specific_fields = producto.specific_fields.__dict__.copy()
+            # Eliminar campos internos de Django
+            specific_fields.pop('_state', None)
+            specific_fields.pop('id', None)
+            specific_fields.pop('created_at', None)
+            specific_fields.pop('updated_at', None)
+            specific_fields.pop('producto_id', None)
+        
+        context["specific_fields"] = specific_fields
         return context
 
     def post(self, request, *args, **kwargs):
@@ -2099,6 +2422,9 @@ class ProductoDetailView(DashboardTemplateView):
         color = request.POST.get("color", "").strip() or None
         almacenamiento = (request.POST.get("almacenamiento", "") or "").strip()
         memoria_ram = (request.POST.get("memoria_ram", "") or "").strip()
+        vida_bateria = (request.POST.get("vida_bateria", "") or "").strip()
+        usar_impuesto_global_raw = (request.POST.get("usar_impuesto_global") or "").strip().lower()
+        impuesto_value = (request.POST.get("impuesto") or "").strip()
 
         if unidad_index <= 0:
             messages.error(request, "Índice de unidad inválido.")
@@ -2113,7 +2439,62 @@ class ProductoDetailView(DashboardTemplateView):
         detalle.color = color
         detalle.almacenamiento = almacenamiento
         detalle.memoria_ram = memoria_ram
-        detalle.save(update_fields=["imei", "color", "almacenamiento", "memoria_ram"])
+        detalle.vida_bateria = vida_bateria
+        usar_impuesto_global = True
+        if usar_impuesto_global_raw in {"false", "0", "no"}:
+            usar_impuesto_global = False
+        elif usar_impuesto_global_raw in {"true", "1", "si", "sí", "yes"}:
+            usar_impuesto_global = True
+        else:
+            usar_impuesto_global = bool(usar_impuesto_global_raw)  # fallback when checkbox only sends "on"
+
+        detalle.usar_impuesto_global = usar_impuesto_global
+        if usar_impuesto_global:
+            detalle.impuesto = None
+        else:
+            if impuesto_value:
+                impuesto_obj = Impuesto.objects.filter(pk=impuesto_value).first()
+                detalle.impuesto = impuesto_obj
+            else:
+                detalle.impuesto = None
+
+        detalle.save(update_fields=[
+            "imei",
+            "color",
+            "almacenamiento",
+            "memoria_ram",
+            "vida_bateria",
+            "usar_impuesto_global",
+            "impuesto",
+        ])
+
+        # Actualizar campos específicos del producto según su tipo
+        specific_fields, created = ProductoSpecificFields.objects.get_or_create(
+            producto=producto
+        )
+        
+        if producto.tipo_producto in ['phone', 'tablet']:
+            specific_fields.procesador = request.POST.get('procesador', '').strip() or None
+            specific_fields.pantalla = request.POST.get('pantalla', '').strip() or None
+            specific_fields.sistema_operativo = request.POST.get('sistema_operativo', '').strip() or None
+            if producto.tipo_producto == 'tablet':
+                specific_fields.conectividad = request.POST.get('conectividad', '').strip() or None
+        elif producto.tipo_producto == 'laptop':
+            specific_fields.procesador = request.POST.get('procesador', '').strip() or None
+            specific_fields.pantalla = request.POST.get('pantalla', '').strip() or None
+            specific_fields.tarjeta_grafica = request.POST.get('tarjeta_grafica', '').strip() or None
+            specific_fields.numero_serie = request.POST.get('numero_serie', '').strip() or None
+        elif producto.tipo_producto == 'accessory':
+            specific_fields.tipo_accesorio = request.POST.get('tipo_accesorio', '').strip() or None
+            specific_fields.compatibilidad = request.POST.get('compatibilidad', '').strip() or None
+            specific_fields.material = request.POST.get('material', '').strip() or None
+            specific_fields.potencia = request.POST.get('potencia', '').strip() or None
+        elif producto.tipo_producto == 'gaming':
+            specific_fields.tipo_gaming = request.POST.get('tipo_gaming', '').strip() or None
+            specific_fields.plataforma = request.POST.get('plataforma', '').strip() or None
+            specific_fields.potencia = request.POST.get('potencia', '').strip() or None
+        
+        specific_fields.save()
 
         messages.success(request, f"Unidad {unidad_index} actualizada correctamente.")
         return redirect("dashboard:producto_detail", producto_id=producto.pk)
@@ -2177,6 +2558,46 @@ def _resolve_unit_defaults(producto: Producto, unidad_index: int) -> dict[str, s
         elif colores:
             color_val = colores[idx % len(colores)]
 
+    vida_bateria_val = (detalle_unit.vida_bateria or "") if detalle_unit and detalle_unit.vida_bateria else ""
+
+    usar_impuesto_global = producto.usar_impuesto_global
+    impuesto_obj = producto.impuesto if producto.impuesto else None
+    if detalle_unit:
+        usar_impuesto_global = detalle_unit.usar_impuesto_global
+        if detalle_unit.impuesto_id:
+            impuesto_obj = detalle_unit.impuesto
+    if not usar_impuesto_global and not impuesto_obj and producto.impuesto:
+        impuesto_obj = producto.impuesto
+
+    if usar_impuesto_global:
+        impuesto_id = ""
+        impuesto_nombre = ""
+        impuesto_porcentaje = ""
+        impuesto_label = "Impuesto global"
+        impuesto_activo = True
+    else:
+        if impuesto_obj:
+            impuesto_id = str(impuesto_obj.pk)
+            impuesto_nombre = impuesto_obj.nombre or ""
+            impuesto_porcentaje = (
+                str(impuesto_obj.porcentaje)
+                if impuesto_obj.porcentaje is not None
+                else ""
+            )
+            if impuesto_nombre and impuesto_porcentaje:
+                impuesto_label = f"{impuesto_nombre} ({impuesto_porcentaje}%)"
+            elif impuesto_nombre:
+                impuesto_label = impuesto_nombre
+            else:
+                impuesto_label = "Impuesto manual"
+            impuesto_activo = bool(impuesto_obj.activo)
+        else:
+            impuesto_id = ""
+            impuesto_nombre = ""
+            impuesto_porcentaje = ""
+            impuesto_label = "Sin impuesto"
+            impuesto_activo = False
+
     return {
         "index": unidad_index,
         "imei": imei_val or "",
@@ -2187,8 +2608,11 @@ def _resolve_unit_defaults(producto: Producto, unidad_index: int) -> dict[str, s
         "memoria_ram_label": ram_label or "No especificada",
         "producto_condicion": condicion_id or "",
         "producto_condicion_label": condicion_label or "Sin especificar",
-        "precio_compra": str(producto.precio_compra) if producto.precio_compra is not None else "",
-        "precio_venta": str(producto.precio_venta) if producto.precio_venta is not None else "",
+        # Usar precios específicos de la unidad, si no hay, usar los del producto general
+        "precio_compra": str(detalle_unit.precio_compra) if detalle_unit and detalle_unit.precio_compra is not None else str(producto.precio_compra) if producto.precio_compra is not None else "",
+        "precio_venta": str(detalle_unit.precio_venta) if detalle_unit and detalle_unit.precio_venta is not None else str(producto.precio_venta) if producto.precio_venta is not None else "",
+        "vida_bateria": vida_bateria_val,
+        "codigo_barras": detalle_unit.codigo_barras if detalle_unit else "",
         "has_custom": bool(
             detalle_unit
             and (
@@ -2196,9 +2620,20 @@ def _resolve_unit_defaults(producto: Producto, unidad_index: int) -> dict[str, s
                 or detalle_unit.color
                 or detalle_unit.almacenamiento
                 or detalle_unit.memoria_ram
+                or detalle_unit.vida_bateria
                 or detalle_unit.condicion_id
+                or detalle_unit.precio_compra is not None
+                or detalle_unit.precio_venta is not None
+                or not detalle_unit.usar_impuesto_global
+                or detalle_unit.impuesto_id
             )
         ),
+        "usar_impuesto_global": usar_impuesto_global,
+        "impuesto_id": impuesto_id,
+        "impuesto_nombre": impuesto_nombre,
+        "impuesto_porcentaje": impuesto_porcentaje,
+        "impuesto_label": impuesto_label,
+        "impuesto_activo": impuesto_activo,
     }
 
 
@@ -2227,10 +2662,14 @@ def producto_unit_detail_api(request, producto_id: int, unidad_index: int):
     color = None
     almacenamiento = None
     memoria_ram = None
+    vida_bateria = None
     condicion_obj = None
 
     precio_compra = None
     precio_venta = None
+
+    usar_impuesto_global = None
+    impuesto_value = ""
 
     if request.content_type == "application/json":
         try:
@@ -2241,17 +2680,29 @@ def producto_unit_detail_api(request, producto_id: int, unidad_index: int):
         color = (payload.get("color") or "").strip() or None
         almacenamiento = (payload.get("almacenamiento") or "").strip()
         memoria_ram = (payload.get("memoria_ram") or "").strip()
+        vida_bateria = (payload.get("vida_bateria") or "").strip()
         condicion_value = (payload.get("producto_condicion") or payload.get("condicion") or "").strip()
         precio_costo_raw = (payload.get("precio_costo") or "").strip()
         precio_venta_raw = (payload.get("precio_venta") or "").strip()
+        usar_impuesto_global_raw = payload.get("usar_impuesto_global")
+        if isinstance(usar_impuesto_global_raw, bool):
+            usar_impuesto_global = usar_impuesto_global_raw
+        elif isinstance(usar_impuesto_global_raw, str):
+            usar_impuesto_global = usar_impuesto_global_raw.strip().lower() not in {"false", "0", "no"}
+        impuesto_value = (payload.get("impuesto") or "").strip()
     else:
         imei = (request.POST.get("imei") or "").strip() or None
         color = (request.POST.get("color") or "").strip() or None
         almacenamiento = (request.POST.get("almacenamiento") or "").strip()
         memoria_ram = (request.POST.get("memoria_ram") or "").strip()
+        vida_bateria = (request.POST.get("vida_bateria") or "").strip()
         condicion_value = (request.POST.get("producto_condicion") or request.POST.get("condicion") or "").strip()
         precio_costo_raw = (request.POST.get("precio_costo") or "").strip()
         precio_venta_raw = (request.POST.get("precio_venta") or "").strip()
+        usar_impuesto_global_raw = (request.POST.get("usar_impuesto_global") or "").strip().lower()
+        if usar_impuesto_global_raw:
+            usar_impuesto_global = usar_impuesto_global_raw not in {"false", "0", "no"}
+        impuesto_value = (request.POST.get("impuesto") or "").strip()
 
     def _parse_decimal(value: str) -> Decimal | None:
         if value in {"", None}:
@@ -2308,19 +2759,34 @@ def producto_unit_detail_api(request, producto_id: int, unidad_index: int):
     detalle.color = color or ""
     detalle.almacenamiento = almacenamiento or ""
     detalle.memoria_ram = memoria_ram or ""
+    detalle.vida_bateria = vida_bateria or ""
     detalle.condicion = condicion_obj
-    detalle.save(update_fields=["imei", "color", "almacenamiento", "memoria_ram", "condicion"])
-
-    product_updates: list[str] = []
+    if usar_impuesto_global is None:
+        usar_impuesto_global = True
+    detalle.usar_impuesto_global = bool(usar_impuesto_global)
+    if detalle.usar_impuesto_global:
+        detalle.impuesto = None
+    else:
+        if impuesto_value:
+            detalle.impuesto = Impuesto.objects.filter(pk=impuesto_value).first()
+        else:
+            detalle.impuesto = None
+    
+    # Guardar precios específicos de la unidad
+    unit_updates = ["imei", "color", "almacenamiento", "memoria_ram", "vida_bateria", "condicion", "usar_impuesto_global", "impuesto"]
+    
     if precio_compra is not None:
-        producto.precio_compra = precio_compra
-        product_updates.append("precio_compra")
+        detalle.precio_compra = precio_compra
+        unit_updates.append("precio_compra")
+    
     if precio_venta is not None:
-        producto.precio_venta = precio_venta
-        product_updates.append("precio_venta")
+        detalle.precio_venta = precio_venta
+        unit_updates.append("precio_venta")
+    
+    detalle.save(update_fields=unit_updates)
 
-    if product_updates:
-        producto.save(update_fields=product_updates)
+    # Ya no guardamos precios en el producto general
+    # Cada unidad mantiene sus propios precios
 
     unit_data = _resolve_unit_defaults(producto, unidad_index)
     return JsonResponse({"success": True, "unit": unit_data, "product": _serialize_product(producto)})
@@ -3019,13 +3485,26 @@ class ComprasView(DashboardTemplateView):
             producto.stock = producto.stock + cantidad
             producto.save(update_fields=["stock", "updated_at"])
 
+            # Obtener precios específicos de la unidad si existen
+            if unidad_index:
+                unit_detail = ProductoUnitDetail.objects.filter(
+                    producto=producto, 
+                    unidad_index=unidad_index
+                ).first()
+                
+                precio_compra_final = unit_detail.precio_compra if unit_detail and unit_detail.precio_compra is not None else producto.precio_compra
+                precio_venta_final = unit_detail.precio_venta if unit_detail and unit_detail.precio_venta is not None else producto.precio_venta
+            else:
+                precio_compra_final = producto.precio_compra
+                precio_venta_final = producto.precio_venta
+
             Compra.objects.create(
                 numero_pedido=numero_pedido,
                 proveedor=proveedor,
                 producto=producto,
                 cantidad=cantidad,
-                precio_compra=producto.precio_compra,
-                precio_venta=producto.precio_venta,
+                precio_compra=precio_compra_final,
+                precio_venta=precio_venta_final,
                 stock_anterior=stock_anterior,
                 stock_actual=producto.stock,
                 registrado_por=request.user if request.user.is_authenticated else None,
@@ -3893,7 +4372,13 @@ def _create_fiscal_voucher(
         line_subtotal = (base - descuento).quantize(TWO_PLACES)
         if line_subtotal < Decimal("0"):
             line_subtotal = Decimal("0.00")
-        line_tax = (line_subtotal * TAX_RATE).quantize(TWO_PLACES)
+        
+        # Use per-unit tax if available in line_items, otherwise fallback to TAX_RATE
+        line_tax = item.get("tax")
+        if line_tax is not None:
+            line_tax = Decimal(line_tax).quantize(TWO_PLACES)
+        else:
+            line_tax = (line_subtotal * TAX_RATE).quantize(TWO_PLACES)
         line_total = (line_subtotal + line_tax).quantize(TWO_PLACES)
 
         cantidad = Decimal(detalle.cantidad).quantize(TWO_PLACES)
@@ -4492,6 +4977,9 @@ def registrar_venta_api(request):
         subtotal_bruto = Decimal("0")
         line_items = []
 
+        site_config = SiteConfiguration.get_solo()
+        global_tax_rate = _resolve_global_tax_rate(site_config)
+
         for item in productos:
             producto_id = item.get("producto_id")
             try:
@@ -4504,6 +4992,14 @@ def registrar_venta_api(request):
                 return JsonResponse({"error": "Información de producto incompleta"}, status=400)
 
             producto = get_object_or_404(Producto, pk=producto_id)
+
+            unidad_index_raw = item.get("unidad_index")
+            try:
+                unidad_index_int = int(unidad_index_raw)
+            except (TypeError, ValueError):
+                unidad_index_int = None
+            if unidad_index_int is not None and unidad_index_int <= 0:
+                unidad_index_int = None
 
             updated = Producto.objects.filter(pk=producto.pk, stock__gte=cantidad).update(
                 stock=F("stock") - cantidad
@@ -4544,13 +5040,18 @@ def registrar_venta_api(request):
                 cantidad=cantidad,
                 precio_unitario=precio_decimal,
                 descuento=descuento_decimal,
+                unidad_index=unidad_index_int,
             )
+
+            unidad_detalle = _get_unit_detail_from_product(producto, unidad_index_int)
 
             line_items.append(
                 {
                     "detalle": detalle,
                     "base": line_base,
                     "descuento": descuento_decimal,
+                    "unidad_index": unidad_index_int,
+                    "unidad_detalle": unidad_detalle,
                 }
             )
 
@@ -4629,13 +5130,34 @@ def registrar_venta_api(request):
         venta.trade_in_monto = trade_in_aplicado.quantize(TWO_PLACES)
         venta.save(update_fields=["descuento_total", "trade_in_monto", "updated_at"])
 
-    subtotal_neto = (subtotal_bruto - total_descuento).quantize(TWO_PLACES)
-    if subtotal_neto < Decimal("0"):
-        subtotal_neto = Decimal("0")
+    impuesto_total = Decimal("0")
+    subtotal_neto = Decimal("0")
+    for item in line_items:
+        detalle = item["detalle"]
+        producto_line = detalle.producto
+        unidad_detalle = item.get("unidad_detalle")
+        if unidad_detalle is None:
+            unidad_detalle = _get_unit_detail_from_product(producto_line, item.get("unidad_index"))
+            item["unidad_detalle"] = unidad_detalle
 
-    impuestos = (subtotal_neto * TAX_RATE).quantize(TWO_PLACES)
+        line_subtotal = (item["base"] - item["descuento"]).quantize(TWO_PLACES)
+        if line_subtotal < Decimal("0"):
+            line_subtotal = Decimal("0")
 
-    total_venta = (subtotal_neto + impuestos).quantize(TWO_PLACES)
+        tax_rate = _resolve_line_tax_rate(producto_line, global_tax_rate, unidad_detalle)
+        line_tax = (line_subtotal * tax_rate).quantize(TWO_PLACES)
+
+        item["subtotal"] = line_subtotal
+        item["tax"] = line_tax
+        item["tax_rate"] = tax_rate
+
+        subtotal_neto += line_subtotal
+        impuesto_total += line_tax
+
+    subtotal_neto = subtotal_neto.quantize(TWO_PLACES)
+    impuesto_total = impuesto_total.quantize(TWO_PLACES)
+
+    total_venta = (subtotal_neto + impuesto_total).quantize(TWO_PLACES)
 
     total_pagado = payload.get("total_pagado", 0)
     try:
@@ -4646,7 +5168,7 @@ def registrar_venta_api(request):
         total_pagado_decimal = Decimal("0")
 
     cash_session.total_ventas = (cash_session.total_ventas + total_venta).quantize(TWO_PLACES)
-    cash_session.total_impuesto = (cash_session.total_impuesto + impuestos).quantize(TWO_PLACES)
+    cash_session.total_impuesto = (cash_session.total_impuesto + impuesto_total).quantize(TWO_PLACES)
     cash_session.total_descuento = (cash_session.total_descuento + venta.descuento_total).quantize(TWO_PLACES)
     cash_session.total_trade_in = (cash_session.total_trade_in + venta.trade_in_monto).quantize(TWO_PLACES)
     if metodo_pago == Venta.MetodoPago.CREDITO:
@@ -4726,7 +5248,7 @@ def registrar_venta_api(request):
             venta=venta,
             fiscal_data=payload.get("fiscal"),
             subtotal=subtotal_neto,
-            impuestos=impuestos,
+            impuestos=impuesto_total,
             total=total_venta,
             monto_pagado=total_pagado_decimal,
             metodo_pago=metodo_pago,
@@ -4753,7 +5275,7 @@ def registrar_venta_api(request):
         "subtotal_bruto": float(subtotal_bruto),
         "descuento_total": float(venta.descuento_total),
         "trade_in_total": float(venta.trade_in_monto),
-        "impuestos": float(impuestos),
+        "impuestos": float(impuesto_total),
         "total_pagado": float(total_pagado_decimal),
         "fecha": fecha_local.strftime("%Y-%m-%d"),
         "hora": fecha_local.strftime("%H:%M"),

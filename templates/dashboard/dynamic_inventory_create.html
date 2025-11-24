@@ -1,0 +1,458 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}Crear Producto - {{ type_config.name }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-content">
+    <div class="dashboard-header">
+        <div class="dashboard-header__main">
+            <h1 class="dashboard-title">
+                <span class="dashboard-title__icon">{{ type_config.icon }}</span>
+                Crear {{ type_config.name }}
+            </h1>
+            <p class="dashboard-subtitle">Formulario específico para {{ type_config.name|lower }}</p>
+        </div>
+        <div class="dashboard-header__actions">
+            <a href="{% url 'dashboard:inventario' %}" class="btn btn-outline">
+                <span class="btn__icon">←</span>
+                Volver al inventario
+            </a>
+        </div>
+    </div>
+
+    <!-- Selector de tipo de producto -->
+    <div class="product-type-selector">
+        <div class="product-type-selector__header">
+            <h3>Tipo de producto</h3>
+            <p>Selecciona el tipo para mostrar campos específicos</p>
+        </div>
+        <div class="product-type-selector__grid">
+            {% for type_key, type_data in product_types.items %}
+                <a href="?type={{ type_key }}" 
+                   class="product-type-card {% if type_key == product_type %}product-type-card--active{% endif %}">
+                    <div class="product-type-card__icon">{{ type_data.icon }}</div>
+                    <div class="product-type-card__name">{{ type_data.name }}</div>
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Formulario dinámico -->
+    <div class="dynamic-form-container">
+        <form method="post" enctype="multipart/form-data" class="dynamic-form">
+            {% csrf_token %}
+            
+            <!-- Información básica -->
+            <div class="form-section">
+                <div class="form-section__header">
+                    <h3 class="form-section__title">Información básica</h3>
+                    <p class="form-section__subtitle">Datos generales del producto</p>
+                </div>
+                <div class="form-section__grid">
+                    {% for field in form %}
+                        {% if field.name in 'tipo_producto,nombre,marca,modelo,categoria,proveedor,descripcion' %}
+                            <div class="form-field {% if field.name == 'descripcion' %}form-field--full{% endif %}">
+                                <label class="form-field__label">
+                                    {{ field.label }}
+                                    {% if field.field.required %}<span class="form-field__required">*</span>{% endif %}
+                                </label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-field__help">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="form-field__error">{{ field.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Precios e inventario -->
+            <div class="form-section">
+                <div class="form-section__header">
+                    <h3 class="form-section__title">Precios e inventario</h3>
+                    <p class="form-section__subtitle">Información comercial y stock</p>
+                </div>
+                <div class="form-section__grid">
+                    {% for field in form %}
+                        {% if field.name in 'precio_compra,precio_venta,stock,stock_minimo,activo' %}
+                            <div class="form-field">
+                                <label class="form-field__label">
+                                    {{ field.label }}
+                                    {% if field.field.required %}<span class="form-field__required">*</span>{% endif %}
+                                </label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-field__help">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="form-field__error">{{ field.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Especificaciones técnicas (campos base) -->
+            {% if product_type == 'phone' or product_type == 'laptop' or product_type == 'tablet' or product_type == 'gaming' %}
+            <div class="form-section">
+                <div class="form-section__header">
+                    <h3 class="form-section__title">Especificaciones técnicas</h3>
+                    <p class="form-section__subtitle">Características del dispositivo</p>
+                </div>
+                <div class="form-section__grid">
+                    {% for field in form %}
+                        {% if field.name in 'almacenamiento,memoria_ram,imei,colores_disponibles' %}
+                            <div class="form-field {% if field.name == 'imei' or field.name == 'colores_disponibles' %}form-field--full{% endif %}">
+                                <label class="form-field__label">
+                                    {{ field.label }}
+                                    {% if field.field.required %}<span class="form-field__required">*</span>{% endif %}
+                                </label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-field__help">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="form-field__error">{{ field.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Campos específicos del tipo -->
+            {% if specific_fields %}
+            <div class="form-section">
+                <div class="form-section__header">
+                    <h3 class="form-section__title">Especificaciones de {{ type_config.name|lower }}</h3>
+                    <p class="form-section__subtitle">Campos específicos para este tipo de producto</p>
+                </div>
+                <div class="form-section__grid">
+                    {% for field in specific_form %}
+                        <div class="form-field">
+                            <label class="form-field__label">
+                                {{ field.label }}
+                                {% if field.field.required %}<span class="form-field__required">*</span>{% endif %}
+                            </label>
+                            {{ field }}
+                            {% if field.help_text %}
+                                <div class="form-field__help">{{ field.help_text }}</div>
+                            {% endif %}
+                            {% if field.errors %}
+                                <div class="form-field__error">{{ field.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Impuestos -->
+            <div class="form-section">
+                <div class="form-section__header">
+                    <h3 class="form-section__title">Configuración de impuestos</h3>
+                    <p class="form-section__subtitle">ITBIS y otros impuestos</p>
+                </div>
+                <div class="form-section__grid">
+                    {% for field in form %}
+                        {% if field.name in 'usar_impuesto_global,impuesto' %}
+                            <div class="form-field">
+                                <label class="form-field__label">
+                                    {{ field.label }}
+                                    {% if field.field.required %}<span class="form-field__required">*</span>{% endif %}
+                                </label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-field__help">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="form-field__error">{{ field.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Acciones del formulario -->
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" onclick="history.back()">
+                    <span class="btn__icon">✕</span>
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn__icon">💾</span>
+                    Crear {{ type_config.name|lower }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.product-type-selector {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.product-type-selector__header h3 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.product-type-selector__header p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.product-type-selector__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.product-type-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #374151;
+    transition: all 0.2s ease;
+    background: #f9fafb;
+}
+
+.product-type-card:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+    transform: translateY(-2px);
+}
+
+.product-type-card--active {
+    border-color: #3b82f6;
+    background: #eff6ff;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.product-type-card__icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+
+.product-type-card__name {
+    font-weight: 500;
+    font-size: 14px;
+    text-align: center;
+}
+
+.dynamic-form-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.dynamic-form {
+    padding: 24px;
+}
+
+.form-section {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.form-section__header {
+    margin-bottom: 20px;
+}
+
+.form-section__title {
+    margin: 0 0 4px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.form-section__subtitle {
+    margin: 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.form-section__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-field--full {
+    grid-column: 1 / -1;
+}
+
+.form-field__label {
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+    font-size: 14px;
+}
+
+.form-field__required {
+    color: #ef4444;
+    margin-left: 2px;
+}
+
+.form-field__help {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+.form-field__error {
+    font-size: 12px;
+    color: #ef4444;
+    margin-top: 4px;
+}
+
+.field__control {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.field__control:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e7eb;
+    margin-top: 32px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn__icon {
+    font-size: 16px;
+}
+
+.btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-outline {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.btn-outline:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const typeSelector = document.querySelector('[name="tipo_producto"]');
+        const categorySelect = document.querySelector('[name="categoria"]');
+        
+        if (typeSelector && categorySelect) {
+            // Función para actualizar categorías
+            function updateCategories(productType) {
+                const url = '{% url "dashboard:get_categories_by_type_api" %}?type=' + encodeURIComponent(productType);
+                
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Limpiar opciones actuales
+                            categorySelect.innerHTML = '<option value="">-- Seleccionar categoría --</option>';
+                            
+                            // Agregar nuevas opciones
+                            data.categories.forEach(category => {
+                                const option = document.createElement('option');
+                                option.value = category.id;
+                                option.textContent = category.nombre;
+                                
+                                // Agregar badge visual si tiene tipo específico
+                                if (category.tipo_producto) {
+                                    const badges = {
+                                        'phone': '📱',
+                                        'accessory': '🔌', 
+                                        'laptop': '💻',
+                                        'tablet': '📟',
+                                        'gaming': '🎮'
+                                    };
+                                    const badge = badges[category.tipo_producto] || '🔧';
+                                    option.textContent = badge + ' ' + category.nombre;
+                                } else {
+                                    option.textContent = '🔧 ' + category.nombre + ' (General)';
+                                }
+                                
+                                categorySelect.appendChild(option);
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading categories:', error);
+                    });
+            }
+            
+            // Actualizar categorías cuando cambie el tipo
+            typeSelector.addEventListener('change', function() {
+                updateCategories(this.value);
+            });
+            
+            // Cargar categorías iniciales
+            updateCategories(typeSelector.value);
+        }
+    });
+</script>
+{% endblock %}

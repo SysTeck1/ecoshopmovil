@@ -641,7 +641,9 @@
         var productSearchInput = productModal ? productModal.querySelector('[data-quote-product-search]') : null;
         var productList = productModal ? productModal.querySelector('[data-quote-product-list]') : null;
 
-        var QUOTE_TAX_RATE = 0.18;
+        var GLOBAL_TAX_ENABLED = '{{ global_tax_enabled|yesno:"true,false" }}' === 'true';
+        var GLOBAL_TAX_RATE = parseFloat('{{ global_tax_rate|default:0 }}') / 100;
+        var QUOTE_TAX_RATE = GLOBAL_TAX_ENABLED ? GLOBAL_TAX_RATE : 0.18;
         var CURRENCY = 'RD$';
         var cartItems = [];
         var quoteCode = null;

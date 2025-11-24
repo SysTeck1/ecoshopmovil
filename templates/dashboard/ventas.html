@@ -41,7 +41,7 @@
             </label>
             <label class="field">
                 <span class="field__label">Código</span>
-                <input type="text" name="codigo" class="field__control" placeholder="Código interno" data-sales-code />
+                <input type="text" name="codigo" class="field__control" placeholder="Escanea código de barras aquí" data-sales-code data-barcode-input />
             </label>
             <label class="field">
                 <span class="field__label">Producto</span>
@@ -56,10 +56,15 @@
                                 data-price="{{ unit.precio }}"
                                 data-impuesto="{{ unit.impuesto_porcentaje }}"
                                 data-impuesto-activo="{% if unit.impuesto_activo %}true{% else %}false{% endif %}"
+                                data-usa-global="{{ unit.usar_impuesto_global|yesno:'true,false' }}"
+                                data-impuesto-id="{{ unit.impuesto_id }}"
+                                data-impuesto-label="{{ unit.impuesto_label|default:'Impuesto global' }}"
                                 data-imei="{{ unit.imei }}"
                                 data-color="{{ unit.color }}"
                                 data-almacenamiento="{{ unit.almacenamiento }}"
                                 data-ram="{{ unit.memoria_ram }}"
+                                data-battery="{{ unit.vida_bateria }}"
+                                data-barcode="{{ unit.codigo_barras }}"
                                 data-units='{{ unit.units_json|safe }}'
                             >{{ unit.etiqueta }}</option>
                         {% endfor %}
@@ -100,9 +105,9 @@
                 <table class="sales-cart__table" data-sales-table>
                     <thead>
                         <tr>
-                            <th>Factura</th>
                             <th>Cliente</th>
                             <th>Producto</th>
+                            <th>Vida batería</th>
                             <th>Precio c/u</th>
                             <th>Cantidad</th>
                             <th>Impuesto</th>
@@ -306,6 +311,14 @@
         </div>
         <div class="modal-form modal-form--static">
             <p>Actualiza la cantidad del producto seleccionado.</p>
+            
+            <!-- Información del producto y stock -->
+            <div class="stock-info" data-stock-info style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;">
+                <div class="stock-info__product" data-stock-product style="font-weight: 600; margin-bottom: 8px;"></div>
+                <div class="stock-info__specs" data-stock-specs style="font-size: 0.9rem; color: #6c757d; margin-bottom: 8px;"></div>
+                <div class="stock-info__availability" data-stock-availability style="font-size: 0.85rem;"></div>
+            </div>
+            
             <label class="field">
                 <span class="field__label">Cantidad</span>
                 <input type="number" class="field__control" min="1" step="1" data-edit-quantity-input>
@@ -2658,7 +2671,28 @@
             justify-content: flex-start;
         }
     }
-</style>
+.product-quantity-badge {
+            display: inline-block;
+            background: rgba(39, 60, 117, 0.1);
+            color: #273c75;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
+        .product-specs {
+            display: inline-block;
+            background: rgba(52, 211, 153, 0.1);
+            color: #059669;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-left: 4px;
+        }
+    </style>
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         var productSelector = document.querySelector('[data-product-selector]');
@@ -3589,6 +3623,7 @@
             var productosPayload = cartItems
                 .map(function (item) {
                     var productoId = item.id ? parseInt(item.id, 10) : NaN;
+                    var unidadIndex = item.unitIndex ? parseInt(item.unitIndex, 10) : null;
                     var cantidad = parseInt(item.quantity, 10);
                     var precio = roundMoney(item.price);
                     if (!Number.isInteger(productoId) || Number.isNaN(cantidad) || cantidad <= 0) {
@@ -3596,6 +3631,7 @@
                     }
                     return {
                         producto_id: productoId,
+                        unidad_index: unidadIndex,
                         cantidad: cantidad,
                         precio: precio,
                         descuento: 0,
@@ -4131,11 +4167,21 @@
                     var lineTax = computeLineTax(item);
                     var lineTotal = lineSubtotal + lineTax;
                     var isSelected = index === selectedItemIndex;
+                    
+                    // Mostrar producto con especificaciones y cantidad
+                    var productDisplay = item.product;
+                    if (item.specs) {
+                        productDisplay += ' <span class="product-specs">(' + item.specs + ')</span>';
+                    }
+                    if (item.quantity > 1) {
+                        productDisplay += ' <span class="product-quantity-badge">(' + item.quantity + ' unidades)</span>';
+                    }
+                    
                     return [
                         '<tr data-row-index="' + index + '"' + (isSelected ? ' class="is-selected"' : '') + '>',
-                        '<td>' + item.invoice + '</td>',
                         '<td>' + item.client + '</td>',
-                        '<td>' + item.product + '</td>',
+                        '<td>' + productDisplay + '</td>',
+                        '<td>' + (item.batteryLife ? item.batteryLife + '%' : '—') + '</td>',
                         '<td>' + formatCurrency(item.price) + '</td>',
                         '<td>' + item.quantity + '</td>',
                         '<td>' + formatCurrency(lineTax) + '</td>',
@@ -4205,6 +4251,10 @@
             var impuestoPorcentaje = parseFloat(productOption ? productOption.getAttribute('data-impuesto') || '0' : '0');
             var impuestoActivoAttr = productOption ? productOption.getAttribute('data-impuesto-activo') : null;
             var impuestoActivo = impuestoActivoAttr === null ? true : impuestoActivoAttr === 'true';
+            var usarImpuestoGlobalAttr = productOption ? productOption.getAttribute('data-usa-global') : 'true';
+            var usarImpuestoGlobal = usarImpuestoGlobalAttr !== 'false';
+            var impuestoIdAttr = productOption ? productOption.getAttribute('data-impuesto-id') : '';
+            var impuestoLabelAttr = productOption ? productOption.getAttribute('data-impuesto-label') : '';
 
             if (!price || price < 0) {
                 showToast('El producto seleccionado no tiene un precio válido.', 'warning');
@@ -4219,7 +4269,12 @@
                 price: price,
                 quantity: quantityValue,
                 impuestoPorcentaje: impuestoPorcentaje,
-                impuestoActivo: impuestoActivo
+                impuestoActivo: impuestoActivo,
+                usarImpuestoGlobal: usarImpuestoGlobal,
+                impuestoId: impuestoIdAttr || '',
+                impuestoLabel: impuestoLabelAttr || (usarImpuestoGlobal ? 'Impuesto global' : 'Sin impuesto'),
+                unitIndex: productOption ? productOption.getAttribute('data-unit-index') : null,
+                batteryLife: productOption ? productOption.getAttribute('data-battery') : '',
             });
 
             selectedItemIndex = cartItems.length - 1;
@@ -4296,10 +4351,62 @@
                 showToast('Selecciona un producto de la lista para editar la cantidad.', 'warning');
                 return;
             }
+            
+            var item = cartItems[selectedItemIndex];
+            
+            // Analizar stock completo para este producto
+            var stockAnalysis = analyzeStockBySpecs(item.id, item.storage || '', item.ram || ''); // Sin color
+            
+            // Mostrar información en el modal
+            var stockInfo = editQuantityModal.querySelector('[data-stock-info]');
+            var stockProduct = editQuantityModal.querySelector('[data-stock-product]');
+            var stockSpecs = editQuantityModal.querySelector('[data-stock-specs]');
+            var stockAvailability = editQuantityModal.querySelector('[data-stock-availability]');
+            
+            if (stockProduct) {
+                stockProduct.textContent = item.product;
+            }
+            
+            if (stockSpecs) {
+                stockSpecs.textContent = item.specs || 'Sin especificaciones';
+            }
+            
+            if (stockAvailability) {
+                var availabilityText = '';
+                var availabilityColor = '';
+                
+                if (stockAnalysis.availableStock > 5) {
+                    availabilityText = '✅ Stock disponible: ' + stockAnalysis.availableStock + ' unidades (Total en inventario: ' + stockAnalysis.totalInventoryStock + ')';
+                    availabilityColor = '#28a745';
+                } else if (stockAnalysis.availableStock > 0) {
+                    availabilityText = '⚠️ Stock limitado: ' + stockAnalysis.availableStock + ' unidades (Total en inventario: ' + stockAnalysis.totalInventoryStock + ')';
+                    availabilityColor = '#ffc107';
+                } else {
+                    availabilityText = '❌ Sin stock disponible (Total en inventario: ' + stockAnalysis.totalInventoryStock + ')';
+                    availabilityColor = '#dc3545';
+                }
+                
+                if (stockAnalysis.reservedInCart > 0) {
+                    availabilityText += ' | Reservadas en carrito: ' + stockAnalysis.reservedInCart;
+                }
+                
+                stockAvailability.innerHTML = availabilityText;
+                stockAvailability.style.color = availabilityColor;
+                stockAvailability.style.fontWeight = '600';
+            }
+            
             if (editQuantityInput) {
-                editQuantityInput.value = cartItems[selectedItemIndex].quantity;
+                editQuantityInput.value = item.quantity;
                 editQuantityInput.focus();
             }
+            
+            console.log('📊 Información de stock en modal:', {
+                product: item.product,
+                specs: item.specs,
+                stockAnalysis: stockAnalysis,
+                currentQuantity: item.quantity
+            });
+            
             openModalElement(editQuantityModal);
         }
 
@@ -4371,8 +4478,17 @@
 
         invoiceCode = generateInvoiceCode();
         if (codeInput) {
-            codeInput.value = invoiceCode;
-            codeInput.readOnly = true;
+            codeInput.value = '';
+            codeInput.readOnly = false;
+            codeInput.focus();
+            
+            // Handle barcode scanning
+            codeInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleBarcodeScan(codeInput.value.trim());
+                }
+            });
         }
 
         hydrateCashState();
@@ -4715,9 +4831,180 @@
                 editQuantityInput.focus();
                 return;
             }
-            cartItems[selectedItemIndex].quantity = newQuantity;
+            
+            // Validar stock disponible recorriendo todo el inventario
+            var item = cartItems[selectedItemIndex];
+            var stockAnalysis = analyzeStockBySpecs(item.id, item.storage || '', item.ram || ''); // Sin color
+            
+            console.log('📊 Análisis completo de stock:', stockAnalysis);
+            
+            if (newQuantity > stockAnalysis.availableStock) {
+                var displayName = item.specs ? item.product + ' (' + item.specs + ')' : item.product;
+                showToast('Stock insuficiente. Solo hay ' + stockAnalysis.availableStock + 
+                         ' unidades disponibles de ' + displayName + 
+                         ' (Total en inventario: ' + stockAnalysis.totalInventoryStock + ')', 'error');
+                editQuantityInput.focus();
+                return;
+            }
+            
+            // Actualizar cantidad y marcar unidades para actualización de inventario
+            var oldQuantity = item.quantity;
+            item.quantity = newQuantity;
+            
+            // Marcar unidades para actualización en inventario al vender
+            item.unitsToUpdate = markUnitsForUpdate(item, newQuantity, stockAnalysis);
+            
+            console.log('🔄 Unidades marcadas para actualización:', item.unitsToUpdate);
+            
             closeModalElement(editQuantityModal);
             renderCart();
+            showToast('Cantidad actualizada. ' + (newQuantity > oldQuantity ? 
+                     'Se reservarán ' + (newQuantity - oldQuantity) + ' unidades adicionales.' : 
+                     'Se liberarán ' + (oldQuantity - newQuantity) + ' unidades.'), 'success');
+        }
+
+        // Función para analizar stock completo por especificaciones (color no afecta agrupación)
+        function analyzeStockBySpecs(productId, storage, ram) {
+            var productSelect = productSelector;
+            var analysis = {
+                totalInventoryStock: 0,
+                availableStock: 0,
+                reservedInCart: 0,
+                matchingUnits: [],
+                allUnits: []
+            };
+            
+            console.log('🔍 Analizando stock completo para:', {
+                productId: productId,
+                storage: storage,
+                ram: ram,
+                productSelectorExists: !!productSelector
+            });
+            
+            if (productSelect) {
+                var options = productSelect.querySelectorAll('option[data-product-id="' + productId + '"]');
+                console.log('📦 Opciones encontradas para producto ' + productId + ':', options.length);
+                
+                options.forEach(function(option, index) {
+                    var optionColor = option.dataset.color || '';
+                    var optionStorage = option.dataset.almacenamiento || '';
+                    var optionRam = option.dataset.ram || '';
+                    var stock = parseInt(option.getAttribute('data-stock') || '0', 10);
+                    var unitIndex = option.dataset.unitIndex || '';
+                    var optionText = option.textContent;
+                    
+                    console.log('📋 Analizando opción ' + index + ':', {
+                        text: optionText,
+                        unitIndex: unitIndex,
+                        optionStorage: optionStorage,
+                        optionRam: optionRam,
+                        stock: stock,
+                        searchStorage: storage,
+                        searchRam: ram,
+                        storageMatches: compareStorage(optionStorage, storage),
+                        ramMatches: compareRam(optionRam, ram),
+                        willMatch: compareStorage(optionStorage, storage) && compareRam(optionRam, ram)
+                    });
+                    
+                    var unitInfo = {
+                        index: index,
+                        unitIndex: unitIndex,
+                        color: optionColor,
+                        storage: optionStorage,
+                        ram: optionRam,
+                        stock: stock,
+                        text: optionText,
+                        matches: compareStorage(optionStorage, storage) && compareRam(optionRam, ram) // Color no afecta
+                    };
+                    
+                    analysis.allUnits.push(unitInfo);
+                    analysis.totalInventoryStock += stock;
+                    
+                    if (unitInfo.matches) {
+                        analysis.matchingUnits.push(unitInfo);
+                        analysis.availableStock += stock;
+                        console.log('✅ Unidad agregada al stock disponible:', unitInfo);
+                    }
+                });
+                
+                console.log('📊 Resumen del análisis:', {
+                    totalUnits: analysis.allUnits.length,
+                    matchingUnits: analysis.matchingUnits.length,
+                    totalInventoryStock: analysis.totalInventoryStock,
+                    availableStock: analysis.availableStock
+                });
+                
+                // Calcular unidades reservadas en carrito (solo por storage y ram)
+                analysis.reservedInCart = calculateReservedInCart(productId, storage, ram);
+                analysis.availableStock -= analysis.reservedInCart;
+                
+                console.log('🛒 Carrito reservado:', analysis.reservedInCart);
+                console.log('🎯 Stock final disponible:', analysis.availableStock);
+            } else {
+                console.log('❌ productSelect es NULL o undefined');
+            }
+            
+            console.log('📈 Resultado del análisis:', analysis);
+            return analysis;
+        }
+
+        // Función para calcular unidades reservadas en carrito (color no afecta agrupación)
+        function calculateReservedInCart(productId, storage, ram) {
+            var reserved = 0;
+            var productKey = 'product_' + productId + '_' + storage + '_' + ram; // Sin color
+            
+            cartItems.forEach(function(item) {
+                if (item.productKey === productKey) {
+                    reserved += item.quantity;
+                }
+            });
+            
+            return reserved;
+        }
+
+        // Función para marcar unidades para actualización en inventario
+        function markUnitsForUpdate(item, newQuantity, stockAnalysis) {
+            var unitsToUpdate = {
+                toReserve: [],
+                toRelease: [],
+                totalChange: newQuantity - item.quantity
+            };
+            
+            if (unitsToUpdate.totalChange > 0) {
+                // Necesita reservar más unidades
+                var neededUnits = unitsToUpdate.totalChange;
+                var availableUnits = stockAnalysis.matchingUnits.filter(function(unit) {
+                    return unit.stock > 0;
+                });
+                
+                for (var i = 0; i < availableUnits.length && neededUnits > 0; i++) {
+                    var unit = availableUnits[i];
+                    var reserveQuantity = Math.min(unit.stock, neededUnits);
+                    
+                    unitsToUpdate.toReserve.push({
+                        unitIndex: unit.unitIndex,
+                        storage: unit.storage,
+                        ram: unit.ram,
+                        quantity: reserveQuantity,
+                        action: 'reserve'
+                    });
+                    
+                    neededUnits -= reserveQuantity;
+                }
+            } else if (unitsToUpdate.totalChange < 0) {
+                // Necesita liberar unidades
+                var releaseQuantity = Math.abs(unitsToUpdate.totalChange);
+                
+                unitsToUpdate.toRelease.push({
+                    productId: item.id,
+                    storage: item.storage,
+                    ram: item.ram,
+                    quantity: releaseQuantity,
+                    action: 'release'
+                });
+            }
+            
+            return unitsToUpdate;
         }
 
         function handlePriceSave() {
@@ -4733,6 +5020,86 @@
             cartItems[selectedItemIndex].price = newPrice;
             closeModalElement(editPriceModal);
             renderCart();
+        }
+
+        function handleBarcodeScan(codigo) {
+            if (!codigo) {
+                return;
+            }
+            
+            if (!ensureCashOpen()) {
+                return;
+            }
+            
+            // Show loading state
+            if (codeInput) {
+                codeInput.disabled = true;
+                codeInput.placeholder = 'Buscando...';
+            }
+            
+            // Call scan API
+            fetch('{% url "dashboard:scan_unit_barcode_api" %}?codigo=' + encodeURIComponent(codigo))
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (data.success && data.unit) {
+                        // Check if client is selected
+                        if (!clientSelect || !clientSelect.value) {
+                            showToast('Selecciona un cliente antes de escanear productos.', 'warning');
+                            return;
+                        }
+                        
+                        // Check if unit is already in cart
+                        var existingItem = cartItems.find(function(item) {
+                            return item.id === data.unit.key;
+                        });
+                        
+                        if (existingItem) {
+                            showToast('Esta unidad ya está en el carrito.', 'warning');
+                            return;
+                        }
+                        
+                        // Add to cart automatically
+                        var clientOption = clientSelect.options[clientSelect.selectedIndex];
+                        
+                        cartItems.push({
+                            id: data.unit.key,
+                            client: clientOption ? clientOption.text : '-',
+                            product: data.unit.etiqueta,
+                            price: parseFloat(data.unit.precio || '0'),
+                            quantity: 1,
+                            impuestoPorcentaje: parseFloat(data.unit.impuesto_porcentaje || '0'),
+                            impuestoActivo: data.unit.impuesto_activo,
+                            usarImpuestoGlobal: data.unit.usar_impuesto_global,
+                            impuestoId: data.unit.impuesto_id || '',
+                            impuestoLabel: data.unit.impuesto_label || 'Impuesto global',
+                            unitIndex: data.unit.unidad_index,
+                            batteryLife: data.unit.vida_bateria || '',
+                        });
+                        
+                        selectedItemIndex = cartItems.length - 1;
+                        renderCart();
+                        
+                        showToast('Producto agregado: ' + data.unit.etiqueta, 'success');
+                        
+                    } else {
+                        showToast(data.error || 'Código no encontrado', 'error');
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Error scanning barcode:', error);
+                    showToast('Error al procesar el código escaneado', 'error');
+                })
+                .finally(function() {
+                    // Reset input state
+                    if (codeInput) {
+                        codeInput.disabled = false;
+                        codeInput.placeholder = 'Escanea código de barras aquí';
+                        codeInput.value = '';
+                        codeInput.focus();
+                    }
+                });
         }
 
         function handlePaymentTrigger() {
@@ -4888,6 +5255,7 @@
                 return {
                     id: item.id,
                     quantity: item.quantity,
+                    unitIndex: item.unitIndex,
                 };
             });
 
@@ -5069,6 +5437,7 @@
             items.forEach(function (item) {
                 var productId = item && item.id ? String(item.id) : null;
                 var quantity = item && item.quantity ? parseInt(item.quantity, 10) : 0;
+                var unitIndex = item && item.unitIndex ? parseInt(item.unitIndex, 10) : null;
                 if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
                     return;
                 }
@@ -5217,8 +5586,11 @@
                         unitRow.dataset.productName = product.nombre || '';
                         unitRow.dataset.price = product.precio_venta || '';
                         unitRow.dataset.stock = String(product.stock || '');
-                        unitRow.dataset.tax = product.impuesto_porcentaje || '0';
-                        unitRow.dataset.taxActive = product.impuesto_activo ? 'true' : 'false';
+                        unitRow.dataset.tax = unit.impuesto_porcentaje || product.impuesto_porcentaje || '0';
+                        unitRow.dataset.taxActive = (unit.impuesto_activo ? 'true' : (product.impuesto_activo ? 'true' : 'false'));
+                        unitRow.dataset.useGlobal = unit.usar_impuesto_global ? 'true' : 'false';
+                        unitRow.dataset.taxId = unit.impuesto_id || '';
+                        unitRow.dataset.taxLabel = unit.impuesto_label || 'Impuesto global';
 
                         function addField(label, value) {
                             var wrapper = document.createElement('div');
@@ -5238,6 +5610,8 @@
                         addField('IMEI', unit.imei || 'Sin IMEI');
                         addField('Almacenamiento', unit.almacenamiento || 'No especificado');
                         addField('RAM', unit.memoria_ram || 'No especificada');
+                        addField('Vida batería', unit.vida_bateria ? unit.vida_bateria + '%' : 'Sin dato');
+                        addField('Impuesto', unit.impuesto_label || 'Impuesto global');
 
                         var actions = document.createElement('div');
                         actions.className = 'product-results__unit-actions';
@@ -5285,6 +5659,100 @@
                 return;
             }
 
+            var productName = unitRow.dataset.productName || 'Producto';
+            var storage = unitRow.dataset.storageLabel || '';
+            var ram = unitRow.dataset.ramLabel || '';
+            
+            // Crear clave de agrupación específica: producto + almacenamiento + RAM (color no afecta agrupación)
+            var color = unitRow.dataset.color || '';
+            var storageLabel = storage ? storage + 'GB' : '';
+            var ramLabel = ram ? ram + 'GB' : '';
+            var specs = [storageLabel, ramLabel].filter(Boolean).join(' / ');
+            var productKey = 'product_' + productId + '_' + storage + '_' + ram; // Clave única por specs (sin color)
+            
+            // Verificar stock disponible para estas especificaciones
+            var availableStock = getAvailableStockBySpecs(productId, storage, ram, productSelector);
+            var currentQuantityInCart = getCurrentQuantityBySpecs(productId, storage, ram); // Sin color
+            
+            // Depuración - mostrar información de stock
+            console.log('🔍 Validación de stock detallada:', {
+                productId: productId,
+                storage: storage,
+                ram: ram,
+                productName: productName,
+                availableStock: availableStock,
+                currentQuantityInCart: currentQuantityInCart,
+                canAdd: currentQuantityInCart < availableStock,
+                productSelector: productSelector ? 'exists' : 'NULL',
+                totalOptions: productSelector ? productSelector.querySelectorAll('option').length : 0
+            });
+            
+            // Depuración adicional - mostrar todas las opciones del producto
+            if (productSelector) {
+                var allOptions = productSelector.querySelectorAll('option[data-product-id="' + productId + '"]');
+                console.log('📋 Todas las opciones para producto ' + productId + ':', allOptions.length);
+                allOptions.forEach(function(opt, idx) {
+                    console.log('  Opción ' + idx + ':', {
+                        text: opt.textContent,
+                        storage: opt.dataset.almacenamiento,
+                        ram: opt.dataset.ram,
+                        stock: opt.getAttribute('data-stock')
+                    });
+                });
+            }
+            
+            if (currentQuantityInCart >= availableStock && availableStock > 0) {
+                var displayName = specs ? productName + ' (' + specs + ')' : productName;
+                showToast('No hay stock disponible. Solo hay ' + availableStock + ' unidades de ' + displayName, 'error');
+                return;
+            }
+            
+            // Verificar si ya existe este producto con las mismas especificaciones
+            var existingItem = cartItems.find(function(item) {
+                return item.productKey === productKey;
+            });
+
+            if (existingItem) {
+                // Si ya existe, incrementar cantidad
+                existingItem.quantity += 1;
+                existingItem.unitIndexes.push(unitIndex); // Agregar esta unidad a las usadas
+                var displayName = specs ? productName + ' (' + specs + ')' : productName;
+                showToast('Se agregó otra unidad de ' + displayName + '. Total: ' + existingItem.quantity, 'success');
+            } else {
+                // Si no existe, agregar nuevo item agrupado
+                var price = parseFloat(unitRow.dataset.price) || 0;
+                var batteryLife = unitRow.dataset.batteryLife || '';
+                var impuestoPorcentaje = parseFloat(unitRow.dataset.tax) || 0;
+                var impuestoActivo = unitRow.dataset.taxActive === 'true';
+                var usaGlobal = unitRow.dataset.useGlobal === 'true';
+                var impuestoId = unitRow.dataset.taxId || '';
+                var impuestoLabel = unitRow.dataset.taxLabel || 'Impuesto global';
+                
+                var newItem = {
+                    productKey: productKey, // Clave de agrupación por specs
+                    id: productId,
+                    product: productName,
+                    specs: specs, // Guardar especificaciones para mostrar
+                    quantity: 1,
+                    price: price,
+                    batteryLife: batteryLife,
+                    impuestoPorcentaje: impuestoPorcentaje,
+                    impuestoActivo: impuestoActivo,
+                    usarImpuestoGlobal: usaGlobal,
+                    impuestoId: impuestoId,
+                    impuestoLabel: impuestoLabel,
+                    client: '', // Se llenará cuando se seleccione cliente
+                    unitIndexes: [unitIndex], // Guardar las unidades específicas usadas
+                    color: color, // Guardar para validación de stock
+                    storage: storage, // Guardar para validación de stock
+                    ram: ram // Guardar para validación de stock
+                };
+                
+                cartItems.push(newItem);
+                var displayName = specs ? productName + ' (' + specs + ')' : productName;
+                showToast('Se agregó ' + displayName + ' al carrito', 'success');
+            }
+
             var optionSelector = 'option[data-product-id="' + productId + '"][data-unit-index="' + unitIndex + '"]';
             var option = productSelector.querySelector(optionSelector);
             var optionValue = productId + ':' + unitIndex;
@@ -5292,7 +5760,7 @@
             if (!option) {
                 option = document.createElement('option');
                 option.value = optionValue;
-                option.textContent = unitRow.dataset.productName || 'Producto';
+                option.textContent = productName + ' - Unidad ' + unitIndex;
                 option.dataset.productId = productId;
                 option.dataset.unitIndex = unitIndex;
                 productSelector.appendChild(option);
@@ -5300,10 +5768,7 @@
                 option.value = optionValue;
             }
 
-            option.setAttribute('data-price', unitRow.dataset.price || '');
-            option.setAttribute('data-stock', unitRow.dataset.stock || '');
-            option.setAttribute('data-impuesto', unitRow.dataset.tax || '0');
-            option.setAttribute('data-impuesto-activo', unitRow.dataset.taxActive || 'false');
+            option.setAttribute('data-impuesto-label', unitRow.dataset.taxLabel || 'Impuesto global');
             option.dataset.productId = productId;
             option.dataset.unitIndex = unitIndex;
 
@@ -5334,6 +5799,9 @@
             option.setAttribute('data-stock', String(product.stock || ''));
             option.setAttribute('data-impuesto', product.impuesto_porcentaje || '0');
             option.setAttribute('data-impuesto-activo', product.impuesto_activo ? 'true' : 'false');
+            option.setAttribute('data-usa-global', 'true');
+            option.setAttribute('data-impuesto-id', '');
+            option.setAttribute('data-impuesto-label', 'Impuesto global');
 
             productSelector.value = productId;
             updateStock();
@@ -6113,5 +6581,117 @@
             showToast('Configuración de cuotas guardada correctamente', 'success');
         }
     });
-</script>
+// Función para obtener stock real del inventario por especificaciones
+        function getAvailableStockBySpecs(productId, storage, ram, selector) {
+            // Primero intentar obtener stock real del inventario
+            var totalStock = 0;
+            var productSelect = selector || productSelector;
+            
+            console.log('🔍 Buscando stock REAL del inventario:', {
+                productId: productId,
+                storage: storage,
+                ram: ram
+            });
+            
+            if (productSelect) {
+                var options = productSelect.querySelectorAll('option[data-product-id="' + productId + '"]');
+                console.log('📦 Opciones en selector:', options.length);
+                
+                options.forEach(function(option, index) {
+                    var optionStorage = option.dataset.almacenamiento || '';
+                    var optionRam = option.dataset.ram || '';
+                    var stock = parseInt(option.getAttribute('data-stock') || '0', 10);
+                    var optionText = option.textContent;
+                    
+                    console.log('📋 Opción ' + index + ':', {
+                        text: optionText,
+                        optionStorage: optionStorage,
+                        optionRam: optionRam,
+                        stock: stock,
+                        storageMatch: optionStorage === storage,
+                        ramMatch: optionRam === ram,
+                        bothMatch: optionStorage === storage && optionRam === ram
+                    });
+                    
+                    // Comparación flexible para almacenamiento y RAM
+                    var storageMatches = compareStorage(optionStorage, storage);
+                    var ramMatches = compareRam(optionRam, ram);
+                    
+                    if (storageMatches && ramMatches) {
+                        totalStock += stock;
+                        console.log('✅ Coincidencia encontrada, stock acumulado:', totalStock);
+                    }
+                });
+            }
+            
+            console.log('🎯 Stock REAL disponible:', totalStock);
+            return totalStock;
+        }
+        
+        // Función para comparar color de forma flexible
+        function compareColor(optionColor, searchColor) {
+            if (!optionColor || !searchColor) return false;
+            
+            // Normalizar ambos valores (ignorar mayúsculas/minúsculas y espacios)
+            var normalizedOption = optionColor.toLowerCase().trim();
+            var normalizedSearch = searchColor.toLowerCase().trim();
+            
+            console.log('🎨 Comparando color:', {
+                option: optionColor,
+                search: searchColor,
+                normalizedOption: normalizedOption,
+                normalizedSearch: normalizedSearch,
+                match: normalizedOption === normalizedSearch
+            });
+            
+            return normalizedOption === normalizedSearch;
+        }
+        
+        // Función para comparar almacenamiento de forma flexible
+        function compareStorage(optionStorage, searchStorage) {
+            if (!optionStorage || !searchStorage) return false;
+            
+            // Normalizar ambos valores
+            var normalizedOption = optionStorage.toLowerCase().replace(/\s+/g, '').replace('gb', '');
+            var normalizedSearch = searchStorage.toLowerCase().replace(/\s+/g, '').replace('gb', '');
+            
+            console.log('🔢 Comparando almacenamiento:', {
+                option: optionStorage,
+                search: searchStorage,
+                normalizedOption: normalizedOption,
+                normalizedSearch: normalizedSearch,
+                match: normalizedOption === normalizedSearch
+            });
+            
+            return normalizedOption === normalizedSearch;
+        }
+        
+        // Función para comparar RAM de forma flexible
+        function compareRam(optionRam, searchRam) {
+            if (!optionRam || !searchRam) return false;
+            
+            // Normalizar ambos valores
+            var normalizedOption = optionRam.toLowerCase().replace(/\s+/g, '').replace('gb', '');
+            var normalizedSearch = searchRam.toLowerCase().replace(/\s+/g, '').replace('gb', '');
+            
+            console.log('💾 Comparando RAM:', {
+                option: optionRam,
+                search: searchRam,
+                normalizedOption: normalizedOption,
+                normalizedSearch: normalizedSearch,
+                match: normalizedOption === normalizedSearch
+            });
+            
+            return normalizedOption === normalizedSearch;
+        }
+
+        // Función para obtener cantidad actual en carrito por especificaciones (color no afecta agrupación)
+        function getCurrentQuantityBySpecs(productId, storage, ram) {
+            var productKey = 'product_' + productId + '_' + storage + '_' + ram; // Sin color
+            var existingItem = cartItems.find(function(item) {
+                return item.productKey === productKey;
+            });
+            return existingItem ? existingItem.quantity : 0;
+        }
+    </script>
 {% endblock %}
