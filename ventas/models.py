@@ -472,6 +472,21 @@ class Producto(TimeStampedModel):
         from ventas.models import ProductoUnitDetail
         return ProductoUnitDetail.objects.filter(producto=self, vendido=True).count()
 
+    @property
+    def total_vendido_dinero(self):
+        """Calcula el total de dinero generado por las ventas de este producto"""
+        from ventas.models import DetalleVenta
+        from django.db.models import Sum, F
+        from decimal import Decimal
+        
+        total = DetalleVenta.objects.filter(
+            producto=self
+        ).aggregate(
+            total=Sum(F('cantidad') * F('precio_unitario'))
+        )['total'] or Decimal('0.00')
+        
+        return total.quantize(Decimal('0.01'))
+
 
 class ProductoUnitDetail(TimeStampedModel):
     """Información granular por unidad de inventario."""

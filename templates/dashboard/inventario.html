@@ -136,6 +136,7 @@
                     <th>Stock actual</th>
                     <th>Stock mínimo</th>
                     <th>Total vendido</th>
+                    <th>Total vendido (RD$)</th>
                     <th>Estado</th>
                     <th class="actions-column">Acciones</th>
                 </tr>
@@ -168,6 +169,7 @@
                         <td>{{ producto.stock|default:"0" }}</td>
                         <td>{{ producto.stock_minimo|default:"0" }}</td>
                         <td>{{ producto.total_vendido|default:"0" }}</td>
+                        <td>{{ producto.total_vendido_dinero|default:"0.00" }} RD$</td>
                         <td>
                             <span class="status-pill status-pill--{{ producto.activo|yesno:'activo,inactivo' }}">
                                 {{ producto.activo|yesno:'Activo,Inactivo' }}
