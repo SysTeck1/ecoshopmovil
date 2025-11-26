@@ -4073,20 +4073,33 @@ def create_brand_api(request):
 
 @require_POST
 def create_model_api(request):
-    payload = _parse_json_body(request)
-    if payload is None:
-        return JsonResponse({"error": "Datos inválidos."}, status=400)
+    try:
+        # Check if it's form data or JSON
+        if request.content_type and 'application/json' in request.content_type:
+            payload = _parse_json_body(request)
+        else:
+            # Handle form data
+            payload = {
+                'nombre': request.POST.get('nombre', '').strip(),
+                'marca': request.POST.get('marca', ''),
+                'activo': request.POST.get('activo', 'true').lower() in ['true', '1', 'on']
+            }
+    except Exception as e:
+        return JsonResponse({"success": False, "error": f"Error parsing request: {str(e)}"}, status=400)
+    
+    if not payload:
+        return JsonResponse({"success": False, "error": "Datos inválidos."}, status=400)
 
     nombre = (payload.get("nombre") or "").strip()
     if not nombre:
-        return JsonResponse({"error": "Debes indicar el nombre del modelo."}, status=400)
+        return JsonResponse({"success": False, "error": "Debes indicar el nombre del modelo."}, status=400)
 
     marca_id = payload.get("marca")
     marca = None
-    if marca_id:
+    if marca_id and marca_id != '':
         marca = Marca.objects.filter(pk=marca_id).first()
         if not marca:
-            return JsonResponse({"error": "La marca seleccionada no existe."}, status=400)
+            return JsonResponse({"success": False, "error": "La marca seleccionada no existe."}, status=400)
 
     activo = bool(payload.get("activo", True))
 
@@ -4094,19 +4107,19 @@ def create_model_api(request):
     try:
         modelo.save()
     except IntegrityError:
-        return JsonResponse({"error": "Ya existe un modelo con ese nombre para la marca seleccionada."}, status=409)
+        return JsonResponse({"success": False, "error": "Ya existe un modelo con ese nombre para la marca seleccionada."}, status=409)
+    except Exception as e:
+        return JsonResponse({"success": False, "error": f"Error al guardar el modelo: {str(e)}"}, status=500)
 
-    return JsonResponse(
-        {
-            "id": modelo.pk,
-            "nombre": modelo.nombre,
-            "marca_id": modelo.marca.pk if modelo.marca else None,
-            "marca_nombre": modelo.marca.nombre if modelo.marca else None,
-            "activo": modelo.activo,
-            "estado_display": "Activo" if modelo.activo else "Inactivo",
-        },
-        status=201,
-    )
+    return JsonResponse({
+        "success": True,
+        "id": modelo.pk,
+        "nombre": modelo.nombre,
+        "marca_id": modelo.marca.pk if modelo.marca else None,
+        "marca_nombre": modelo.marca.nombre if modelo.marca else None,
+        "activo": modelo.activo,
+        "estado_display": "Activo" if modelo.activo else "Inactivo",
+    }, status=201)
 
 
 @require_POST
