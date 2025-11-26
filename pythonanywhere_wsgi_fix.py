@@ -9,6 +9,11 @@ project_home = '/home/barkley5/SistemaPOS'  # Your username is barkley5
 if project_home not in sys.path:
     sys.path.insert(0, project_home)
 
+# Add the parent directory too (important for SistemaPOS module)
+parent_dir = '/home/barkley5'
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
 # Set Django settings
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'SistemaPOS.settings')
 
