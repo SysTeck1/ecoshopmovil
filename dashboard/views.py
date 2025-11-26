@@ -4151,45 +4151,48 @@ def edit_brand_api(request, brand_id: int):
 
 @require_POST
 def edit_model_api(request, model_id: int):
-    modelo = get_object_or_404(Modelo, pk=model_id)
-    
-    nombre = request.POST.get('nombre', '').strip()
-    if not nombre:
-        return JsonResponse({"success": False, "error": "Debes indicar el nombre del modelo."}, status=400)
-    
-    marca_id = request.POST.get('marca')
-    marca = None
-    if marca_id:
-        marca = Marca.objects.filter(pk=marca_id).first()
-        if not marca:
-            return JsonResponse({"success": False, "error": "La marca seleccionada no existe."}, status=400)
-    
-    activo = request.POST.get('activo') == 'true'
-    
-    # Check if name already exists for another model with same brand
-    existing_query = Modelo.objects.exclude(pk=model_id).filter(nombre__iexact=nombre)
-    if marca:
-        existing_query = existing_query.filter(marca=marca)
-    else:
-        existing_query = existing_query.filter(marca__isnull=True)
-    
-    if existing_query.exists():
-        return JsonResponse({"success": False, "error": "Ya existe un modelo con ese nombre para la marca seleccionada."}, status=409)
-    
-    modelo.nombre = nombre
-    modelo.marca = marca
-    modelo.activo = activo
-    modelo.save(update_fields=["nombre", "marca", "activo", "updated_at"])
-    
-    return JsonResponse({
-        "success": True,
-        "id": modelo.pk,
-        "nombre": modelo.nombre,
-        "marca_id": modelo.marca.pk if modelo.marca else None,
-        "marca_nombre": modelo.marca.nombre if modelo.marca else None,
-        "activo": modelo.activo,
-        "estado_display": "Activo" if modelo.activo else "Inactivo",
-    })
+    try:
+        modelo = get_object_or_404(Modelo, pk=model_id)
+        
+        nombre = request.POST.get('nombre', '').strip()
+        if not nombre:
+            return JsonResponse({"success": False, "error": "Debes indicar el nombre del modelo."}, status=400)
+        
+        marca_id = request.POST.get('marca')
+        marca = None
+        if marca_id and marca_id != '':
+            marca = Marca.objects.filter(pk=marca_id).first()
+            if not marca:
+                return JsonResponse({"success": False, "error": "La marca seleccionada no existe."}, status=400)
+        
+        activo = request.POST.get('activo') == 'true'
+        
+        # Check if name already exists for another model with same brand
+        existing_query = Modelo.objects.exclude(pk=model_id).filter(nombre__iexact=nombre)
+        if marca:
+            existing_query = existing_query.filter(marca=marca)
+        else:
+            existing_query = existing_query.filter(marca__isnull=True)
+        
+        if existing_query.exists():
+            return JsonResponse({"success": False, "error": "Ya existe un modelo con ese nombre para la marca seleccionada."}, status=409)
+        
+        modelo.nombre = nombre
+        modelo.marca = marca
+        modelo.activo = activo
+        modelo.save(update_fields=["nombre", "marca", "activo", "updated_at"])
+        
+        return JsonResponse({
+            "success": True,
+            "id": modelo.pk,
+            "nombre": modelo.nombre,
+            "marca_id": modelo.marca.pk if modelo.marca else None,
+            "marca_nombre": modelo.marca.nombre if modelo.marca else None,
+            "activo": modelo.activo,
+            "estado_display": "Activo" if modelo.activo else "Inactivo",
+        })
+    except Exception as e:
+        return JsonResponse({"success": False, "error": f"Error al actualizar el modelo: {str(e)}"}, status=500)
 
 
 @require_POST
