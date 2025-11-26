@@ -479,11 +479,29 @@ class Producto(TimeStampedModel):
         from django.db.models import Sum, F
         from decimal import Decimal
         
+        # Calcular el total real de las ventas (incluyendo impuestos si los hay)
         total = DetalleVenta.objects.filter(
             producto=self
         ).aggregate(
             total=Sum(F('cantidad') * F('precio_unitario'))
         )['total'] or Decimal('0.00')
+        
+        return total.quantize(Decimal('0.01'))
+
+    @property
+    def total_ventas_con_impuestos(self):
+        """Calcula el total de ventas incluyendo impuestos"""
+        from ventas.models import DetalleVenta, Venta
+        from django.db.models import Sum
+        from decimal import Decimal
+        
+        # Obtener el total de las ventas completas usando la property total
+        ventas_ids = DetalleVenta.objects.filter(producto=self).values_list('venta_id', flat=True)
+        total = Decimal('0.00')
+        
+        for venta_id in ventas_ids:
+            venta = Venta.objects.get(id=venta_id)
+            total += venta.total
         
         return total.quantize(Decimal('0.01'))
 

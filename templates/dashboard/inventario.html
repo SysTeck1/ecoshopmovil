@@ -169,7 +169,7 @@
                         <td>{{ producto.stock|default:"0" }}</td>
                         <td>{{ producto.stock_minimo|default:"0" }}</td>
                         <td>{{ producto.total_vendido|default:"0" }}</td>
-                        <td>{{ producto.total_vendido_dinero|default:"0.00" }} RD$</td>
+                        <td>{{ producto.total_ventas_con_impuestos|default:"0.00" }} RD$</td>
                         <td>
                             <span class="status-pill status-pill--{{ producto.activo|yesno:'activo,inactivo' }}">
                                 {{ producto.activo|yesno:'Activo,Inactivo' }}
