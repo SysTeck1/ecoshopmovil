@@ -2576,6 +2576,9 @@ class ProductoDetailView(DashboardTemplateView):
         # Si no hay stock definido pero hay detalles, usar el máximo índice + 1
         if stock_total == 0 and detalles_map:
             stock_total = max(detalles_map.keys())
+        
+        # Asegurar que se muestren todas las unidades hasta el máximo entre stock y detalles
+        max_unidades = max(stock_total, max(detalles_map.keys()) if detalles_map else 0)
 
         raw_imeis = (producto.imei or "").replace("\r", "\n")
         imeis = [valor.strip() for valor in raw_imeis.replace(",", "\n").split("\n") if valor.strip()]
@@ -2584,7 +2587,7 @@ class ProductoDetailView(DashboardTemplateView):
         colores = [color.strip() for color in raw_colores.split(",") if color.strip()]
 
         unidades_stock = []
-        for idx in range(stock_total):
+        for idx in range(max_unidades):
             detalle_unit = detalles_map.get(idx + 1)
 
             almacenamiento_code = ""
