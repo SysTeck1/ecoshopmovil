@@ -1393,8 +1393,8 @@ class DashboardTemplateView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Agregar logo URL para templates
-        context["dashboard_logo_url"] = "/static/img/logo/logo.svg"
+        # Agregar logo URL para templates (usando PNG)
+        context["dashboard_logo_url"] = "/static/img/logo/logo.png"
         return context
 
 
