@@ -133,7 +133,6 @@
                     <th>Tipo</th>
                     <th>Categoría</th>
                     <th>Modelo</th>
-                    <th>Precio venta</th>
                     <th>Stock actual</th>
                     <th>Stock mínimo</th>
                     <th>Total vendido</th>
@@ -166,7 +165,6 @@
                         </td>
                         <td>{{ producto.categoria.nombre|default:"Sin categoría" }}</td>
                         <td>{{ producto.modelo|default:"-" }}</td>
-                        <td>{{ producto.precio_venta|default:"0.00" }} RD$</td>
                         <td>{{ producto.stock|default:"0" }}</td>
                         <td>{{ producto.stock_minimo|default:"0" }}</td>
                         <td>{{ producto.total_vendido|default:"0" }}</td>
