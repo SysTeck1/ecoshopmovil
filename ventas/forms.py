@@ -310,12 +310,25 @@ class ProductoForm(forms.ModelForm):
 
 
 class CategoriaForm(forms.ModelForm):
-    tipo_producto = forms.ChoiceField(
-        choices=[("", "🔧 General (todos los tipos)"), *TIPO_PRODUCTO_CHOICES],
-        required=False,
-        label="Tipo de producto",
-        help_text="Selecciona el tipo de producto para esta categoría",
-    )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .models import TipoProducto
+        
+        # Obtener tipos de producto dinámicamente
+        tipos_producto = TipoProducto.objects.filter(activo=True).order_by('nombre')
+        choices = [("", "🔧 General (todos los tipos)")]
+        
+        for tipo in tipos_producto:
+            choices.append((tipo.id, f"{tipo.get_icono_display()} {tipo.nombre}"))
+        
+        self.fields['tipo_producto'] = forms.ModelChoiceField(
+            queryset=TipoProducto.objects.filter(activo=True).order_by('nombre'),
+            choices=choices,
+            required=False,
+            label="Tipo de producto",
+            help_text="Selecciona el tipo de producto para esta categoría",
+            empty_label="🔧 General (todos los tipos)",
+        )
 
     class Meta:
         model = Categoria

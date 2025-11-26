@@ -157,6 +157,16 @@ urlpatterns = [
         name="create_brand_api",
     ),
     path(
+        "inventario/marcas/<int:brand_id>/edit/",
+        views.edit_brand_api,
+        name="edit_brand_api",
+    ),
+    path(
+        "inventario/marcas/<int:brand_id>/delete/",
+        views.delete_brand_api,
+        name="delete_brand_api",
+    ),
+    path(
         "inventario/modelos/<int:model_id>/toggle/",
         views.toggle_model_status_api,
         name="toggle_model_status_api",
@@ -165,6 +175,31 @@ urlpatterns = [
         "inventario/modelos/crear/",
         views.create_model_api,
         name="create_model_api",
+    ),
+    path(
+        "inventario/modelos/<int:pk>/edit/",
+        views.edit_model_api,
+        name="edit_model_api",
+    ),
+    path(
+        "inventario/modelos/<int:pk>/delete/",
+        views.delete_model_api,
+        name="delete_model_api",
+    ),
+    path(
+        "inventario/tipo-producto/crear/",
+        views.create_tipo_producto_api,
+        name="create_tipo_producto_api",
+    ),
+    path(
+        "inventario/tipo-producto/<int:pk>/edit/",
+        views.edit_tipo_producto_api,
+        name="edit_tipo_producto_api",
+    ),
+    path(
+        "inventario/tipo-producto/<int:pk>/toggle/",
+        views.toggle_tipo_producto_api,
+        name="toggle_tipo_producto_api",
     ),
     path(
         "inventario/impuestos/crear/",

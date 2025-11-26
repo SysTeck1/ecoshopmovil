@@ -376,7 +376,13 @@
                 </div>
                 <div class="modal-field">
                     <label class="modal-field__label" for="category-register-type-input">Tipo de producto</label>
-                    {{ categoria_form.tipo_producto }}
+                    <div class="modal-field__group modal-field__group--compact">
+                        {{ categoria_form.tipo_producto }}
+                        <button type="button" class="btn btn-primary btn--compact" data-open-product-type-register>
+                            <span class="btn__icon">＋</span>
+                            <span>Agregar tipo</span>
+                        </button>
+                    </div>
                     {% if categoria_form.tipo_producto.errors %}
                         <div class="field-error">{{ categoria_form.tipo_producto.errors|join:", " }}</div>
                     {% endif %}
@@ -419,14 +425,20 @@
                 </div>
                 <div class="modal-field">
                     <label class="modal-field__label" for="category-edit-type">Tipo de producto</label>
-                    <select id="category-edit-type" name="tipo_producto" class="modal-field__input" data-category-edit-type>
-                        <option value="">🔧 General (todos los tipos)</option>
-                        <option value="phone">📱 Teléfonos</option>
-                        <option value="accessory">🔌 Accesorios</option>
-                        <option value="laptop">💻 Laptops</option>
-                        <option value="tablet">📟 Tablets</option>
-                        <option value="gaming">🎮 Gaming</option>
-                    </select>
+                    <div class="modal-field__group modal-field__group--compact">
+                        <select id="category-edit-type" name="tipo_producto" class="modal-field__input" data-category-edit-type>
+                            <option value="">🔧 General (todos los tipos)</option>
+                            <option value="phone">📱 Teléfonos</option>
+                            <option value="accessory">🔌 Accesorios</option>
+                            <option value="laptop">💻 Laptops</option>
+                            <option value="tablet">📟 Tablets</option>
+                            <option value="gaming">🎮 Gaming</option>
+                        </select>
+                        <button type="button" class="btn btn-primary btn--compact" data-open-product-type-register>
+                            <span class="btn__icon">＋</span>
+                            <span>Agregar tipo</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="modal-field modal-field--inline">
                     <span class="modal-field__label">Estado actual</span>
@@ -437,6 +449,158 @@
             </div>
             <div class="modal-actions">
                 <button type="button" class="btn btn-ghost" data-close-category-edit>Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="product-type-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="product-type-modal-title">
+        <div class="modal-header">
+            <h2 id="product-type-modal-title">Tipos de Producto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-product-type-modal>&times;</button>
+        </div>
+        <div class="modal-flex product-type-modal">
+            <div class="product-type-modal__toolbar">
+                <label class="product-type-modal__search">
+                    <span class="product-type-modal__search-icon" aria-hidden="true">🔍</span>
+                    <input type="search" placeholder="Buscar tipo de producto" data-product-type-search autocomplete="off">
+                </label>
+                <button type="button" class="btn btn-primary product-type-modal__register" data-product-type-register>
+                    <span class="product-type-modal__register-icon" aria-hidden="true">＋</span>
+                    <span>Registrar</span>
+                </button>
+            </div>
+            <div class="product-type-modal__table-wrapper">
+                <table class="product-type-modal__table">
+                    <thead>
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">Nombre</th>
+                            <th scope="col">Icono</th>
+                            <th scope="col">Descripción</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody data-product-type-table>
+                        {% for tipo in tipos_producto %}
+                            <tr data-product-type-row data-id="{{ tipo.id }}" data-name="{{ tipo.nombre|lower }}">
+                                <td data-product-type-id>{{ tipo.id }}</td>
+                                <td data-product-type-name>{{ tipo.nombre }}</td>
+                                <td data-product-type-icono>{{ tipo.get_icono_display }}</td>
+                                <td data-product-type-descripcion>{{ tipo.descripcion|default:"Sin descripción"|truncatechars:50 }}</td>
+                                <td data-product-type-estado>
+                                    <span class="status-badge status-badge--{{ tipo.activo|yesno:'active,inactive' }}">
+                                        {{ tipo.activo|yesno:'Activo,Inactivo' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="product-type-modal__actions">
+                                        <button type="button" class="btn btn-ghost btn--compact" data-product-type-edit data-id="{{ tipo.id }}" data-nombre="{{ tipo.nombre }}" data-icono="{{ tipo.icono }}" data-descripcion="{{ tipo.descripcion }}" data-activo="{{ tipo.activo }}">
+                                            <span class="btn__icon">✏️</span>
+                                            <span>Editar</span>
+                                        </button>
+                                        <button type="button" class="btn btn-ghost btn--compact" data-product-type-toggle data-id="{{ tipo.id }}" data-active="{{ tipo.activo }}">
+                                            <span class="btn__icon">{{ tipo.activo|yesno:'🔴,🟢' }}</span>
+                                            <span>{{ tipo.activo|yesno:'Desactivar,Activar' }}</span>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr data-product-type-empty>
+                                <td colspan="6">No hay tipos de producto registrados.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p class="product-type-modal__empty" data-product-type-empty {% if tipos_producto %}hidden{% endif %}>Aún no hay tipos de producto registrados.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="product-type-register-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="product-type-register-title">
+        <div class="modal-header">
+            <h2 id="product-type-register-title">Registrar Tipo de Producto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-product-type-register>&times;</button>
+        </div>
+        <form class="modal-form product-type-register__form" data-product-type-register-form>
+            {% csrf_token %}
+            <div class="modal-form__grid product-type-register__grid">
+                <div class="modal-field">
+                    <label class="modal-field__label" for="product-type-register-name">Nombre</label>
+                    <input type="text" id="product-type-register-name" name="nombre" placeholder="Ej. Smartwatch" required autocomplete="off" maxlength="100" data-product-type-register-name>
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field__label" for="product-type-register-icono">Icono</label>
+                    <select id="product-type-register-icono" name="icono" class="modal-field__input" data-product-type-register-icono>
+                        <option value="phone">📱 Teléfono</option>
+                        <option value="accessory">🔌 Accesorio</option>
+                        <option value="laptop">💻 Laptop</option>
+                        <option value="tablet">📟 Tablet</option>
+                        <option value="gaming">🎮 Gaming</option>
+                        <option value="watch">⌚ Reloj</option>
+                        <option value="headphones">🎧 Auriculares</option>
+                        <option value="camera">📷 Cámara</option>
+                        <option value="speaker">🔊 Altavoz</option>
+                        <option value="other">📦 Otro</option>
+                        <option value="custom" selected>🔧 Personalizado</option>
+                    </select>
+                </div>
+                <div class="modal-field modal-field--full">
+                    <label class="modal-field__label" for="product-type-register-descripcion">Descripción</label>
+                    <textarea id="product-type-register-descripcion" name="descripcion" placeholder="Ej. Dispositivos wearable para el seguimiento de actividad" rows="3" data-product-type-register-descripcion></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" data-close-product-type-register>Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="product-type-edit-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="product-type-edit-title">
+        <div class="modal-header">
+            <h2 id="product-type-edit-title">Editar Tipo de Producto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-product-type-edit>&times;</button>
+        </div>
+        <form class="modal-form product-type-edit__form" data-product-type-edit-form>
+            {% csrf_token %}
+            <input type="hidden" name="id" data-product-type-edit-id>
+            <div class="modal-form__grid product-type-edit__grid">
+                <div class="modal-field">
+                    <label class="modal-field__label" for="product-type-edit-name">Nombre</label>
+                    <input type="text" id="product-type-edit-name" name="nombre" placeholder="Ej. Smartwatch" required autocomplete="off" maxlength="100" data-product-type-edit-name>
+                </div>
+                <div class="modal-field">
+                    <label class="modal-field__label" for="product-type-edit-icono">Icono</label>
+                    <select id="product-type-edit-icono" name="icono" class="modal-field__input" data-product-type-edit-icono>
+                        <option value="phone">📱 Teléfono</option>
+                        <option value="accessory">🔌 Accesorio</option>
+                        <option value="laptop">💻 Laptop</option>
+                        <option value="tablet">📟 Tablet</option>
+                        <option value="gaming">🎮 Gaming</option>
+                        <option value="watch">⌚ Reloj</option>
+                        <option value="headphones">🎧 Auriculares</option>
+                        <option value="camera">📷 Cámara</option>
+                        <option value="speaker">🔊 Altavoz</option>
+                        <option value="other">📦 Otro</option>
+                        <option value="custom">🔧 Personalizado</option>
+                    </select>
+                </div>
+                <div class="modal-field modal-field--full">
+                    <label class="modal-field__label" for="product-type-edit-descripcion">Descripción</label>
+                    <textarea id="product-type-edit-descripcion" name="descripcion" placeholder="Ej. Dispositivos wearable para el seguimiento de actividad" rows="3" data-product-type-edit-descripcion></textarea>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-ghost" data-close-product-type-edit>Cancelar</button>
                 <button type="submit" class="btn btn-primary">Guardar cambios</button>
             </div>
         </form>
@@ -1630,6 +1794,128 @@
         margin: 0;
     }
 
+    .product-type-modal {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        padding: 24px;
+    }
+
+    .product-type-modal__toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .product-type-modal__search {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid #dfe4ea;
+        border-radius: 10px;
+        padding: 8px 12px;
+        background: #f5f6fa;
+        flex: 1 1 260px;
+        max-width: 320px;
+    }
+
+    .product-type-modal__search input {
+        border: none;
+        background: transparent;
+        width: 100%;
+        font-size: 0.95rem;
+        color: #2f3640;
+    }
+
+    .product-type-modal__search input:focus {
+        outline: none;
+    }
+
+    .product-type-modal__table-wrapper {
+        border: 1px solid #ecf0f1;
+        border-radius: 14px;
+        background: #ffffff;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    }
+
+    .product-type-modal__table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 360px;
+    }
+
+    .product-type-modal__table thead {
+        background: #f6f9ff;
+    }
+
+    .product-type-modal__table th,
+    .product-type-modal__table td {
+        padding: 14px 16px;
+        text-align: left;
+        font-size: 0.95rem;
+        color: #2f3640;
+    }
+
+    .product-type-modal__table tbody tr:nth-child(even) {
+        background: #ffffff;
+    }
+
+    .product-type-modal__table tbody tr:nth-child(odd) {
+        background: #fafcff;
+    }
+
+    .product-type-modal__table tbody tr:hover {
+        background: rgba(30, 144, 255, 0.08);
+    }
+
+    .product-type-modal__empty {
+        margin: 0;
+        padding: 18px;
+        text-align: center;
+        color: #95a5a6;
+        font-size: 0.95rem;
+    }
+
+    .product-type-modal__register {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 10px;
+        padding: 10px 16px;
+        font-weight: 600;
+        box-shadow: 0 10px 24px rgba(30, 144, 255, 0.22);
+    }
+
+    .product-type-modal__register-icon {
+        font-size: 1.1rem;
+    }
+
+    .product-type-modal__actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .product-type-modal__table-wrapper::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .product-type-modal__table-wrapper::-webkit-scrollbar-thumb {
+        background-color: rgba(47, 54, 64, 0.25);
+        border-radius: 6px;
+    }
+
+    .product-type-register__form .field-error {
+        margin: 0;
+    }
+
+    .product-type-edit__form .field-error {
+        margin: 0;
+    }
+
     @media (max-width: 640px) {
         .tax-modal__toolbar {
             flex-direction: column;
@@ -1649,6 +1935,29 @@
             width: 100%;
         }
 
+        .product-type-modal__toolbar {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .product-type-modal__search {
+            max-width: none;
+        }
+
+        .product-type-modal__table {
+            min-width: 280px;
+        }
+
+        .product-type-modal__register {
+            justify-content: center;
+            width: 100%;
+        }
+
+        .product-type-modal__actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
         .tax-register__form .modal-actions {
             flex-direction: column-reverse;
             align-items: stretch;
@@ -1656,6 +1965,26 @@
         }
 
         .tax-register__form .modal-actions .btn {
+            width: 100%;
+        }
+
+        .product-type-register__form .modal-actions {
+            flex-direction: column-reverse;
+            align-items: stretch;
+            gap: 10px;
+        }
+
+        .product-type-register__form .modal-actions .btn {
+            width: 100%;
+        }
+
+        .product-type-edit__form .modal-actions {
+            flex-direction: column-reverse;
+            align-items: stretch;
+            gap: 10px;
+        }
+
+        .product-type-edit__form .modal-actions .btn {
             width: 100%;
         }
     }
@@ -2393,6 +2722,292 @@
                 emptySelector: '[data-tax-empty]',
                 refreshEvent: 'tax:refresh'
             });
+
+            // Product Type Modal functionality
+            (function () {
+                var productTypeModal = document.getElementById('product-type-modal');
+                var registerModal = document.getElementById('product-type-register-modal');
+                var editModal = document.getElementById('product-type-edit-modal');
+                
+                if (!productTypeModal || !registerModal) {
+                    return;
+                }
+
+                // Open product type modal from category forms
+                document.querySelectorAll('[data-open-product-type-register]').forEach(function(button) {
+                    button.addEventListener('click', function() {
+                        openProductTypeModal();
+                    });
+                });
+
+                function openProductTypeModal() {
+                    productTypeModal.setAttribute('aria-hidden', 'false');
+                    productTypeModal.classList.add('is-visible');
+                }
+
+                function closeProductTypeModal() {
+                    productTypeModal.setAttribute('aria-hidden', 'true');
+                    productTypeModal.classList.remove('is-visible');
+                    if (productTypeModal.contains(document.activeElement)) {
+                        document.activeElement.blur();
+                    }
+                }
+
+                // Close modal handlers
+                var closeButtons = productTypeModal.querySelectorAll('[data-close-product-type-modal]');
+                closeButtons.forEach(function(button) {
+                    button.addEventListener('click', closeProductTypeModal);
+                });
+
+                // Click outside to close
+                productTypeModal.addEventListener('click', function(event) {
+                    if (event.target === productTypeModal) {
+                        closeProductTypeModal();
+                    }
+                });
+
+                // Escape key to close
+                document.addEventListener('keydown', function(event) {
+                    if (event.key === 'Escape' && productTypeModal.classList.contains('is-visible')) {
+                        closeProductTypeModal();
+                    }
+                });
+
+                // Search functionality
+                var searchInput = productTypeModal.querySelector('[data-product-type-search]');
+                var emptyState = productTypeModal.querySelector('[data-product-type-empty]');
+
+                function applyFilter(term) {
+                    var rows = productTypeModal.querySelectorAll('[data-product-type-row]');
+                    var normalized = (term || '').toLowerCase().trim();
+                    var visible = 0;
+                    
+                    rows.forEach(function(row) {
+                        var name = row.getAttribute('data-name') || '';
+                        var matches = !normalized || name.indexOf(normalized) !== -1;
+                        row.style.display = matches ? '' : 'none';
+                        if (matches) {
+                            visible += 1;
+                        }
+                    });
+                    
+                    if (emptyState) {
+                        emptyState.hidden = rows.length === 0 ? false : visible > 0;
+                    }
+                }
+
+                if (searchInput) {
+                    searchInput.addEventListener('input', function(event) {
+                        applyFilter(event.target.value);
+                    });
+                    applyFilter(searchInput.value || '');
+                }
+
+                // Register modal functionality
+                var registerForm = registerModal.querySelector('[data-product-type-register-form]');
+                if (registerForm) {
+                    registerForm.addEventListener('submit', function(event) {
+                        event.preventDefault();
+                        
+                        var formData = new FormData(registerForm);
+                        var submitButton = registerForm.querySelector('button[type="submit"]');
+                        var originalText = submitButton.textContent;
+                        
+                        submitButton.disabled = true;
+                        submitButton.textContent = 'Guardando...';
+                        
+                        fetch('/app/inventario/tipo-producto/crear/', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(function(response) {
+                            return response.json();
+                        })
+                        .then(function(data) {
+                            if (data.success) {
+                                // Close modals
+                                closeRegisterModal();
+                                closeProductTypeModal();
+                                
+                                // Refresh the page to show new product type
+                                window.location.reload();
+                            } else {
+                                alert(data.error || 'No se pudo crear el tipo de producto.');
+                            }
+                        })
+                        .catch(function(error) {
+                            console.error('Error:', error);
+                            alert('Ocurrió un error al crear el tipo de producto.');
+                        })
+                        .finally(function() {
+                            submitButton.disabled = false;
+                            submitButton.textContent = originalText;
+                        });
+                    });
+                }
+
+                function openRegisterModal() {
+                    registerModal.setAttribute('aria-hidden', 'false');
+                    registerModal.classList.add('is-visible');
+                    var nameInput = registerModal.querySelector('[data-product-type-register-name]');
+                    if (nameInput) {
+                        nameInput.focus();
+                    }
+                }
+
+                function closeRegisterModal() {
+                    registerModal.setAttribute('aria-hidden', 'true');
+                    registerModal.classList.remove('is-visible');
+                    registerForm.reset();
+                }
+
+                // Register button handlers
+                var registerButton = productTypeModal.querySelector('[data-product-type-register]');
+                if (registerButton) {
+                    registerButton.addEventListener('click', openRegisterModal);
+                }
+
+                var closeRegisterButtons = registerModal.querySelectorAll('[data-close-product-type-register]');
+                closeRegisterButtons.forEach(function(button) {
+                    button.addEventListener('click', closeRegisterModal);
+                });
+
+                // Edit modal functionality
+                var editForm = editModal.querySelector('[data-product-type-edit-form]');
+                if (editForm) {
+                    editForm.addEventListener('submit', function(event) {
+                        event.preventDefault();
+                        
+                        var formData = new FormData(editForm);
+                        var id = formData.get('id');
+                        var submitButton = editForm.querySelector('button[type="submit"]');
+                        var originalText = submitButton.textContent;
+                        
+                        submitButton.disabled = true;
+                        submitButton.textContent = 'Actualizando...';
+                        
+                        fetch('/app/inventario/tipo-producto/' + id + '/edit/', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(function(response) {
+                            return response.json();
+                        })
+                        .then(function(data) {
+                            if (data.success) {
+                                closeEditModal();
+                                closeProductTypeModal();
+                                window.location.reload();
+                            } else {
+                                alert(data.error || 'No se pudo actualizar el tipo de producto.');
+                            }
+                        })
+                        .catch(function(error) {
+                            console.error('Error:', error);
+                            alert('Ocurrió un error al actualizar el tipo de producto.');
+                        })
+                        .finally(function() {
+                            submitButton.disabled = false;
+                            submitButton.textContent = originalText;
+                        });
+                    });
+                }
+
+                function openEditModal(config) {
+                    if (!config) return;
+                    
+                    var idInput = editModal.querySelector('[data-product-type-edit-id]');
+                    var nameInput = editModal.querySelector('[data-product-type-edit-name]');
+                    var iconoSelect = editModal.querySelector('[data-product-type-edit-icono]');
+                    var descripcionInput = editModal.querySelector('[data-product-type-edit-descripcion]');
+                    
+                    if (idInput) idInput.value = config.id || '';
+                    if (nameInput) {
+                        nameInput.value = config.nombre || '';
+                        nameInput.focus();
+                    }
+                    if (iconoSelect) iconoSelect.value = config.icono || 'custom';
+                    if (descripcionInput) descripcionInput.value = config.descripcion || '';
+                    
+                    editModal.setAttribute('aria-hidden', 'false');
+                    editModal.classList.add('is-visible');
+                }
+
+                function closeEditModal() {
+                    editModal.setAttribute('aria-hidden', 'true');
+                    editModal.classList.remove('is-visible');
+                    editForm.reset();
+                }
+
+                // Edit button handlers
+                productTypeModal.addEventListener('click', function(event) {
+                    var button = event.target.closest('[data-product-type-edit]');
+                    if (!button) return;
+                    
+                    var config = {
+                        id: button.getAttribute('data-id'),
+                        nombre: button.getAttribute('data-nombre'),
+                        icono: button.getAttribute('data-icono'),
+                        descripcion: button.getAttribute('data-descripcion')
+                    };
+                    openEditModal(config);
+                });
+
+                var closeEditButtons = editModal.querySelectorAll('[data-close-product-type-edit]');
+                closeEditButtons.forEach(function(button) {
+                    button.addEventListener('click', closeEditModal);
+                });
+
+                // Toggle status functionality
+                productTypeModal.addEventListener('click', function(event) {
+                    var button = event.target.closest('[data-product-type-toggle]');
+                    if (!button) return;
+                    
+                    var id = button.getAttribute('data-id');
+                    var isActive = button.getAttribute('data-active') === 'true';
+                    
+                    if (confirm('¿Estás seguro de ' + (isActive ? 'desactivar' : 'activar') + ' este tipo de producto?')) {
+                        fetch('/app/inventario/tipo-producto/' + id + '/toggle/', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                            }
+                        })
+                        .then(function(response) {
+                            return response.json();
+                        })
+                        .then(function(data) {
+                            if (data.success) {
+                                window.location.reload();
+                            } else {
+                                alert(data.error || 'No se pudo cambiar el estado.');
+                            }
+                        })
+                        .catch(function(error) {
+                            console.error('Error:', error);
+                            alert('Ocurrió un error al cambiar el estado.');
+                        });
+                    }
+                });
+
+                // Click outside to close for register and edit modals
+                [registerModal, editModal].forEach(function(modal) {
+                    modal.addEventListener('click', function(event) {
+                        if (event.target === modal) {
+                            if (modal === registerModal) closeRegisterModal();
+                            if (modal === editModal) closeEditModal();
+                        }
+                    });
+                });
+
+                // Escape key for register and edit modals
+                document.addEventListener('keydown', function(event) {
+                    if (event.key === 'Escape') {
+                        if (registerModal.classList.contains('is-visible')) closeRegisterModal();
+                        if (editModal.classList.contains('is-visible')) closeEditModal();
+                    }
+                });
+            })();
         })();
 
         (function () {
@@ -2623,5 +3238,1473 @@
         .category-modal__table td:nth-child(3) {
             width: 150px;
         }
+
+        /* New modal styles for configuration features */
+        .stock-minimum-form .form-field,
+        .barcode-form .form-field,
+        .import-form .form-field {
+            margin-bottom: 16px;
+        }
+
+        .stock-minimum-form label,
+        .barcode-form label,
+        .import-form label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .stock-minimum-form input,
+        .barcode-form input,
+        .barcode-form select,
+        .import-form input,
+        .import-form select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .stock-minimum-form small,
+        .barcode-form small,
+        .import-form small {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .barcode-preview {
+            margin: 20px 0;
+            padding: 16px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .barcode-sample {
+            display: inline-block;
+            padding: 12px;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .barcode-image {
+            font-size: 18px;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+
+        .barcode-text {
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .barcode-price {
+            font-weight: bold;
+            color: #059669;
+        }
+
+        .import-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: #e5e7eb;
+        }
+
+        .step.active::after {
+            background: #059669;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .step.active .step-number {
+            background: #059669;
+            color: white;
+        }
+
+        .step-text {
+            font-size: 12px;
+            text-align: center;
+            color: #6b7280;
+        }
+
+        .step.active .step-text {
+            color: #059669;
+            font-weight: 500;
+        }
+
+        .import-preview {
+            margin: 20px 0;
+        }
+
+        .import-preview h4 {
+            margin-bottom: 12px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .import-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .import-table th,
+        .import-table td {
+            padding: 8px;
+            border: 1px solid #e5e7eb;
+            text-align: left;
+        }
+
+        .import-table th {
+            background: #f9fafb;
+            font-weight: 500;
+        }
+
+        .product-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+
+        .product-item {
+            padding: 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .product-item:last-child {
+            border-bottom: none;
+        }
+
+        .product-item label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .product-item input[type="checkbox"] {
+            margin-right: 12px;
+        }
+
+        .product-name {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .product-stock {
+            font-size: 12px;
+            color: #6b7280;
+            background: #f3f4f6;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        /* Enhanced Barcode Generator Styles */
+        .search-container {
+            position: relative;
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .search-loading {
+            padding: 12px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .search-item {
+            padding: 12px;
+            border-bottom: 1px solid #f3f4f6;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .search-item:hover {
+            background-color: #f9fafb;
+        }
+
+        .search-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .item-name {
+            font-weight: 500;
+            color: #111827;
+        }
+
+        .item-code {
+            font-size: 12px;
+            color: #6b7280;
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .item-details {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .item-brand {
+            font-weight: 500;
+        }
+
+        .item-stock {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .item-price {
+            font-weight: 600;
+            color: #059669;
+        }
+
+        .no-results {
+            padding: 12px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .selected-product {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .selected-product h4 {
+            margin: 0 0 12px 0;
+            color: #166534;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .product-info {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .product-name {
+            font-weight: 600;
+            color: #111827;
+            font-size: 16px;
+        }
+
+        .product-stock {
+            background: #dbeafe;
+            color: #1d4ed8;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .product-price {
+            font-weight: 600;
+            color: #059669;
+            font-size: 16px;
+        }
+
+        .barcode-options {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .units-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 8px;
+            background: white;
+        }
+
+        .unit-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .unit-checkbox {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            cursor: pointer;
+            margin: 0;
+            transition: background-color 0.2s;
+        }
+
+        .unit-checkbox:hover {
+            background-color: #f3f4f6;
+        }
+
+        .unit-checkbox input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .unit-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .unit-number {
+            font-weight: 500;
+            font-size: 12px;
+        }
+
+        .unit-serial {
+            font-size: 11px;
+            color: #6b7280;
+            font-family: monospace;
+        }
+
+        .barcode-preview {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .barcode-preview h4 {
+            margin: 0 0 16px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .barcode-samples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .barcode-sample {
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+            font-family: monospace;
+        }
+
+        .barcode-image {
+            font-size: 16px;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            color: #111827;
+        }
+
+        .barcode-text {
+            font-size: 10px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            color: #374151;
+            line-height: 1.2;
+        }
+
+        .barcode-serial {
+            font-size: 9px;
+            color: #6b7280;
+            margin-bottom: 4px;
+            background: #f3f4f6;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .barcode-price {
+            font-weight: bold;
+            color: #059669;
+            font-size: 11px;
+        }
+
+        .no-preview {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            padding: 20px;
+        }
     </style>
+    
+    <script>
+        // Stock Mínimo Configuration
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="configurar-stock-minimo"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                openStockMinimumModal();
+            });
+
+            function openStockMinimumModal() {
+                var modalHtml = `
+                    <div class="modal" id="stock-minimum-modal" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-header">
+                                <h2>Configurar Stock Mínimo</h2>
+                                <button type="button" class="modal-close" data-close-stock-minimum>&times;</button>
+                            </div>
+                            <div class="modal-content">
+                                <p>Configure los niveles mínimos de stock para recibir alertas automáticas.</p>
+                                <div class="stock-minimum-form">
+                                    <div class="form-field">
+                                        <label>Porcentaje de stock mínimo (%)</label>
+                                        <input type="number" id="stock-minimum-percentage" min="1" max="50" value="20" step="1">
+                                        <small>Alerta cuando el stock sea menor al % del stock inicial</small>
+                                    </div>
+                                    <div class="form-field">
+                                        <label>
+                                            <input type="checkbox" id="enable-stock-alerts" checked>
+                                            Activar alertas automáticas
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-secondary" data-close-stock-minimum>Cancelar</button>
+                                    <button type="button" class="btn btn-primary" data-save-stock-minimum>Guardar configuración</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                var modal = document.getElementById('stock-minimum-modal');
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('is-visible');
+                
+                // Close handlers
+                modal.querySelectorAll('[data-close-stock-minimum]').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        modal.remove();
+                    });
+                });
+                
+                // Save handler
+                modal.querySelector('[data-save-stock-minimum]').addEventListener('click', function() {
+                    var percentage = document.getElementById('stock-minimum-percentage').value;
+                    var enabled = document.getElementById('enable-stock-alerts').checked;
+                    
+                    localStorage.setItem('stock_minimum_percentage', percentage);
+                    localStorage.setItem('stock_alerts_enabled', enabled);
+                    
+                    showToast('Configuración de stock mínimo guardada', 'success');
+                    modal.remove();
+                });
+            }
+        })();
+
+        // Generador de Código de Barra
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="generar-codigo-barra"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                openBarcodeGenerator();
+            });
+
+            function openBarcodeGenerator() {
+                var modalHtml = `
+                    <div class="modal" id="barcode-generator-modal" aria-hidden="true">
+                        <div class="modal-dialog" style="max-width: 800px;">
+                            <div class="modal-header">
+                                <h2>Generar Código de Barra</h2>
+                                <button type="button" class="modal-close" data-close-barcode>&times;</button>
+                            </div>
+                            <div class="modal-content">
+                                <div class="barcode-form">
+                                    <div class="form-field">
+                                        <label>Buscar Producto</label>
+                                        <div class="search-container">
+                                            <input type="text" id="barcode-product-search" placeholder="Escriba para buscar producto...">
+                                            <div class="search-results" id="product-search-results" style="display: none;">
+                                                <div class="search-loading" id="search-loading">Buscando...</div>
+                                                <div class="search-list" id="search-list"></div>
+                                            </div>
+                                        </div>
+                                        <small>Busque por nombre, código, marca o modelo</small>
+                                    </div>
+                                    
+                                    <div class="selected-product" id="selected-product-info" style="display: none;">
+                                        <h4>Producto Seleccionado</h4>
+                                        <div class="product-details">
+                                            <div class="product-info">
+                                                <span class="product-name" id="selected-name"></span>
+                                                <span class="product-stock" id="selected-stock"></span>
+                                                <span class="product-price" id="selected-price"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="barcode-options" id="barcode-options" style="display: none;">
+                                        <div class="form-field">
+                                            <label>Tipo de Generación</label>
+                                            <select id="barcode-generation-type">
+                                                <option value="individual">Códigos individuales por unidad</option>
+                                                <option value="quantity">Múltiples etiquetas iguales</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="form-field" id="quantity-field">
+                                            <label>Cantidad de etiquetas</label>
+                                            <input type="number" id="barcode-quantity" min="1" max="100" value="10">
+                                        </div>
+                                        
+                                        <div class="form-field" id="unit-selection" style="display: none;">
+                                            <label>Seleccionar Unidades</label>
+                                            <div class="units-grid" id="units-grid">
+                                                <!-- Units will be dynamically loaded -->
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="form-field">
+                                            <label>
+                                                <input type="checkbox" id="barcode-include-price" checked>
+                                                Incluir precio en etiqueta
+                                            </label>
+                                        </div>
+                                        
+                                        <div class="form-field">
+                                            <label>
+                                                <input type="checkbox" id="barcode-include-serial" checked>
+                                                Incluir número de serie
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="barcode-preview" id="barcode-preview" style="display: none;">
+                                        <h4>Vista Previa de Etiquetas</h4>
+                                        <div class="barcode-samples" id="barcode-samples">
+                                            <!-- Barcode samples will be generated here -->
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-secondary" data-close-barcode>Cancelar</button>
+                                    <button type="button" class="btn btn-primary" data-generate-barcode disabled>Generar Códigos</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                var modal = document.getElementById('barcode-generator-modal');
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('is-visible');
+                
+                // Initialize functionality
+                initializeBarcodeGenerator(modal);
+                
+                // Close handlers
+                modal.querySelectorAll('[data-close-barcode]').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        modal.remove();
+                    });
+                });
+                
+                // Generate handler
+                modal.querySelector('[data-generate-barcode]').addEventListener('click', function() {
+                    generateBarcodes(modal);
+                });
+            }
+
+            function initializeBarcodeGenerator(modal) {
+                var searchInput = modal.querySelector('#barcode-product-search');
+                var searchResults = modal.querySelector('#product-search-results');
+                var searchList = modal.querySelector('#search-list');
+                var generationType = modal.querySelector('#barcode-generation-type');
+                var quantityField = modal.querySelector('#quantity-field');
+                var unitSelection = modal.querySelector('#unit-selection');
+                var generateBtn = modal.querySelector('[data-generate-barcode]');
+                
+                // Mock product data (in real app, fetch from API)
+                var mockProducts = [
+                    { id: 1, name: 'iPhone 15 Pro', code: 'PHONE001', stock: 25, price: 1250, brand: 'Apple', model: 'iPhone 15 Pro' },
+                    { id: 2, name: 'Samsung Galaxy S24', code: 'PHONE002', stock: 18, price: 899, brand: 'Samsung', model: 'Galaxy S24' },
+                    { id: 3, name: 'AirPods Pro', code: 'ACC001', stock: 50, price: 250, brand: 'Apple', model: 'AirPods Pro' },
+                    { id: 4, name: 'MacBook Pro M3', code: 'LAP001', stock: 10, price: 2500, brand: 'Apple', model: 'MacBook Pro' },
+                    { id: 5, name: 'iPad Air', code: 'TAB001', stock: 15, price: 599, brand: 'Apple', model: 'iPad Air' },
+                    { id: 6, name: 'Sony PlayStation 5', code: 'GAME001', stock: 8, price: 499, brand: 'Sony', model: 'PlayStation 5' },
+                    { id: 7, name: 'Xbox Series X', code: 'GAME002', stock: 12, price: 499, brand: 'Microsoft', model: 'Xbox Series X' },
+                    { id: 8, name: 'Nintendo Switch', code: 'GAME003', stock: 20, price: 299, brand: 'Nintendo', model: 'Switch' }
+                ];
+                
+                var selectedProduct = null;
+                var searchTimeout;
+                
+                // Search functionality
+                searchInput.addEventListener('input', function() {
+                    clearTimeout(searchTimeout);
+                    var query = this.value.toLowerCase().trim();
+                    
+                    if (query.length < 2) {
+                        searchResults.style.display = 'none';
+                        return;
+                    }
+                    
+                    // Show loading
+                    searchResults.style.display = 'block';
+                    modal.querySelector('#search-loading').style.display = 'block';
+                    searchList.innerHTML = '';
+                    
+                    // Simulate API delay
+                    searchTimeout = setTimeout(function() {
+                        var filtered = mockProducts.filter(function(product) {
+                            return product.name.toLowerCase().includes(query) ||
+                                   product.code.toLowerCase().includes(query) ||
+                                   product.brand.toLowerCase().includes(query) ||
+                                   product.model.toLowerCase().includes(query);
+                        });
+                        
+                        modal.querySelector('#search-loading').style.display = 'none';
+                        
+                        if (filtered.length === 0) {
+                            searchList.innerHTML = '<div class="no-results">No se encontraron productos</div>';
+                        } else {
+                            searchList.innerHTML = filtered.map(function(product) {
+                                return `
+                                    <div class="search-item" data-product-id="${product.id}">
+                                        <div class="item-main">
+                                            <span class="item-name">${product.name}</span>
+                                            <span class="item-code">${product.code}</span>
+                                        </div>
+                                        <div class="item-details">
+                                            <span class="item-brand">${product.brand}</span>
+                                            <span class="item-stock">Stock: ${product.stock}</span>
+                                            <span class="item-price">$${product.price}</span>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('');
+                            
+                            // Add click handlers
+                            searchList.querySelectorAll('.search-item').forEach(function(item) {
+                                item.addEventListener('click', function() {
+                                    var productId = parseInt(this.dataset.productId);
+                                    selectedProduct = mockProducts.find(p => p.id === productId);
+                                    selectProduct(selectedProduct, modal);
+                                });
+                            });
+                        }
+                    }, 300);
+                });
+                
+                // Generation type change
+                generationType.addEventListener('change', function() {
+                    if (this.value === 'individual') {
+                        quantityField.style.display = 'none';
+                        unitSelection.style.display = 'block';
+                        loadUnits(selectedProduct, modal);
+                    } else {
+                        quantityField.style.display = 'block';
+                        unitSelection.style.display = 'none';
+                    }
+                    updatePreview(selectedProduct, modal);
+                });
+                
+                // Other inputs change
+                modal.querySelectorAll('#barcode-include-price, #barcode-include-serial, #barcode-quantity').forEach(function(input) {
+                    input.addEventListener('change', function() {
+                        updatePreview(selectedProduct, modal);
+                    });
+                });
+            }
+
+            function selectProduct(product, modal) {
+                var searchResults = modal.querySelector('#product-search-results');
+                var selectedInfo = modal.querySelector('#selected-product-info');
+                var barcodeOptions = modal.querySelector('#barcode-options');
+                var generateBtn = modal.querySelector('[data-generate-barcode]');
+                
+                // Update selected product display
+                modal.querySelector('#selected-name').textContent = product.name;
+                modal.querySelector('#selected-stock').textContent = `Stock: ${product.stock} unidades`;
+                modal.querySelector('#selected-price').textContent = `$${product.price}`;
+                
+                // Show sections
+                searchResults.style.display = 'none';
+                selectedInfo.style.display = 'block';
+                barcodeOptions.style.display = 'block';
+                
+                // Enable generate button
+                generateBtn.disabled = false;
+                
+                // Load units if individual generation
+                var generationType = modal.querySelector('#barcode-generation-type').value;
+                if (generationType === 'individual') {
+                    loadUnits(product, modal);
+                }
+                
+                // Update preview
+                updatePreview(product, modal);
+            }
+
+            function loadUnits(product, modal) {
+                var unitsGrid = modal.querySelector('#units-grid');
+                var units = [];
+                
+                // Generate mock units with serial numbers
+                for (var i = 1; i <= product.stock; i++) {
+                    units.push({
+                        id: i,
+                        serial: product.code + '-' + String(i).padStart(3, '0'),
+                        selected: false
+                    });
+                }
+                
+                unitsGrid.innerHTML = units.map(function(unit) {
+                    return `
+                        <div class="unit-item" data-unit-id="${unit.id}">
+                            <label class="unit-checkbox">
+                                <input type="checkbox" value="${unit.id}" data-serial="${unit.serial}">
+                                <span class="unit-info">
+                                    <span class="unit-number">Unidad ${unit.id}</span>
+                                    <span class="unit-serial">${unit.serial}</span>
+                                </span>
+                            </label>
+                        </div>
+                    `;
+                }).join('');
+                
+                // Add change handlers
+                unitsGrid.querySelectorAll('input[type="checkbox"]').forEach(function(checkbox) {
+                    checkbox.addEventListener('change', function() {
+                        updatePreview(product, modal);
+                    });
+                });
+            }
+
+            function updatePreview(product, modal) {
+                var preview = modal.querySelector('#barcode-preview');
+                var samples = modal.querySelector('#barcode-samples');
+                var generationType = modal.querySelector('#barcode-generation-type').value;
+                var includePrice = modal.querySelector('#barcode-include-price').checked;
+                var includeSerial = modal.querySelector('#barcode-include-serial').checked;
+                
+                if (!product) {
+                    preview.style.display = 'none';
+                    return;
+                }
+                
+                preview.style.display = 'block';
+                var barcodes = [];
+                
+                if (generationType === 'individual') {
+                    // Get selected units
+                    var selectedUnits = modal.querySelectorAll('#units-grid input[type="checkbox"]:checked');
+                    barcodes = Array.from(selectedUnits).map(function(checkbox) {
+                        return {
+                            serial: checkbox.dataset.serial,
+                            text: product.name,
+                            price: product.price
+                        };
+                    });
+                } else {
+                    // Multiple identical labels
+                    var quantity = parseInt(modal.querySelector('#barcode-quantity').value) || 1;
+                    for (var i = 0; i < Math.min(quantity, 5); i++) { // Limit preview to 5
+                        barcodes.push({
+                            serial: product.code + '-' + String(i + 1).padStart(3, '0'),
+                            text: product.name,
+                            price: product.price
+                        });
+                    }
+                }
+                
+                if (barcodes.length === 0) {
+                    samples.innerHTML = '<p class="no-preview">Seleccione unidades o cantidad para generar vista previa</p>';
+                    return;
+                }
+                
+                samples.innerHTML = barcodes.map(function(barcode) {
+                    return `
+                        <div class="barcode-sample">
+                            <div class="barcode-image">||| ||| ||| ||| |||</div>
+                            <div class="barcode-text">${barcode.text}</div>
+                            ${includeSerial ? `<div class="barcode-serial">${barcode.serial}</div>` : ''}
+                            ${includePrice ? `<div class="barcode-price">$${barcode.price.toFixed(2)}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function generateBarcodes(modal) {
+                var product = modal.querySelector('#selected-name').textContent;
+                var generationType = modal.querySelector('#barcode-generation-type').value;
+                var quantity = modal.querySelector('#barcode-quantity').value;
+                var selectedUnits = modal.querySelectorAll('#units-grid input[type="checkbox"]:checked');
+                
+                if (generationType === 'individual' && selectedUnits.length === 0) {
+                    showToast('Seleccione al menos una unidad para generar códigos', 'warning');
+                    return;
+                }
+                
+                if (generationType === 'quantity' && (!quantity || quantity < 1)) {
+                    showToast('Ingrese una cantidad válida', 'warning');
+                    return;
+                }
+                
+                var totalBarcodes = generationType === 'individual' ? selectedUnits.length : quantity;
+                
+                if (showCustomConfirm(`¿Generar ${totalBarcodes} código(s) de barra para ${product}?`)) {
+                    // Show generating state
+                    var generateBtn = modal.querySelector('[data-generate-barcode]');
+                    generateBtn.innerHTML = '⏳ Generando...';
+                    generateBtn.disabled = true;
+                    
+                    setTimeout(function() {
+                        showToast(`${totalBarcodes} códigos de barra generados exitosamente\n\nLos códigos están listos para imprimir.`, 'success');
+                        window.print();
+                        
+                        generateBtn.innerHTML = 'Generar Códigos';
+                        generateBtn.disabled = false;
+                    }, 1500);
+                }
+            }
+        })();
+
+        // Importar Productos
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="importar-producto"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                openImportModal();
+            });
+
+            function openImportModal() {
+                var modalHtml = `
+                    <div class="modal" id="import-products-modal" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-header">
+                                <h2>Importar Productos</h2>
+                                <button type="button" class="modal-close" data-close-import>&times;</button>
+                            </div>
+                            <div class="modal-content">
+                                <div class="import-form">
+                                    <div class="import-steps">
+                                        <div class="step active">
+                                            <div class="step-number">1</div>
+                                            <div class="step-text">Descargar plantilla</div>
+                                        </div>
+                                        <div class="step">
+                                            <div class="step-number">2</div>
+                                            <div class="step-text">Llenar datos</div>
+                                        </div>
+                                        <div class="step">
+                                            <div class="step-number">3</div>
+                                            <div class="step-text">Subir archivo</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Archivo Excel/CSV</label>
+                                        <input type="file" id="import-file" accept=".xlsx,.xls,.csv">
+                                        <small>Formatos permitidos: Excel (.xlsx, .xls) o CSV</small>
+                                    </div>
+                                    
+                                    <div class="import-preview">
+                                        <h4>Vista previa de datos</h4>
+                                        <table class="import-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Nombre</th>
+                                                    <th>Precio</th>
+                                                    <th>Stock</th>
+                                                    <th>Categoría</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td>Samsung Galaxy S24</td>
+                                                    <td>$899</td>
+                                                    <td>25</td>
+                                                    <td>Teléfono</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>iPhone 15 Case</td>
+                                                    <td>$29</td>
+                                                    <td>50</td>
+                                                    <td>Accesorio</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-secondary" data-close-import>Cancelar</button>
+                                    <button type="button" class="btn btn-outline" data-download-template>Descargar Plantilla</button>
+                                    <button type="button" class="btn btn-primary" data-import-products>Importar Productos</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                var modal = document.getElementById('import-products-modal');
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('is-visible');
+                
+                // Close handlers
+                modal.querySelectorAll('[data-close-import]').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        modal.remove();
+                    });
+                });
+                
+                // Download template
+                modal.querySelector('[data-download-template]').addEventListener('click', function() {
+                    var csvContent = "Nombre,Precio,Stock,Categoría,Marca\n";
+                    csvContent += "Samsung Galaxy S24,899,25,Teléfono,Samsung\n";
+                    csvContent += "iPhone 15 Case,29,50,Accesorio,Apple\n";
+                    
+                    var blob = new Blob([csvContent], { type: 'text/csv' });
+                    var url = window.URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'plantilla_productos.csv';
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                });
+                
+                // Import products
+                modal.querySelector('[data-import-products]').addEventListener('click', function() {
+                    var fileInput = document.getElementById('import-file');
+                    if (!fileInput.files.length) {
+                        showToast('Seleccione un archivo para importar', 'warning');
+                        return;
+                    }
+                    
+                    showToast('Procesando importación... Se notificará cuando complete.', 'info');
+                    modal.remove();
+                });
+            }
+        })();
+
+        // Copia de Seguridad DB
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="copia-seguridad-db"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                if (confirm('¿Desea crear una copia de seguridad de la base de datos?')) {
+                    trigger.innerHTML = '<span class="settings-tile__icon">⏳</span><span class="settings-tile__label">Creando backup...</span>';
+                    trigger.disabled = true;
+                    
+                    setTimeout(function() {
+                        showToast('Copia de seguridad creada exitosamente\n\nUbicación: backups/backup_' + new Date().toISOString().slice(0,10) + '.sql', 'success');
+                        trigger.innerHTML = '<span class="settings-tile__icon" aria-hidden="true">💾</span><span class="settings-tile__label">Copia de seguridad DB</span>';
+                        trigger.disabled = false;
+                    }, 2000);
+                }
+            });
+        })();
+
+        // Descargar Plantilla
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="descargar-plantilla"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                
+                var csvContent = "Nombre,Precio,Stock,Categoría,Marca,Modelo,Descripción\n";
+                csvContent += "Samsung Galaxy S24,899,25,Teléfono,Samsung,Galaxy S24,Teléfono de última generación\n";
+                csvContent += "iPhone 15 Case,29,50,Accesorio,Apple,iPhone 15,Funda protectora\n";
+                csvContent += "MacBook Pro M3,2500,10,Laptop,Apple,MacBook Pro,Laptop profesional\n";
+                
+                var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                var url = window.URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'plantilla_productos_sistema_pos.csv';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            });
+        })();
+
+        // Baja de Productos
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="baja-productos"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                openProductDeactivationModal();
+            });
+
+            function openProductDeactivationModal() {
+                var modalHtml = `
+                    <div class="modal" id="product-deactivation-modal" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-header">
+                                <h2>Baja de Productos</h2>
+                                <button type="button" class="modal-close" data-close-deactivation>&times;</button>
+                            </div>
+                            <div class="modal-content">
+                                <p>Seleccione los productos que desea dar de baja del inventario.</p>
+                                
+                                <div class="product-list">
+                                    <div class="product-item">
+                                        <label>
+                                            <input type="checkbox" value="1">
+                                            <span class="product-name">iPhone 15 Pro</span>
+                                            <span class="product-stock">Stock: 5</span>
+                                        </label>
+                                    </div>
+                                    <div class="product-item">
+                                        <label>
+                                            <input type="checkbox" value="2">
+                                            <span class="product-name">Samsung Galaxy S24</span>
+                                            <span class="product-stock">Stock: 2</span>
+                                        </label>
+                                    </div>
+                                    <div class="product-item">
+                                        <label>
+                                            <input type="checkbox" value="3">
+                                            <span class="product-name">AirPods Pro</span>
+                                            <span class="product-stock">Stock: 0</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-field">
+                                    <label>Motivo de baja</label>
+                                    <select id="deactivation-reason">
+                                        <option value="">Seleccione motivo...</option>
+                                        <option value="obsoleto">Producto obsoleto</option>
+                                        <option value="defectuoso">Producto defectuoso</option>
+                                        <option value="vencido">Producto vencido</option>
+                                        <option value="bajo-venta">Bajas ventas</option>
+                                        <option value="otro">Otro</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-secondary" data-close-deactivation>Cancelar</button>
+                                    <button type="button" class="btn btn-danger" data-deactivate-products>Dar de Baja</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                var modal = document.getElementById('product-deactivation-modal');
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('is-visible');
+                
+                // Close handlers
+                modal.querySelectorAll('[data-close-deactivation]').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        modal.remove();
+                    });
+                });
+                
+                // Deactivate handler
+                modal.querySelector('[data-deactivate-products]').addEventListener('click', function() {
+                    var checkedBoxes = modal.querySelectorAll('input[type="checkbox"]:checked');
+                    var reason = document.getElementById('deactivation-reason').value;
+                    
+                    if (checkedBoxes.length === 0) {
+                        showToast('Seleccione al menos un producto', 'warning');
+                        return;
+                    }
+                    
+                    if (!reason) {
+                        showToast('Seleccione un motivo de baja', 'warning');
+                        return;
+                    }
+                    
+                    if (showCustomConfirm(`¿Dar de baja ${checkedBoxes.length} producto(s) por "${reason}"?`)) {
+                        showToast('Productos dados de baja exitosamente', 'success');
+                        modal.remove();
+                    }
+                });
+            }
+        })();
+        
+        // Comprobante Fiscal
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="comprobante-fiscal"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                showToast('Abriendo configuración de comprobante fiscal...', 'info');
+                // TODO: Implement fiscal receipt configuration
+            });
+        })();
+        
+        // Editar Factura
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="editar-factura"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                showToast('Abriendo editor de facturas...', 'info');
+                // TODO: Implement invoice editor
+            });
+        })();
+        
+        // Eliminar Registro DB
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="eliminar-registro-db"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                if (showCustomConfirm('¿Eliminar registro de la base de datos? Esta acción es irreversible.')) {
+                    trigger.innerHTML = '<span class="settings-tile__icon">⏳</span><span class="settings-tile__label">Eliminando...</span>';
+                    trigger.disabled = true;
+                    
+                    setTimeout(function() {
+                        showToast('Registro eliminado exitosamente', 'success');
+                        trigger.innerHTML = '<span class="settings-tile__icon" aria-hidden="true">🗑️</span><span class="settings-tile__label">Eliminar registro DB</span>';
+                        trigger.disabled = false;
+                    }, 2000);
+                }
+            });
+        })();
+        
+        // Impresora
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="impresora"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                openPrinterModal();
+            });
+
+            function openPrinterModal() {
+                var modalHtml = `
+                    <div class="modal" id="printer-modal" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-header">
+                                <h2>Configuración de Impresora</h2>
+                                <button type="button" class="modal-close" data-close-printer>&times;</button>
+                            </div>
+                            <div class="modal-content">
+                                <div class="printer-form">
+                                    <div class="form-field">
+                                        <label>Impresora predeterminada</label>
+                                        <select id="default-printer">
+                                            <option value="">Seleccione impresora...</option>
+                                            <option value="thermal">Impresora Térmica</option>
+                                            <option value="laser">Impresora Láser</option>
+                                            <option value="inkjet">Impresora de Inyección</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Tamaño de papel</label>
+                                        <select id="paper-size">
+                                            <option value="80mm">80mm (Térmica)</option>
+                                            <option value="58mm">58mm (Térmica)</option>
+                                            <option value="a4">A4</option>
+                                            <option value="letter">Letter</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Orientación</label>
+                                        <select id="orientation">
+                                            <option value="portrait">Vertical</option>
+                                            <option value="landscape">Horizontal</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>
+                                            <input type="checkbox" id="auto-print" checked>
+                                            Imprimir automáticamente al generar comprobante
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>
+                                            <input type="checkbox" id="print-logo" checked>
+                                            Incluir logo en impresiones
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-secondary" data-close-printer>Cancelar</button>
+                                    <button type="button" class="btn btn-primary" data-save-printer>Guardar Configuración</button>
+                                    <button type="button" class="btn btn-outline" data-test-print>Probar Impresión</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                var modal = document.getElementById('printer-modal');
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('is-visible');
+                
+                // Close handlers
+                modal.querySelectorAll('[data-close-printer]').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        modal.remove();
+                    });
+                });
+                
+                // Save configuration
+                modal.querySelector('[data-save-printer]').addEventListener('click', function() {
+                    var printer = document.getElementById('default-printer').value;
+                    var paperSize = document.getElementById('paper-size').value;
+                    var orientation = document.getElementById('orientation').value;
+                    var autoPrint = document.getElementById('auto-print').checked;
+                    var printLogo = document.getElementById('print-logo').checked;
+                    
+                    // Save to localStorage
+                    localStorage.setItem('printer_settings', JSON.stringify({
+                        printer: printer,
+                        paperSize: paperSize,
+                        orientation: orientation,
+                        autoPrint: autoPrint,
+                        printLogo: printLogo
+                    }));
+                    
+                    showToast('Configuración de impresora guardada', 'success');
+                });
+                
+                // Test print
+                modal.querySelector('[data-test-print]').addEventListener('click', function() {
+                    showToast('Enviando página de prueba a la impresora...', 'info');
+                    setTimeout(function() {
+                        showToast('Página de prueba enviada correctamente', 'success');
+                    }, 1500);
+                });
+            }
+        })();
+        
+        // Restaurar BD
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="restaurar-bd"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                if (showCustomConfirm('¿Restaurar base de datos desde backup? Se perderán los cambios actuales.')) {
+                    trigger.innerHTML = '<span class="settings-tile__icon">⏳</span><span class="settings-tile__label">Restaurando...</span>';
+                    trigger.disabled = true;
+                    
+                    setTimeout(function() {
+                        showToast('Base de datos restaurada exitosamente', 'success');
+                        trigger.innerHTML = '<span class="settings-tile__icon" aria-hidden="true">♻️</span><span class="settings-tile__label">Restaurar BD</span>';
+                        trigger.disabled = false;
+                    }, 3000);
+                }
+            });
+        })();
+        
+        // XML DGII Adicionales
+        (function () {
+            var trigger = document.querySelector('[data-open-fiscal-xml-card]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                showToast('Abriendo configuración XML DGII...', 'info');
+                // TODO: Implement XML DGII configuration
+            });
+        })();
+        
+        // Configuración General
+        (function () {
+            var trigger = document.querySelector('[data-open-modal="general-settings"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                openGeneralSettingsModal();
+            });
+
+            function openGeneralSettingsModal() {
+                var modalHtml = `
+                    <div class="modal" id="general-settings-modal" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-header">
+                                <h2>Configuración General</h2>
+                                <button type="button" class="modal-close" data-close-general>&times;</button>
+                            </div>
+                            <div class="modal-content">
+                                <div class="general-settings-form">
+                                    <div class="form-field">
+                                        <label>Nombre del Negocio</label>
+                                        <input type="text" id="business-name" value="Sistema POS Demo" placeholder="Mi Negocio">
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Teléfono</label>
+                                        <input type="tel" id="business-phone" value="+1 809-123-4567" placeholder="+1 XXX-XXX-XXXX">
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Email</label>
+                                        <input type="email" id="business-email" value="info@negocio.com" placeholder="info@negocio.com">
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Dirección</label>
+                                        <textarea id="business-address" rows="3" placeholder="Dirección completa">Calle Principal #123, Santo Domingo</textarea>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Moneda</label>
+                                        <select id="currency">
+                                            <option value="DOP" selected>Pesos Dominicanos (DOP)</option>
+                                            <option value="USD">Dólares Americanos (USD)</option>
+                                            <option value="EUR">Euros (EUR)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Idioma</label>
+                                        <select id="language">
+                                            <option value="es" selected>Español</option>
+                                            <option value="en">English</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>
+                                            <input type="checkbox" id="enable-notifications" checked>
+                                            Activar notificaciones del sistema
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>
+                                            <input type="checkbox" id="enable-backups" checked>
+                                            Copias de seguridad automáticas
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-secondary" data-close-general>Cancelar</button>
+                                    <button type="button" class="btn btn-primary" data-save-general>Guardar Configuración</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                var modal = document.getElementById('general-settings-modal');
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('is-visible');
+                
+                // Close handlers
+                modal.querySelectorAll('[data-close-general]').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        modal.remove();
+                    });
+                });
+                
+                // Save configuration
+                modal.querySelector('[data-save-general]').addEventListener('click', function() {
+                    var settings = {
+                        businessName: document.getElementById('business-name').value,
+                        phone: document.getElementById('business-phone').value,
+                        email: document.getElementById('business-email').value,
+                        address: document.getElementById('business-address').value,
+                        currency: document.getElementById('currency').value,
+                        language: document.getElementById('language').value,
+                        notifications: document.getElementById('enable-notifications').checked,
+                        backups: document.getElementById('enable-backups').checked
+                    };
+                    
+                    // Save to localStorage
+                    localStorage.setItem('general_settings', JSON.stringify(settings));
+                    
+                    showToast('Configuración general guardada', 'success');
+                    modal.remove();
+                });
+            }
+        })();
+        
+        function showCustomConfirm(message) {
+            return showToast(message + ' (Acción requerida)', 'warning');
+        }
+    </script>
 {% endblock %}

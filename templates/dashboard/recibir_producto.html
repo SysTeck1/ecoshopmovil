@@ -1171,7 +1171,7 @@
                                                 <i class="ri-pencil-line"></i>
                                                 Editar
                                             </button>
-                                            <form method="post" onsubmit="return confirm('¿Eliminar este crédito?');">
+                                            <form method="post" onsubmit="showTradeInDeleteConfirm(event, this)">
                                                 {% csrf_token %}
                                                 <input type="hidden" name="action" value="delete_tradein">
                                                 <input type="hidden" name="tradein_id" value="{{ credit.id }}">
@@ -1767,7 +1767,7 @@
             if (!conditionId) {
                 return;
             }
-            if (!confirm('¿Seguro que deseas eliminar esta condición?')) {
+            if (!showCustomConfirm('¿Seguro que deseas eliminar esta condición?')) {
                 return;
             }
             const formData = new FormData();
@@ -2067,6 +2067,17 @@
 
         if (conditionModal) {
             wireConditionModalButtons();
+        }
+
+        function showCustomConfirm(message) {
+            return showToast(message + ' (Acción requerida)', 'warning');
+        }
+
+        function showTradeInDeleteConfirm(event, form) {
+            event.preventDefault();
+            if (showCustomConfirm('¿Eliminar este crédito?')) {
+                form.submit();
+            }
         }
 
         initializeTradeInModeFromDataset();

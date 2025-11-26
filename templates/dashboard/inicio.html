@@ -1,4 +1,591 @@
 {% extends "dashboard/base.html" %}
+{% load static %}
 {% block title %}Inicio{% endblock %}
-{% block page_title %}Inicio{% endblock %}
-{% block content %}{% endblock %}
+{% block page_title %}Panel de Control{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Resumen Ejecutivo -->
+    <section class="summary-section">
+        <div class="summary-header">
+            <h2>📊 Estado del Negocio</h2>
+            <span class="date">{{ today|date:"d M Y" }}</span>
+        </div>
+        <div class="summary-cards">
+            <div class="summary-card ventas">
+                <div class="card-icon">💰</div>
+                <div class="card-content">
+                    <h3>Ventas Hoy</h3>
+                    <p class="card-value">${{ ventas_hoy|default:0|floatformat:0 }}</p>
+                    <span class="card-label">Hoy</span>
+                </div>
+            </div>
+            <div class="summary-card productos">
+                <div class="card-icon">📦</div>
+                <div class="card-content">
+                    <h3>Total Productos</h3>
+                    <p class="card-value">{{ total_productos|default:0|floatformat:0 }}</p>
+                    <span class="card-label">Unidades en inventario</span>
+                </div>
+            </div>
+            <div class="summary-card creditos">
+                <div class="card-icon">💳</div>
+                <div class="card-content">
+                    <h3>Créditos Activos</h3>
+                    <p class="card-value">${{ creditos_pendientes|default:0|floatformat:0 }}</p>
+                    <span class="card-label">Por cobrar</span>
+                </div>
+            </div>
+            <div class="summary-card alertas">
+                <div class="card-icon">⚠️</div>
+                <div class="card-content">
+                    <h3>Alertas</h3>
+                    <p class="card-value">{{ productos_bajo_stock|default:0 }}</p>
+                    <span class="card-label">Stock bajo</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Acciones Rápidas -->
+    <section class="quick-actions-section">
+        <h2>⚡ Acciones Rápidas</h2>
+        <div class="quick-actions-grid">
+            <a href="{% url 'dashboard:ventas' %}" class="action-card">
+                <div class="action-icon">🛒</div>
+                <h3>Nueva Venta</h3>
+                <p>Registrar venta rápida</p>
+            </a>
+            <a href="{% url 'dashboard:recibir_producto' %}" class="action-card">
+                <div class="action-icon">📦</div>
+                <h3>Recibir Producto</h3>
+                <p>Agregar inventario</p>
+            </a>
+            <a href="{% url 'dashboard:clientes' %}" class="action-card">
+                <div class="action-icon">👤</div>
+                <h3>Nuevo Cliente</h3>
+                <p>Registrar cliente</p>
+            </a>
+            <a href="{% url 'dashboard:cobros' %}" class="action-card">
+                <div class="action-icon">💳</div>
+                <h3>Cobrar Crédito</h3>
+                <p>Gestionar pagos</p>
+            </a>
+            <a href="{% url 'dashboard:reportes' %}" class="action-card">
+                <div class="action-icon">📊</div>
+                <h3>Ver Reportes</h3>
+                <p>Análisis y estadísticas</p>
+            </a>
+            <a href="{% url 'dashboard:configuracion' %}" class="action-card">
+                <div class="action-icon">⚙️</div>
+                <h3>Configurar</h3>
+                <p>Ajustes del sistema</p>
+            </a>
+        </div>
+    </section>
+
+    <!-- Widgets Informativos -->
+    <div class="widgets-grid">
+        <!-- Ventas Recientes -->
+        <section class="widget ventas-recientes">
+            <h3>📈 Últimas Ventas</h3>
+            <div class="widget-content">
+                {% if ventas_recientes %}
+                    <ul class="recent-list">
+                        {% for venta in ventas_recientes %}
+                        <li class="recent-item">
+                            <div class="item-info">
+                                <span class="item-title">{{ venta.cliente.nombre }}</span>
+                                <span class="item-amount">${{ venta.total|default:0|floatformat:0 }}</span>
+                            </div>
+                            <span class="item-time">{{ venta.fecha|time:"H:i" }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="no-data">No hay ventas recientes</p>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- Estado de Inventario -->
+        <section class="widget inventario-critico">
+            <h3>📦 Inventario Crítico</h3>
+            <div class="widget-content">
+                {% if productos_criticos %}
+                    <ul class="critical-list">
+                        {% for producto in productos_criticos %}
+                        <li class="critical-item">
+                            <div class="item-info">
+                                <span class="item-title">{{ producto.nombre }}</span>
+                                <span class="item-stock">{{ producto.stock }} unidades</span>
+                            </div>
+                            <span class="item-status critical">⚠️ Bajo</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="no-data">✅ Todos los productos tienen stock adecuado</p>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- Créditos Pendientes -->
+        <section class="widget creditos-pendientes">
+            <h3>💳 Créditos por Cobrar</h3>
+            <div class="widget-content">
+                {% if creditos_lista %}
+                    <ul class="credits-list">
+                        {% for credito in creditos_lista %}
+                        <li class="credit-item">
+                            <div class="item-info">
+                                <span class="item-title">{{ credito.cliente.nombre }}</span>
+                                <span class="item-amount">${{ credito.saldo_pendiente|floatformat:0 }}</span>
+                            </div>
+                            <span class="item-due">Desde: {{ credito.created_at|date:"d M" }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="no-data">No hay créditos pendientes</p>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- Estado de Caja -->
+        <section class="widget caja-estado">
+            <h3>💰 Estado de Caja</h3>
+            <div class="widget-content">
+                {% if caja_abierta %}
+                    <div class="cash-info">
+                        <div class="cash-status open">🟢 Caja Abierta</div>
+                        <div class="cash-time">Desde: {{ caja_abierta.apertura_at|time:"H:i" }}</div>
+                        <div class="cash-amount">Total: ${{ caja_abierta.total_en_caja|floatformat:0 }}</div>
+                        <div class="cash-actions">
+                            <a href="{% url 'dashboard:cash_session_report_api' %}" class="btn btn-secondary">📊 Ver Detalle</a>
+                            <a href="#" class="btn btn-primary" onclick="confirmCloseCash()">🔒 Cerrar Caja</a>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="cash-info">
+                        <div class="cash-status closed">🔴 Caja Cerrada</div>
+                        <p class="no-data">No hay una sesión de caja abierta</p>
+                        <div class="cash-actions">
+                            <a href="{% url 'dashboard:cash_session_open_api' %}" class="btn btn-primary">🔓 Abrir Caja</a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+
+    <!-- Gráficos -->
+    <section class="charts-section">
+        <div class="charts-grid">
+            <div class="chart-container">
+                <h3>📊 Ventas Últimos 7 Días</h3>
+                <canvas id="salesChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>🥧 Ventas por Categoría</h3>
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </section>
+</div>
+
+<style>
+.dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+/* Resumen Ejecutivo */
+.summary-section {
+    background: linear-gradient(135deg, var(--color-accent-500), var(--color-accent-600));
+    border-radius: 16px;
+    padding: 30px;
+    color: white;
+}
+
+.summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.summary-header h2 {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.summary-header .date {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.summary-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: transform 0.2s, background 0.2s;
+}
+
+.summary-card:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.card-icon {
+    font-size: 2.5rem;
+    opacity: 0.9;
+}
+
+.card-content h3 {
+    margin: 0 0 5px 0;
+    font-size: 0.9rem;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+.card-value {
+    margin: 0 0 5px 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.card-label {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+/* Acciones Rápidas */
+.quick-actions-section h2 {
+    margin: 0 0 20px 0;
+    font-size: 1.5rem;
+    color: var(--color-text-main);
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+}
+
+.action-card {
+    background: var(--color-surface-card);
+    border-radius: 12px;
+    padding: 20px;
+    text-decoration: none;
+    color: var(--color-text-main);
+    border: 1px solid var(--color-border-subtle);
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.action-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border-color: var(--color-accent-500);
+}
+
+.action-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.action-card h3 {
+    margin: 0 0 5px 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.action-card p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+/* Widgets */
+.widgets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.widget {
+    background: var(--color-surface-card);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid var(--color-border-subtle);
+}
+
+.widget h3 {
+    margin: 0 0 15px 0;
+    font-size: 1.1rem;
+    color: var(--color-text-main);
+    font-weight: 600;
+}
+
+.widget-content {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.recent-list, .critical-list, .credits-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.recent-item, .critical-item, .credit-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: var(--color-surface-soft);
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.item-title {
+    font-weight: 600;
+    color: var(--color-text-main);
+}
+
+.item-amount, .item-stock {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+.item-time, .item-due {
+    font-size: 0.8rem;
+    color: var(--color-text-subtle);
+}
+
+.item-status.critical {
+    color: var(--color-warning);
+    font-weight: 600;
+}
+
+.no-data {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin: 20px 0;
+}
+
+/* Estado de Caja */
+.cash-info {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cash-status.open {
+    color: var(--color-success);
+    font-weight: 600;
+}
+
+.cash-status.closed {
+    color: var(--color-danger);
+    font-weight: 600;
+}
+
+.cash-amount {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--color-text-main);
+}
+
+.cash-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--color-accent-500);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--color-accent-600);
+}
+
+.btn-secondary {
+    background: var(--color-surface-muted);
+    color: var(--color-text-main);
+}
+
+.btn-secondary:hover {
+    background: var(--color-border-subtle);
+}
+
+/* Gráficos */
+.charts-section {
+    margin-top: 20px;
+}
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+}
+
+.chart-container {
+    background: var(--color-surface-card);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid var(--color-border-subtle);
+}
+
+.chart-container h3 {
+    margin: 0 0 15px 0;
+    font-size: 1.1rem;
+    color: var(--color-text-main);
+    font-weight: 600;
+}
+
+.chart-container canvas {
+    max-height: 250px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding: 15px;
+        gap: 20px;
+    }
+    
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .quick-actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .widgets-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .summary-header {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Gráfico de Ventas Últimos 7 Días
+const salesCtx = document.getElementById('salesChart').getContext('2d');
+new Chart(salesCtx, {
+    type: 'bar',
+    data: {
+        labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Ven', 'Sáb', 'Dom'],
+        datasets: [{
+            label: 'Ventas Diarias ($)',
+            data: [12000, 19000, 15000, 25000, 22000, 30000, 28000],
+            backgroundColor: 'rgba(38, 159, 170, 0.6)',
+            borderColor: 'rgba(38, 159, 170, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Gráfico de Ventas por Categoría
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+new Chart(categoryCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Teléfonos', 'Accesorios', 'Laptops', 'Tablets', 'Gaming'],
+        datasets: [{
+            data: [60, 25, 8, 4, 3],
+            backgroundColor: [
+                'rgba(38, 159, 170, 0.8)',
+                'rgba(46, 213, 115, 0.8)',
+                'rgba(52, 152, 219, 0.8)',
+                'rgba(155, 89, 182, 0.8)',
+                'rgba(241, 196, 15, 0.8)'
+            ],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+function confirmCloseCash() {
+    if (confirm('¿Está seguro que desea cerrar la caja?')) {
+        window.location.href = '{% url "dashboard:cash_session_close_api" %}';
+    }
+}
+</script>
+{% endblock %}

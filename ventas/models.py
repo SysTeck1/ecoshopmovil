@@ -11,16 +11,6 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 
-# Choices globales para tipos de producto
-TIPO_PRODUCTO_CHOICES = [
-    ('phone', 'Teléfonos'),
-    ('accessory', 'Accesorios'),
-    ('laptop', 'Laptops'),
-    ('tablet', 'Tablets'),
-    ('gaming', 'Gaming'),
-]
-
-
 class TimeStampedModel(models.Model):
     """Modelo base con marcas de tiempo."""
 
@@ -30,6 +20,52 @@ class TimeStampedModel(models.Model):
     class Meta:
         abstract = True
         ordering = ("-created_at",)
+
+
+# Choices globales para tipos de producto
+class TipoProducto(TimeStampedModel):
+    """Tipos de productos del sistema POS."""
+
+    class IconChoices(models.TextChoices):
+        PHONE = "phone", "📱 Teléfono"
+        ACCESSORY = "accessory", "🔌 Accesorio"
+        LAPTOP = "laptop", "💻 Laptop"
+        TABLET = "tablet", "📟 Tablet"
+        GAMING = "gaming", "🎮 Gaming"
+        WATCH = "watch", "⌚ Reloj"
+        HEADPHONES = "headphones", "🎧 Auriculares"
+        CAMERA = "camera", "📷 Cámara"
+        SPEAKER = "speaker", "🔊 Altavoz"
+        OTHER = "other", "📦 Otro"
+        CUSTOM = "custom", "🔧 Personalizado"
+
+    nombre = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=120, unique=True, blank=True)
+    icono = models.CharField(max_length=20, choices=IconChoices.choices, default=IconChoices.CUSTOM)
+    descripcion = models.TextField(blank=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Tipo de Producto"
+        verbose_name_plural = "Tipos de Producto"
+        ordering = ["nombre"]
+
+    def __str__(self):
+        return self.nombre
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.nombre)
+        super().save(*args, **kwargs)
+
+
+TIPO_PRODUCTO_CHOICES = [
+    ('phone', 'Teléfonos'),
+    ('accessory', 'Accesorios'),
+    ('laptop', 'Laptops'),
+    ('tablet', 'Tablets'),
+    ('gaming', 'Gaming'),
+]
 
 
 class Cliente(TimeStampedModel):
@@ -159,11 +195,11 @@ class Categoria(TimeStampedModel):
         blank=True,
     )
     nombre = models.CharField(max_length=120, unique=True)
-    tipo_producto = models.CharField(
-        max_length=20,
-        choices=TIPO_PRODUCTO_CHOICES,
-        blank=True,
+    tipo_producto = models.ForeignKey(
+        'TipoProducto',
+        on_delete=models.SET_NULL,
         null=True,
+        blank=True,
         help_text="Tipo de producto al que pertenece esta categoría"
     )
     activo = models.BooleanField(default=True)
@@ -495,6 +531,15 @@ class ProductoUnitDetail(TimeStampedModel):
         null=True,
         blank=True,
         help_text="Precio de venta específico para esta unidad",
+    )
+    vendido = models.BooleanField(
+        default=False,
+        help_text="Indica si esta unidad ha sido vendida",
+    )
+    fecha_venta = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Fecha en que se vendió esta unidad",
     )
 
     class Meta:

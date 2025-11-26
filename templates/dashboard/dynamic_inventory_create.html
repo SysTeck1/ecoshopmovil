@@ -51,13 +51,79 @@
                 </div>
                 <div class="form-section__grid">
                     {% for field in form %}
-                        {% if field.name in 'tipo_producto,nombre,marca,modelo,categoria,proveedor,descripcion' %}
+                        {% if field.name in 'tipo_producto,nombre,categoria,proveedor,descripcion' %}
                             <div class="form-field {% if field.name == 'descripcion' %}form-field--full{% endif %}">
                                 <label class="form-field__label">
                                     {{ field.label }}
                                     {% if field.field.required %}<span class="form-field__required">*</span>{% endif %}
                                 </label>
-                                {{ field }}
+                                {% if field.name == 'tipo_producto' %}
+                                    <div class="form-field__group form-field__group--compact">
+                                        {{ field }}
+                                        <button type="button" class="btn-icon btn-icon--ghost" data-action="buscar-tipo-producto" title="Buscar tipo de producto">
+                                            <span aria-hidden="true">🔍</span>
+                                            <span class="sr-only">Buscar Tipo de Producto</span>
+                                        </button>
+                                    </div>
+                                {% elif field.name == 'categoria' %}
+                                    <div class="form-field__group form-field__group--compact">
+                                        {{ field }}
+                                        <button type="button" class="btn-icon btn-icon--ghost" data-action="buscar-categoria" title="Buscar categoría">
+                                            <span aria-hidden="true">🔍</span>
+                                            <span class="sr-only">Buscar Categoría</span>
+                                        </button>
+                                    </div>
+                                {% elif field.name == 'proveedor' %}
+                                    <div class="form-field__group form-field__group--compact">
+                                        {{ field }}
+                                        <button type="button" class="btn-icon btn-icon--ghost" data-action="buscar-proveedor" title="Buscar proveedor">
+                                            <span aria-hidden="true">🔍</span>
+                                            <span class="sr-only">Buscar Proveedor</span>
+                                        </button>
+                                    </div>
+                                {% else %}
+                                    {{ field }}
+                                {% endif %}
+                                {% if field.help_text %}
+                                    <div class="form-field__help">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="form-field__error">{{ field.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        {% elif field.name == 'marca' %}
+                            <div class="form-field">
+                                <label class="form-field__label">
+                                    {{ field.label }}
+                                    {% if field.field.required %}<span class="form-field__required">*</span>{% endif %}
+                                </label>
+                                <div class="form-field__group form-field__group--compact">
+                                    {{ field }}
+                                    <button type="button" class="btn-icon btn-icon--ghost" data-action="buscar-marca" title="Buscar marca">
+                                        <span aria-hidden="true">🔍</span>
+                                        <span class="sr-only">Buscar Marca</span>
+                                    </button>
+                                </div>
+                                {% if field.help_text %}
+                                    <div class="form-field__help">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="form-field__error">{{ field.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        {% elif field.name == 'modelo' %}
+                            <div class="form-field">
+                                <label class="form-field__label">
+                                    {{ field.label }}
+                                    {% if field.field.required %}<span class="form-field__required">*</span>{% endif %}
+                                </label>
+                                <div class="form-field__group form-field__group--compact">
+                                    {{ field }}
+                                    <button type="button" class="btn-icon btn-icon--ghost" data-action="buscar-modelo" title="Buscar modelo">
+                                        <span aria-hidden="true">🔍</span>
+                                        <span class="sr-only">Buscar Modelo</span>
+                                    </button>
+                                </div>
                                 {% if field.help_text %}
                                     <div class="form-field__help">{{ field.help_text }}</div>
                                 {% endif %}
@@ -300,17 +366,98 @@
 
 .form-section__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+    padding: 0 8px;
+}
+
+@media (min-width: 768px) {
+    .form-section__grid {
+        grid-template-columns: repeat(2, 1fr);
+        padding: 0;
+    }
+}
+
+@media (min-width: 1024px) {
+    .form-section__grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
 
 .form-field {
     display: flex;
     flex-direction: column;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .form-field--full {
     grid-column: 1 / -1;
+}
+
+.form-field__group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-field__group--compact {
+    gap: 4px;
+}
+
+.form-field__group .field__control {
+    flex: 1;
+}
+
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+}
+
+.btn-icon:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: #f8fafc;
+}
+
+.btn-icon--ghost {
+    background: transparent;
+    border-color: transparent;
+}
+
+.btn-icon--ghost:hover {
+    background: #f1f5f9;
+    border-color: transparent;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .form-field__label {
@@ -396,6 +543,287 @@
     background: #f9fafb;
     border-color: #9ca3af;
 }
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.modal[aria-hidden="false"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-dialog {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    max-width: 95vw;
+    width: 100%;
+    max-height: 90vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    position: relative;
+    padding: 0 4px;
+}
+
+@media (min-width: 1200px) {
+    .modal-dialog {
+        max-width: 1200px;
+    }
+}
+
+.modal-dialog--wide {
+    width: 95vw;
+    max-width: 1200px;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.modal-form {
+    padding: 24px;
+}
+
+.modal-form--static {
+    padding: 0;
+}
+
+.modal-top-actions {
+    padding: 16px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    justify-content: space-between;
+}
+
+.modal-search {
+    position: relative;
+    flex: 1;
+    max-width: 300px;
+}
+
+.modal-search__input {
+    width: 100%;
+    padding: 8px 12px 8px 36px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    transition: border-color 0.2s ease;
+}
+
+.modal-search__input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.modal-search__icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+    font-size: 16px;
+    pointer-events: none;
+}
+
+.modal-table-wrapper {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.lookup-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.lookup-table th {
+    background: #f9fafb;
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.lookup-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.lookup-table tr:hover {
+    background: #f9fafb;
+}
+
+.lookup-name {
+    font-weight: 500;
+    color: #374151;
+}
+
+.lookup-name--muted {
+    color: #9ca3af;
+    font-style: italic;
+}
+
+.lookup-status {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.lookup-status--active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.lookup-status--inactive {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.btn--compact {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.btn--danger {
+    color: #dc2626;
+    border-color: #dc2626;
+}
+
+.btn--danger:hover {
+    background: #dc2626;
+    color: white;
+}
+
+.lookup-toggle {
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+.modal-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.modal-pagination__info {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid #e5e7eb;
+    background: white;
+}
+
+.form-grid {
+    display: grid;
+    gap: 16px;
+}
+
+.form-field--checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.checkbox-toggle {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.checkbox-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.checkbox-toggle__track {
+    width: 44px;
+    height: 24px;
+    background: #d1d5db;
+    border-radius: 12px;
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+.checkbox-toggle__thumb {
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.checkbox-toggle input:checked + .checkbox-toggle__track {
+    background: #3b82f6;
+}
+
+.checkbox-toggle input:checked + .checkbox-toggle__track .checkbox-toggle__thumb {
+    transform: translateX(20px);
+}
+
+.checkbox-toggle__label {
+    font-size: 14px;
+    color: #374151;
+    margin-left: 8px;
+}
 </style>
 
 <script>
@@ -453,6 +881,1427 @@
             // Cargar categorías iniciales
             updateCategories(typeSelector.value);
         }
+
+        // Brand and Model Search Functionality
+        const brandSearchBtns = document.querySelectorAll('[data-action="buscar-marca"]');
+        const modelSearchBtns = document.querySelectorAll('[data-action="buscar-modelo"]');
+        const providerSearchBtns = document.querySelectorAll('[data-action="buscar-proveedor"]');
+        const categorySearchBtns = document.querySelectorAll('[data-action="buscar-categoria"]');
+        const productTypeSearchBtns = document.querySelectorAll('[data-action="buscar-tipo-producto"]');
+        const brandSearchModal = document.getElementById('brand-search-modal');
+        const modelSearchModal = document.getElementById('model-search-modal');
+        const providerSearchModal = document.getElementById('provider-search-modal');
+        const categorySearchModal = document.getElementById('category-search-modal');
+        const productTypeSearchModal = document.getElementById('product-type-search-modal');
+        const brandCreateModal = document.getElementById('brand-create-modal');
+        const modelCreateModal = document.getElementById('model-create-modal');
+        const brandEditModal = document.getElementById('brand-edit-modal');
+        const modelEditModal = document.getElementById('model-edit-modal');
+        const brandSearchInput = document.getElementById('brand-search-input');
+        const modelSearchInput = document.getElementById('model-search-input');
+        const providerSearchInput = document.getElementById('provider-search-input');
+        const categorySearchInput = document.getElementById('category-search-input');
+        const productTypeSearchInput = document.getElementById('product-type-search-input');
+
+        // Modal open/close functionality
+        function openModal(modal) {
+            if (modal) {
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
+                
+                // Focus search input when opening modal
+                if (modal === brandSearchModal && brandSearchInput) {
+                    setTimeout(() => brandSearchInput.focus(), 100);
+                } else if (modal === modelSearchModal && modelSearchInput) {
+                    setTimeout(() => modelSearchInput.focus(), 100);
+                } else if (modal === providerSearchModal && providerSearchInput) {
+                    setTimeout(() => providerSearchInput.focus(), 100);
+                } else if (modal === categorySearchModal && categorySearchInput) {
+                    setTimeout(() => categorySearchInput.focus(), 100);
+                } else if (modal === productTypeSearchModal && productTypeSearchInput) {
+                    setTimeout(() => productTypeSearchInput.focus(), 100);
+                }
+            }
+        }
+
+        function closeModal(modal) {
+            if (modal) {
+                // Clear focus before hiding modal
+                if (document.activeElement && modal.contains(document.activeElement)) {
+                    document.activeElement.blur();
+                }
+                
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.style.overflow = '';
+                
+                // Clear search when closing modal
+                if (modal === brandSearchModal && brandSearchInput) {
+                    brandSearchInput.value = '';
+                    filterBrands('');
+                } else if (modal === modelSearchModal && modelSearchInput) {
+                    modelSearchInput.value = '';
+                    filterModels('');
+                } else if (modal === providerSearchModal && providerSearchInput) {
+                    providerSearchInput.value = '';
+                    filterProviders('');
+                } else if (modal === categorySearchModal && categorySearchInput) {
+                    categorySearchInput.value = '';
+                    filterCategories('');
+                } else if (modal === productTypeSearchModal && productTypeSearchInput) {
+                    productTypeSearchInput.value = '';
+                    filterProductTypes('');
+                }
+            }
+        }
+
+        // Search functionality for brands
+        if (brandSearchInput) {
+            brandSearchInput.addEventListener('input', (e) => {
+                filterBrands(e.target.value);
+            });
+        }
+
+        // Search functionality for models
+        if (modelSearchInput) {
+            modelSearchInput.addEventListener('input', (e) => {
+                filterModels(e.target.value);
+            });
+        }
+
+        // Search functionality for providers
+        if (providerSearchInput) {
+            providerSearchInput.addEventListener('input', (e) => {
+                filterProviders(e.target.value);
+            });
+        }
+
+        // Search functionality for categories
+        if (categorySearchInput) {
+            categorySearchInput.addEventListener('input', (e) => {
+                filterCategories(e.target.value);
+            });
+        }
+
+        // Search functionality for product types
+        if (productTypeSearchInput) {
+            productTypeSearchInput.addEventListener('input', (e) => {
+                filterProductTypes(e.target.value);
+            });
+        }
+
+        function filterBrands(searchTerm) {
+            const brandRows = document.querySelectorAll('[data-brand-row]');
+            const searchTermLower = searchTerm.toLowerCase();
+            
+            brandRows.forEach(row => {
+                const brandName = row.dataset.brandName.toLowerCase();
+                const shouldShow = brandName.includes(searchTermLower);
+                row.style.display = shouldShow ? '' : 'none';
+            });
+            
+            // Update empty message visibility
+            const emptyRow = document.querySelector('[data-brand-empty]');
+            const visibleRows = Array.from(brandRows).filter(row => row.style.display !== 'none');
+            
+            if (emptyRow) {
+                emptyRow.style.display = visibleRows.length === 0 ? '' : 'none';
+                if (searchTerm && visibleRows.length === 0) {
+                    emptyRow.innerHTML = '<td colspan="6">No se encontraron marcas con ese término de búsqueda.</td>';
+                } else if (!searchTerm && visibleRows.length === 0) {
+                    emptyRow.innerHTML = '<td colspan="6">No hay marcas registradas.</td>';
+                }
+            }
+        }
+
+        function filterModels(searchTerm) {
+            const modelRows = document.querySelectorAll('[data-model-row]');
+            const searchTermLower = searchTerm.toLowerCase();
+            
+            modelRows.forEach(row => {
+                const modelName = row.dataset.modelName.toLowerCase();
+                const brandName = (row.dataset.modelBrand || '').toLowerCase();
+                const shouldShow = modelName.includes(searchTermLower) || brandName.includes(searchTermLower);
+                row.style.display = shouldShow ? '' : 'none';
+            });
+            
+            // Update empty message visibility
+            const emptyRow = document.querySelector('[data-model-empty]');
+            const visibleRows = Array.from(modelRows).filter(row => row.style.display !== 'none');
+            
+            if (emptyRow) {
+                emptyRow.style.display = visibleRows.length === 0 ? '' : 'none';
+                if (searchTerm && visibleRows.length === 0) {
+                    emptyRow.innerHTML = '<td colspan="7">No se encontraron modelos con ese término de búsqueda.</td>';
+                } else if (!searchTerm && visibleRows.length === 0) {
+                    emptyRow.innerHTML = '<td colspan="7">No hay modelos registrados.</td>';
+                }
+            }
+        }
+
+        function filterProviders(searchTerm) {
+            const providerRows = document.querySelectorAll('[data-provider-row]');
+            const searchTermLower = searchTerm.toLowerCase();
+            
+            providerRows.forEach(row => {
+                const providerName = row.dataset.providerName.toLowerCase();
+                const shouldShow = providerName.includes(searchTermLower);
+                row.style.display = shouldShow ? '' : 'none';
+            });
+            
+            // Update empty message visibility
+            const emptyRow = document.querySelector('[data-provider-empty]');
+            const visibleRows = Array.from(providerRows).filter(row => row.style.display !== 'none');
+            
+            if (emptyRow) {
+                emptyRow.style.display = visibleRows.length === 0 ? '' : 'none';
+                if (searchTerm && visibleRows.length === 0) {
+                    emptyRow.innerHTML = '<td colspan="6">No se encontraron proveedores con ese término de búsqueda.</td>';
+                } else if (!searchTerm && visibleRows.length === 0) {
+                    emptyRow.innerHTML = '<td colspan="6">No hay proveedores registrados.</td>';
+                }
+            }
+        }
+
+        function filterCategories(searchTerm) {
+            const categoryRows = document.querySelectorAll('[data-category-row]');
+            const searchTermLower = searchTerm.toLowerCase();
+            
+            categoryRows.forEach(row => {
+                const categoryName = row.dataset.categoryName.toLowerCase();
+                const shouldShow = categoryName.includes(searchTermLower);
+                row.style.display = shouldShow ? '' : 'none';
+            });
+            
+            // Update empty message visibility
+            const emptyRow = document.querySelector('[data-category-empty]');
+            const visibleRows = Array.from(categoryRows).filter(row => row.style.display !== 'none');
+            
+            if (emptyRow) {
+                emptyRow.style.display = visibleRows.length === 0 ? '' : 'none';
+                if (searchTerm && visibleRows.length === 0) {
+                    emptyRow.innerHTML = '<td colspan="5">No se encontraron categorías con ese término de búsqueda.</td>';
+                } else if (!searchTerm && visibleRows.length === 0) {
+                    emptyRow.innerHTML = '<td colspan="5">No hay categorías registradas.</td>';
+                }
+            }
+        }
+
+        function filterProductTypes(searchTerm) {
+            const productTypeRows = document.querySelectorAll('[data-product-type-row]');
+            const searchTermLower = searchTerm.toLowerCase();
+            
+            productTypeRows.forEach(row => {
+                const productTypeName = row.dataset.productTypeName.toLowerCase();
+                const shouldShow = productTypeName.includes(searchTermLower);
+                row.style.display = shouldShow ? '' : 'none';
+            });
+            
+            // Update empty message visibility
+            const emptyRow = document.querySelector('[data-product-type-empty]');
+            const visibleRows = Array.from(productTypeRows).filter(row => row.style.display !== 'none');
+            
+            if (emptyRow) {
+                emptyRow.style.display = visibleRows.length === 0 ? '' : 'none';
+                if (searchTerm && visibleRows.length === 0) {
+                    emptyRow.innerHTML = '<td colspan="6">No se encontraron tipos de producto con ese término de búsqueda.</td>';
+                } else if (!searchTerm && visibleRows.length === 0) {
+                    emptyRow.innerHTML = '<td colspan="6">No hay tipos de producto registrados.</td>';
+                }
+            }
+        }
+
+        // Brand search functionality
+        brandSearchBtns.forEach(btn => {
+            btn.addEventListener('click', () => openModal(brandSearchModal));
+        });
+
+        // Model search functionality
+        modelSearchBtns.forEach(btn => {
+            btn.addEventListener('click', () => openModal(modelSearchModal));
+        });
+
+        // Provider search functionality
+        providerSearchBtns.forEach(btn => {
+            btn.addEventListener('click', () => openModal(providerSearchModal));
+        });
+
+        // Category search functionality
+        categorySearchBtns.forEach(btn => {
+            btn.addEventListener('click', () => openModal(categorySearchModal));
+        });
+
+        // Product Type search functionality
+        productTypeSearchBtns.forEach(btn => {
+            btn.addEventListener('click', () => openModal(productTypeSearchModal));
+        });
+
+        // Close modal handlers
+        document.querySelectorAll('[data-close-modal]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const modal = e.target.closest('.modal');
+                closeModal(modal);
+            });
+        });
+
+        // Brand selection functionality
+        document.querySelectorAll('[data-brand-select-button]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const brandId = e.target.dataset.brandId;
+                const brandName = e.target.dataset.brandName;
+                
+                // Update the brand select field
+                const brandSelect = document.querySelector('[name="marca"]');
+                if (brandSelect) {
+                    brandSelect.value = brandId;
+                    
+                    // Trigger change event in case there are dependent fields
+                    brandSelect.dispatchEvent(new Event('change'));
+                }
+                
+                closeModal(brandSearchModal);
+                showToast(`Marca seleccionada: ${brandName}`, 'success');
+            });
+        });
+
+        // Brand edit functionality
+        document.querySelectorAll('[data-brand-edit-button]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const brandId = e.target.dataset.brandId;
+                const brandName = e.target.dataset.brandName;
+                const brandActive = e.target.dataset.brandActive === 'true';
+                
+                // Populate edit form
+                const editNameInput = document.querySelector('[data-brand-edit-name]');
+                const editActiveInput = document.querySelector('[data-brand-edit-active]');
+                
+                if (editNameInput) editNameInput.value = brandName;
+                if (editActiveInput) editActiveInput.checked = brandActive;
+                
+                // Set brand ID for form submission
+                brandEditModal.dataset.brandId = brandId;
+                
+                closeModal(brandSearchModal);
+                openModal(brandEditModal);
+            });
+        });
+
+        // Brand delete functionality
+        document.querySelectorAll('[data-brand-delete-button]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const brandId = e.target.dataset.brandId;
+                const brandName = e.target.dataset.brandName;
+                
+                if (confirm(`¿Estás seguro de que deseas eliminar la marca "${brandName}"? Esta acción no se puede deshacer.`)) {
+                    deleteBrand(brandId, brandName);
+                }
+            });
+        });
+
+        // Model selection functionality
+        document.querySelectorAll('[data-model-select-button]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const modelId = e.target.dataset.modelId;
+                const modelName = e.target.dataset.modelName;
+                const modelBrandId = e.target.dataset.modelBrandId;
+                
+                // Update the model select field
+                const modelSelect = document.querySelector('[name="modelo"]');
+                if (modelSelect) {
+                    modelSelect.value = modelId;
+                    
+                    // Update brand if different
+                    if (modelBrandId) {
+                        const brandSelect = document.querySelector('[name="marca"]');
+                        if (brandSelect && brandSelect.value !== modelBrandId) {
+                            brandSelect.value = modelBrandId;
+                            brandSelect.dispatchEvent(new Event('change'));
+                        }
+                    }
+                    
+                    // Trigger change event
+                    modelSelect.dispatchEvent(new Event('change'));
+                }
+                
+                closeModal(modelSearchModal);
+                showToast(`Modelo seleccionado: ${modelName}`, 'success');
+            });
+        });
+
+        // Provider selection functionality
+        document.querySelectorAll('[data-provider-select-button]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const providerId = e.target.dataset.providerId;
+                const providerName = e.target.dataset.providerName;
+                
+                // Update the provider select field
+                const providerSelect = document.querySelector('[name="proveedor"]');
+                if (providerSelect) {
+                    providerSelect.value = providerId;
+                    
+                    // Trigger change event
+                    providerSelect.dispatchEvent(new Event('change'));
+                }
+                
+                closeModal(providerSearchModal);
+                showToast(`Proveedor seleccionado: ${providerName}`, 'success');
+            });
+        });
+
+        // Category selection functionality
+        document.querySelectorAll('[data-category-select-button]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const categoryId = e.target.dataset.categoryId;
+                const categoryName = e.target.dataset.categoryName;
+                
+                // Update the category select field
+                const categorySelect = document.querySelector('[name="categoria"]');
+                if (categorySelect) {
+                    categorySelect.value = categoryId;
+                    
+                    // Trigger change event
+                    categorySelect.dispatchEvent(new Event('change'));
+                }
+                
+                closeModal(categorySearchModal);
+                showToast(`Categoría seleccionada: ${categoryName}`, 'success');
+            });
+        });
+
+        // Product Type selection functionality
+        document.querySelectorAll('[data-product-type-select-button]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const productTypeId = e.target.dataset.productTypeId;
+                const productTypeName = e.target.dataset.productTypeName;
+                
+                // Update the product type select field
+                const productTypeSelect = document.querySelector('[name="tipo_producto"]');
+                if (productTypeSelect) {
+                    // Add new option if it doesn't exist
+                    let option = productTypeSelect.querySelector(`option[value="${productTypeId}"]`);
+                    if (!option) {
+                        option = document.createElement('option');
+                        option.value = productTypeId;
+                        option.textContent = productTypeName;
+                        productTypeSelect.appendChild(option);
+                    }
+                    productTypeSelect.value = productTypeId;
+                    
+                    // Trigger change event
+                    productTypeSelect.dispatchEvent(new Event('change'));
+                }
+                
+                closeModal(productTypeSearchModal);
+                showToast(`Tipo de producto seleccionado: ${productTypeName}`, 'success');
+            });
+        });
+
+        // Model edit functionality
+        document.querySelectorAll('[data-model-edit-button]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const modelId = e.target.dataset.modelId;
+                const modelName = e.target.dataset.modelName;
+                const modelBrandId = e.target.dataset.modelBrandId;
+                const modelActive = e.target.dataset.modelActive === 'true';
+                
+                // Populate edit form
+                const editNameInput = document.querySelector('[data-model-edit-name]');
+                const editBrandSelect = document.querySelector('[data-model-edit-brand]');
+                const editActiveInput = document.querySelector('[data-model-edit-active]');
+                
+                if (editNameInput) editNameInput.value = modelName;
+                if (editBrandSelect) editBrandSelect.value = modelBrandId || '';
+                if (editActiveInput) editActiveInput.checked = modelActive;
+                
+                // Set model ID for form submission
+                modelEditModal.dataset.modelId = modelId;
+                
+                closeModal(modelSearchModal);
+                openModal(modelEditModal);
+            });
+        });
+
+        // Model delete functionality
+        document.querySelectorAll('[data-model-delete-button]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const modelId = e.target.dataset.modelId;
+                const modelName = e.target.dataset.modelName;
+                
+                if (confirm(`¿Estás seguro de que deseas eliminar el modelo "${modelName}"? Esta acción no se puede deshacer.`)) {
+                    deleteModel(modelId, modelName);
+                }
+            });
+        });
+
+        // Delete functions
+        async function deleteBrand(brandId, brandName) {
+            try {
+                const response = await fetch(`/app/inventario/marcas/${brandId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Remove brand row from table
+                    const brandRow = document.querySelector(`[data-brand-row][data-brand-id="${brandId}"]`);
+                    if (brandRow) {
+                        brandRow.remove();
+                    }
+                    
+                    // Remove from select dropdowns
+                    document.querySelectorAll(`[name="marca"] option[value="${brandId}"]`).forEach(option => {
+                        option.remove();
+                    });
+                    
+                    showToast(`Marca "${brandName}" eliminada correctamente.`, 'success');
+                } else {
+                    throw new Error(data.error || 'No se pudo eliminar la marca.');
+                }
+            } catch (error) {
+                console.error('Error deleting brand:', error);
+                showToast(error.message || 'No se pudo eliminar la marca.', 'error');
+            }
+        }
+
+        async function deleteModel(modelId, modelName) {
+            try {
+                const response = await fetch(`/app/inventario/modelos/${modelId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Remove model row from table
+                    const modelRow = document.querySelector(`[data-model-row][data-model-id="${modelId}"]`);
+                    if (modelRow) {
+                        modelRow.remove();
+                    }
+                    
+                    // Remove from select dropdowns
+                    document.querySelectorAll(`[name="modelo"] option[value="${modelId}"]`).forEach(option => {
+                        option.remove();
+                    });
+                    
+                    showToast(`Modelo "${modelName}" eliminado correctamente.`, 'success');
+                } else {
+                    throw new Error(data.error || 'No se pudo eliminar el modelo.');
+                }
+            } catch (error) {
+                console.error('Error deleting model:', error);
+                showToast(error.message || 'No se pudo eliminar el modelo.', 'error');
+            }
+        }
+
+        // Brand creation functionality
+        const openBrandCreateBtn = document.querySelector('[data-open-brand-create]');
+        if (openBrandCreateBtn) {
+            openBrandCreateBtn.addEventListener('click', () => {
+                closeModal(brandSearchModal);
+                openModal(brandCreateModal);
+            });
+        }
+
+        const brandCreateForm = document.querySelector('[data-brand-create-form]');
+        const brandCreateSaveBtn = document.querySelector('[data-brand-create-save]');
+        const brandCreateCancelBtn = document.querySelector('[data-brand-create-cancel]');
+
+        if (brandCreateSaveBtn && brandCreateForm) {
+            brandCreateSaveBtn.addEventListener('click', async () => {
+                const nameInput = document.querySelector('[data-brand-create-name]');
+                const activeInput = document.querySelector('[data-brand-create-active]');
+                const createUrl = brandCreateModal.dataset.createUrl;
+                
+                if (!nameInput.value.trim()) {
+                    showToast('Ingresa el nombre de la marca.', 'warning');
+                    nameInput.focus();
+                    return;
+                }
+                
+                try {
+                    brandCreateSaveBtn.disabled = true;
+                    brandCreateSaveBtn.textContent = 'Guardando...';
+                    
+                    const formData = new FormData();
+                    formData.append('nombre', nameInput.value.trim());
+                    formData.append('activo', activeInput.checked ? 'true' : 'false');
+                    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+                    
+                    const response = await fetch(createUrl, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Add new option to brand selects
+                        addBrandOptionToSelects(data);
+                        
+                        // Select the new brand
+                        const brandSelect = document.querySelector('[name="marca"]');
+                        if (brandSelect) {
+                            brandSelect.value = data.id;
+                            brandSelect.dispatchEvent(new Event('change'));
+                        }
+                        
+                        // Reset form and close modal
+                        brandCreateForm.reset();
+                        closeModal(brandCreateModal);
+                        showToast('Marca registrada correctamente.', 'success');
+                    } else {
+                        throw new Error(data.error || 'No se pudo registrar la marca.');
+                    }
+                } catch (error) {
+                    console.error('Error creating brand:', error);
+                    showToast(error.message || 'No se pudo registrar la marca.', 'error');
+                } finally {
+                    brandCreateSaveBtn.disabled = false;
+                    brandCreateSaveBtn.textContent = 'Guardar';
+                }
+            });
+        }
+
+        if (brandCreateCancelBtn) {
+            brandCreateCancelBtn.addEventListener('click', () => {
+                brandCreateForm.reset();
+                closeModal(brandCreateModal);
+                openModal(brandSearchModal);
+            });
+        }
+
+        // Brand edit functionality
+        const brandEditForm = document.querySelector('[data-brand-edit-form]');
+        const brandEditSaveBtn = document.querySelector('[data-brand-edit-save]');
+        const brandEditCancelBtn = document.querySelector('[data-brand-edit-cancel]');
+
+        if (brandEditSaveBtn && brandEditForm) {
+            brandEditSaveBtn.addEventListener('click', async () => {
+                const nameInput = document.querySelector('[data-brand-edit-name]');
+                const activeInput = document.querySelector('[data-brand-edit-active]');
+                const brandId = brandEditModal.dataset.brandId;
+                
+                if (!nameInput.value.trim()) {
+                    showToast('Ingresa el nombre de la marca.', 'warning');
+                    nameInput.focus();
+                    return;
+                }
+                
+                try {
+                    brandEditSaveBtn.disabled = true;
+                    brandEditSaveBtn.textContent = 'Actualizando...';
+                    
+                    const formData = new FormData();
+                    formData.append('nombre', nameInput.value.trim());
+                    formData.append('activo', activeInput.checked ? 'true' : 'false');
+                    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+                    
+                    const response = await fetch(`/app/inventario/marcas/${brandId}/edit/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams(formData)
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Update brand row in table
+                        const brandRow = document.querySelector(`[data-brand-row][data-brand-id="${brandId}"]`);
+                        if (brandRow) {
+                            brandRow.dataset.brandName = data.nombre;
+                            brandRow.dataset.brandActive = data.activo ? 'true' : 'false';
+                            brandRow.querySelector('.lookup-name').textContent = data.nombre;
+                            
+                            const statusSpan = brandRow.querySelector('.lookup-status');
+                            statusSpan.className = `lookup-status ${data.activo ? 'lookup-status--active' : 'lookup-status--inactive'}`;
+                            statusSpan.textContent = data.activo ? 'Activo' : 'Inactivo';
+                        }
+                        
+                        // Update brand select options
+                        document.querySelectorAll(`[name="marca"] option[value="${brandId}"]`).forEach(option => {
+                            option.textContent = data.nombre;
+                        });
+                        
+                        // Reset form and close modal
+                        brandEditForm.reset();
+                        closeModal(brandEditModal);
+                        showToast('Marca actualizada correctamente.', 'success');
+                    } else {
+                        throw new Error(data.error || 'No se pudo actualizar la marca.');
+                    }
+                } catch (error) {
+                    console.error('Error updating brand:', error);
+                    showToast(error.message || 'No se pudo actualizar la marca.', 'error');
+                } finally {
+                    brandEditSaveBtn.disabled = false;
+                    brandEditSaveBtn.textContent = 'Actualizar';
+                }
+            });
+        }
+
+        if (brandEditCancelBtn) {
+            brandEditCancelBtn.addEventListener('click', () => {
+                brandEditForm.reset();
+                closeModal(brandEditModal);
+                openModal(brandSearchModal);
+            });
+        }
+
+        // Model creation functionality
+        const openModelCreateBtn = document.querySelector('[data-open-model-create]');
+        if (openModelCreateBtn) {
+            openModelCreateBtn.addEventListener('click', () => {
+                closeModal(modelSearchModal);
+                openModal(modelCreateModal);
+            });
+        }
+
+        const modelCreateForm = document.querySelector('[data-model-create-form]');
+        const modelCreateSaveBtn = document.querySelector('[data-model-create-save]');
+        const modelCreateCancelBtn = document.querySelector('[data-model-create-cancel]');
+
+        if (modelCreateSaveBtn && modelCreateForm) {
+            modelCreateSaveBtn.addEventListener('click', async () => {
+                const nameInput = document.querySelector('[data-model-create-name]');
+                const brandSelect = document.querySelector('[data-model-create-brand]');
+                const activeInput = document.querySelector('[data-model-create-active]');
+                const createUrl = modelCreateModal.dataset.createUrl;
+                
+                if (!nameInput.value.trim()) {
+                    showToast('Ingresa el nombre del modelo.', 'warning');
+                    nameInput.focus();
+                    return;
+                }
+                
+                try {
+                    modelCreateSaveBtn.disabled = true;
+                    modelCreateSaveBtn.textContent = 'Guardando...';
+                    
+                    const formData = new FormData();
+                    formData.append('nombre', nameInput.value.trim());
+                    formData.append('marca', brandSelect.value || '');
+                    formData.append('activo', activeInput.checked ? 'true' : 'false');
+                    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+                    
+                    const response = await fetch(createUrl, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Add new option to model selects
+                        addModelOptionToSelects(data);
+                        
+                        // Select the new model
+                        const modelSelect = document.querySelector('[name="modelo"]');
+                        if (modelSelect) {
+                            modelSelect.value = data.id;
+                            modelSelect.dispatchEvent(new Event('change'));
+                        }
+                        
+                        // Update brand if different
+                        if (data.marca_id) {
+                            const brandSelect = document.querySelector('[name="marca"]');
+                            if (brandSelect && brandSelect.value !== data.marca_id) {
+                                brandSelect.value = data.marca_id;
+                                brandSelect.dispatchEvent(new Event('change'));
+                            }
+                        }
+                        
+                        // Reset form and close modal
+                        modelCreateForm.reset();
+                        closeModal(modelCreateModal);
+                        showToast('Modelo registrado correctamente.', 'success');
+                    } else {
+                        throw new Error(data.error || 'No se pudo registrar el modelo.');
+                    }
+                } catch (error) {
+                    console.error('Error creating model:', error);
+                    showToast(error.message || 'No se pudo registrar el modelo.', 'error');
+                } finally {
+                    modelCreateSaveBtn.disabled = false;
+                    modelCreateSaveBtn.textContent = 'Guardar';
+                }
+            });
+        }
+
+        if (modelCreateCancelBtn) {
+            modelCreateCancelBtn.addEventListener('click', () => {
+                modelCreateForm.reset();
+                closeModal(modelCreateModal);
+                openModal(modelSearchModal);
+            });
+        }
+
+        // Model edit functionality
+        const modelEditForm = document.querySelector('[data-model-edit-form]');
+        const modelEditSaveBtn = document.querySelector('[data-model-edit-save]');
+        const modelEditCancelBtn = document.querySelector('[data-model-edit-cancel]');
+
+        if (modelEditSaveBtn && modelEditForm) {
+            modelEditSaveBtn.addEventListener('click', async () => {
+                const nameInput = document.querySelector('[data-model-edit-name]');
+                const brandSelect = document.querySelector('[data-model-edit-brand]');
+                const activeInput = document.querySelector('[data-model-edit-active]');
+                const modelId = modelEditModal.dataset.modelId;
+                
+                if (!nameInput.value.trim()) {
+                    showToast('Ingresa el nombre del modelo.', 'warning');
+                    nameInput.focus();
+                    return;
+                }
+                
+                try {
+                    modelEditSaveBtn.disabled = true;
+                    modelEditSaveBtn.textContent = 'Actualizando...';
+                    
+                    const formData = new FormData();
+                    formData.append('nombre', nameInput.value.trim());
+                    formData.append('marca', brandSelect.value || '');
+                    formData.append('activo', activeInput.checked ? 'true' : 'false');
+                    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+                    
+                    const response = await fetch(`/app/inventario/modelos/${modelId}/edit/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams(formData)
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Update model row in table
+                        const modelRow = document.querySelector(`[data-model-row][data-model-id="${modelId}"]`);
+                        if (modelRow) {
+                            modelRow.dataset.modelName = data.nombre;
+                            modelRow.dataset.modelBrand = data.marca_nombre || '';
+                            modelRow.dataset.modelBrandId = data.marca_id || '';
+                            modelRow.dataset.modelActive = data.activo ? 'true' : 'false';
+                            
+                            modelRow.querySelector('.lookup-name').textContent = data.nombre;
+                            
+                            const brandCell = modelRow.querySelectorAll('td')[1].querySelector('.lookup-name');
+                            if (data.marca_nombre) {
+                                brandCell.textContent = data.marca_nombre;
+                                brandCell.className = 'lookup-name';
+                            } else {
+                                brandCell.textContent = 'Sin marca';
+                                brandCell.className = 'lookup-name lookup-name--muted';
+                            }
+                            
+                            const statusSpan = modelRow.querySelector('.lookup-status');
+                            statusSpan.className = `lookup-status ${data.activo ? 'lookup-status--active' : 'lookup-status--inactive'}`;
+                            statusSpan.textContent = data.activo ? 'Activo' : 'Inactivo';
+                            
+                            // Update button data attributes
+                            const editBtn = modelRow.querySelector('[data-model-edit-button]');
+                            if (editBtn) {
+                                editBtn.dataset.modelName = data.nombre;
+                                editBtn.dataset.modelBrandId = data.marca_id || '';
+                                editBtn.dataset.modelActive = data.activo ? 'true' : 'false';
+                            }
+                        }
+                        
+                        // Update model select options
+                        document.querySelectorAll(`[name="modelo"] option[value="${modelId}"]`).forEach(option => {
+                            option.textContent = data.nombre;
+                            option.dataset.brandId = data.marca_id || '';
+                        });
+                        
+                        // Reset form and close modal
+                        modelEditForm.reset();
+                        closeModal(modelEditModal);
+                        showToast('Modelo actualizado correctamente.', 'success');
+                    } else {
+                        throw new Error(data.error || 'No se pudo actualizar el modelo.');
+                    }
+                } catch (error) {
+                    console.error('Error updating model:', error);
+                    showToast(error.message || 'No se pudo actualizar el modelo.', 'error');
+                } finally {
+                    modelEditSaveBtn.disabled = false;
+                    modelEditSaveBtn.textContent = 'Actualizar';
+                }
+            });
+        }
+
+        if (modelEditCancelBtn) {
+            modelEditCancelBtn.addEventListener('click', () => {
+                modelEditForm.reset();
+                closeModal(modelEditModal);
+                openModal(modelSearchModal);
+            });
+        }
+
+        // Helper functions
+        function addBrandOptionToSelects(data) {
+            const brandSelects = document.querySelectorAll('[name="marca"]');
+            brandSelects.forEach(select => {
+                const option = document.createElement('option');
+                option.value = data.id;
+                option.textContent = data.nombre;
+                select.appendChild(option);
+            });
+        }
+
+        function addModelOptionToSelects(data) {
+            const modelSelects = document.querySelectorAll('[name="modelo"]');
+            modelSelects.forEach(select => {
+                const option = document.createElement('option');
+                option.value = data.id;
+                option.textContent = data.nombre;
+                if (data.marca_id) {
+                    option.dataset.brandId = data.marca_id;
+                }
+                select.appendChild(option);
+            });
+        }
+
+        function showToast(message, type = 'info') {
+            // Simple toast notification
+            const toast = document.createElement('div');
+            toast.className = `toast toast--${type}`;
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
+                color: white;
+                border-radius: 6px;
+                z-index: 2000;
+                font-size: 14px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
     });
 </script>
+
+<!-- Product Type Search Modal -->
+<div class="modal" id="product-type-search-modal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog--wide" role="dialog" aria-modal="true" aria-labelledby="product-type-search-title">
+        <div class="modal-header">
+            <h2 id="product-type-search-title">Buscar tipo de producto</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="modal-top-actions">
+                <div class="modal-search">
+                    <input type="text" id="product-type-search-input" placeholder="Buscar tipo de producto..." class="modal-search__input">
+                    <i class="ri-search-line modal-search__icon"></i>
+                </div>
+                <a href="/app/otros/configuracion/#tipos-producto" class="btn btn-primary">Agregar tipo de producto</a>
+            </div>
+            <div class="modal-table-wrapper">
+                <table class="lookup-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Nombre</th>
+                            <th>Icono</th>
+                            <th>Descripción</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody data-product-type-table-body>
+                        {% for tipo in tipos_producto %}
+                            <tr data-product-type-row data-product-type-id="{{ tipo.id }}" data-product-type-name="{{ tipo.nombre|lower }}">
+                                <td data-row-index></td>
+                                <td>
+                                    <span class="lookup-name">{{ tipo.nombre }}</span>
+                                </td>
+                                <td>
+                                    <span class="lookup-name">{{ tipo.get_icono_display }}</span>
+                                </td>
+                                <td>
+                                    <span class="lookup-name">{{ tipo.descripcion|default:"Sin descripción"|truncatechars:50 }}</span>
+                                </td>
+                                <td>
+                                    <span class="lookup-status lookup-status--active">
+                                        {{ tipo.activo|yesno:"Activo,Inactivo" }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline btn--compact" data-product-type-select-button data-product-type-id="{{ tipo.id }}" data-product-type-name="{{ tipo.nombre }}">
+                                        Seleccionar
+                                    </button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr data-product-type-empty>
+                                <td colspan="6">No hay tipos de producto registrados.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-pagination" data-product-type-pagination>
+                <button type="button" class="btn btn-outline btn--compact" data-product-type-page-prev disabled>Anterior</button>
+                <span class="modal-pagination__info" data-product-type-page-info>Página 1 de 1</span>
+                <button type="button" class="btn btn-outline btn--compact" data-product-type-page-next disabled>Siguiente</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Category Search Modal -->
+<div class="modal" id="category-search-modal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog--wide" role="dialog" aria-modal="true" aria-labelledby="category-search-title">
+        <div class="modal-header">
+            <h2 id="category-search-title">Buscar categoría</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="modal-top-actions">
+                <div class="modal-search">
+                    <input type="text" id="category-search-input" placeholder="Buscar categoría..." class="modal-search__input">
+                    <i class="ri-search-line modal-search__icon"></i>
+                </div>
+                <a href="/app/otros/configuracion/#categorias" class="btn btn-primary">Agregar categoría</a>
+            </div>
+            <div class="modal-table-wrapper">
+                <table class="lookup-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Nombre</th>
+                            <th>Tipo producto</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody data-category-table-body>
+                        {% for categoria in categorias %}
+                            <tr data-category-row data-category-id="{{ categoria.id }}" data-category-name="{{ categoria.nombre|lower }}">
+                                <td data-row-index></td>
+                                <td>
+                                    <span class="lookup-name">{{ categoria.nombre }}</span>
+                                </td>
+                                <td>
+                                    <span class="lookup-name">{{ categoria.tipo_producto|default:"General" }}</span>
+                                </td>
+                                <td>
+                                    <span class="lookup-status lookup-status--active">
+                                        {{ categoria.activo|yesno:"Activo,Inactivo" }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline btn--compact" data-category-select-button data-category-id="{{ categoria.id }}" data-category-name="{{ categoria.nombre }}">
+                                        Seleccionar
+                                    </button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr data-category-empty>
+                                <td colspan="5">No hay categorías registradas.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-pagination" data-category-pagination>
+                <button type="button" class="btn btn-outline btn--compact" data-category-page-prev disabled>Anterior</button>
+                <span class="modal-pagination__info" data-category-page-info>Página 1 de 1</span>
+                <button type="button" class="btn btn-outline btn--compact" data-category-page-next disabled>Siguiente</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Provider Search Modal -->
+<div class="modal" id="provider-search-modal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog--wide" role="dialog" aria-modal="true" aria-labelledby="provider-search-title">
+        <div class="modal-header">
+            <h2 id="provider-search-title">Buscar proveedor</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="modal-top-actions">
+                <div class="modal-search">
+                    <input type="text" id="provider-search-input" placeholder="Buscar proveedor..." class="modal-search__input">
+                    <i class="ri-search-line modal-search__icon"></i>
+                </div>
+                <a href="{% url 'dashboard:proveedor' %}" class="btn btn-primary">Agregar proveedor</a>
+            </div>
+            <div class="modal-table-wrapper">
+                <table class="lookup-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Nombre</th>
+                            <th>Tipo Doc.</th>
+                            <th>Documento</th>
+                            <th>Teléfono</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody data-provider-table-body>
+                        {% for proveedor in proveedores %}
+                            <tr data-provider-row data-provider-id="{{ proveedor.id }}" data-provider-name="{{ proveedor.nombre|lower }}">
+                                <td data-row-index></td>
+                                <td>
+                                    <span class="lookup-name">{{ proveedor.nombre }}</span>
+                                </td>
+                                <td>
+                                    <span class="lookup-name">{{ proveedor.get_tipo_documento_display|default:"-" }}</span>
+                                </td>
+                                <td>
+                                    <span class="lookup-name">{{ proveedor.documento|default:"-" }}</span>
+                                </td>
+                                <td>
+                                    <span class="lookup-name">{{ proveedor.telefono|default:"-" }}</span>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline btn--compact" data-provider-select-button data-provider-id="{{ proveedor.id }}" data-provider-name="{{ proveedor.nombre }}">
+                                        Seleccionar
+                                    </button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr data-provider-empty>
+                                <td colspan="6">No hay proveedores registrados.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-pagination" data-provider-pagination>
+                <button type="button" class="btn btn-outline btn--compact" data-provider-page-prev disabled>Anterior</button>
+                <span class="modal-pagination__info" data-provider-page-info>Página 1 de 1</span>
+                <button type="button" class="btn btn-outline btn--compact" data-provider-page-next disabled>Siguiente</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Brand Search Modal -->
+<div class="modal" id="brand-search-modal" data-toggle-template="{% url 'dashboard:toggle_brand_status_api' 0 %}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog--wide" role="dialog" aria-modal="true" aria-labelledby="brand-search-title">
+        <div class="modal-header">
+            <h2 id="brand-search-title">Buscar marca</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="modal-top-actions">
+                <div class="modal-search">
+                    <input type="text" id="brand-search-input" placeholder="Buscar marca..." class="modal-search__input">
+                    <i class="ri-search-line modal-search__icon"></i>
+                </div>
+                <button type="button" class="btn btn-primary" data-open-brand-create>Agregar marca</button>
+            </div>
+            <div class="modal-table-wrapper">
+                <table class="lookup-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Marca</th>
+                            <th>Estado</th>
+                            <th colspan="3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody data-brand-table-body>
+                        {% for marca in marcas_admin_catalogo %}
+                            <tr data-brand-row data-brand-id="{{ marca.id }}" data-brand-name="{{ marca.nombre }}" data-brand-active="{{ marca.activo|yesno:'true,false' }}">
+                                <td data-row-index></td>
+                                <td>
+                                    <span class="lookup-name">{{ marca.nombre }}</span>
+                                </td>
+                                <td>
+                                    <span class="lookup-status {% if marca.activo %}lookup-status--active{% else %}lookup-status--inactive{% endif %}">
+                                        {% if marca.activo %}Activo{% else %}Inactivo{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline btn--compact" data-brand-select-button data-brand-id="{{ marca.id }}" data-brand-name="{{ marca.nombre }}">
+                                        Seleccionar
+                                    </button>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline btn--compact" data-brand-edit-button data-brand-id="{{ marca.id }}" data-brand-name="{{ marca.nombre }}" data-brand-active="{{ marca.activo|yesno:'true,false' }}">
+                                        Editar
+                                    </button>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline btn--compact btn--danger" data-brand-delete-button data-brand-id="{{ marca.id }}" data-brand-name="{{ marca.nombre }}">
+                                        Eliminar
+                                    </button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr data-brand-empty>
+                                <td colspan="6">No hay marcas registradas.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-pagination" data-brand-pagination>
+                <button type="button" class="btn btn-outline btn--compact" data-brand-page-prev disabled>Anterior</button>
+                <span class="modal-pagination__info" data-brand-page-info>Página 1 de 1</span>
+                <button type="button" class="btn btn-outline btn--compact" data-brand-page-next disabled>Siguiente</button>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-close-modal>Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Brand Create Modal -->
+<div class="modal" id="brand-create-modal" data-create-url="{% url 'dashboard:create_brand_api' %}" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="brand-create-title">
+        <div class="modal-header">
+            <h2 id="brand-create-title">Agregar marca</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <form class="modal-form" data-brand-create-form>
+            {% csrf_token %}
+            <div class="form-grid">
+                <label class="form-field form-field--full">
+                    <span class="form-label">Nombre de la marca</span>
+                    <input type="text" name="nombre" placeholder="Ej. Apple" data-brand-create-name required>
+                </label>
+                <div class="form-field form-field--checkbox">
+                    <span class="form-label">Estado</span>
+                    <label class="checkbox-toggle">
+                        <input type="checkbox" name="activo" data-brand-create-active checked>
+                        <span class="checkbox-toggle__track">
+                            <span class="checkbox-toggle__thumb"></span>
+                        </span>
+                        <span class="checkbox-toggle__label">Activo</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-brand-create-cancel data-close-modal>Cancelar</button>
+                <button type="button" class="btn btn-primary" data-brand-create-save>Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Model Search Modal -->
+<div class="modal" id="model-search-modal" data-toggle-template="{% url 'dashboard:toggle_model_status_api' 0 %}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog--wide" role="dialog" aria-modal="true" aria-labelledby="model-search-title">
+        <div class="modal-header">
+            <h2 id="model-search-title">Buscar modelo</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <div class="modal-form modal-form--static">
+            <div class="modal-top-actions">
+                <div class="modal-search">
+                    <input type="text" id="model-search-input" placeholder="Buscar modelo..." class="modal-search__input">
+                    <i class="ri-search-line modal-search__icon"></i>
+                </div>
+                <button type="button" class="btn btn-primary" data-open-model-create>Agregar modelo</button>
+            </div>
+            <div class="modal-table-wrapper">
+                <table class="lookup-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Marca</th>
+                            <th>Modelo</th>
+                            <th>Estado</th>
+                            <th colspan="3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody data-model-table-body>
+                        {% for modelo in modelos_admin_catalogo %}
+                            <tr data-model-row data-model-id="{{ modelo.id }}" data-model-name="{{ modelo.nombre }}" data-model-brand="{% if modelo.marca %}{{ modelo.marca.nombre }}{% endif %}" data-model-brand-id="{% if modelo.marca %}{{ modelo.marca.id }}{% endif %}" data-model-active="{{ modelo.activo|yesno:'true,false' }}">
+                                <td data-row-index></td>
+                                <td>
+                                    {% if modelo.marca %}
+                                        <span class="lookup-name">{{ modelo.marca.nombre }}</span>
+                                    {% else %}
+                                        <span class="lookup-name lookup-name--muted">Sin marca</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="lookup-name">{{ modelo.nombre }}</span>
+                                </td>
+                                <td>
+                                    <span class="lookup-status {% if modelo.activo %}lookup-status--active{% else %}lookup-status--inactive{% endif %}">
+                                        {% if modelo.activo %}Activo{% else %}Inactivo{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline btn--compact" data-model-select-button data-model-id="{{ modelo.id }}" data-model-name="{{ modelo.nombre }}" data-model-brand-id="{% if modelo.marca %}{{ modelo.marca.id }}{% endif %}">
+                                        Seleccionar
+                                    </button>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline btn--compact" data-model-edit-button data-model-id="{{ modelo.id }}" data-model-name="{{ modelo.nombre }}" data-model-brand-id="{% if modelo.marca %}{{ modelo.marca.id }}{% endif %}" data-model-active="{{ modelo.activo|yesno:'true,false' }}">
+                                        Editar
+                                    </button>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-outline btn--compact btn--danger" data-model-delete-button data-model-id="{{ modelo.id }}" data-model-name="{{ modelo.nombre }}">
+                                        Eliminar
+                                    </button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr data-model-empty>
+                                <td colspan="7">No hay modelos registrados.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-pagination" data-model-pagination>
+                <button type="button" class="btn btn-outline btn--compact" data-model-page-prev disabled>Anterior</button>
+                <span class="modal-pagination__info" data-model-page-info>Página 1 de 1</span>
+                <button type="button" class="btn btn-outline btn--compact" data-model-page-next disabled>Siguiente</button>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" data-close-modal>Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Model Create Modal -->
+<div class="modal" id="model-create-modal" data-create-url="{% url 'dashboard:create_model_api' %}" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="model-create-title">
+        <div class="modal-header">
+            <h2 id="model-create-title">Agregar modelo</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <form class="modal-form" data-model-create-form>
+            {% csrf_token %}
+            <div class="form-grid">
+                <label class="form-field form-field--full">
+                    <span class="form-label">Nombre del modelo</span>
+                    <input type="text" name="nombre" placeholder="Ej. iPhone 14 Pro" data-model-create-name required>
+                </label>
+                <label class="form-field form-field--full">
+                    <span class="form-label">Marca asociada</span>
+                    <select name="marca" class="field__control" data-model-create-brand data-brand-select>
+                        <option value="">Sin marca</option>
+                        {% for marca in marcas_catalogo %}
+                            <option value="{{ marca.id }}">{{ marca.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="form-field form-field--checkbox">
+                    <span class="form-label">Estado</span>
+                    <label class="checkbox-toggle">
+                        <input type="checkbox" name="activo" data-model-create-active checked>
+                        <span class="checkbox-toggle__track">
+                            <span class="checkbox-toggle__thumb"></span>
+                        </span>
+                        <span class="checkbox-toggle__label">Activo</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-model-create-cancel data-close-modal>Cancelar</button>
+                <button type="button" class="btn btn-primary" data-model-create-save>Guardar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Brand Edit Modal -->
+<div class="modal" id="brand-edit-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="brand-edit-title">
+        <div class="modal-header">
+            <h2 id="brand-edit-title">Editar marca</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <form class="modal-form" data-brand-edit-form>
+            {% csrf_token %}
+            <div class="form-grid">
+                <label class="form-field form-field--full">
+                    <span class="form-label">Nombre de la marca</span>
+                    <input type="text" name="nombre" placeholder="Ej. Apple" data-brand-edit-name required>
+                </label>
+                <div class="form-field form-field--checkbox">
+                    <span class="form-label">Estado</span>
+                    <label class="checkbox-toggle">
+                        <input type="checkbox" name="activo" data-brand-edit-active>
+                        <span class="checkbox-toggle__track">
+                            <span class="checkbox-toggle__thumb"></span>
+                        </span>
+                        <span class="checkbox-toggle__label">Activo</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-brand-edit-cancel data-close-modal>Cancelar</button>
+                <button type="button" class="btn btn-primary" data-brand-edit-save>Actualizar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Model Edit Modal -->
+<div class="modal" id="model-edit-modal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="model-edit-title">
+        <div class="modal-header">
+            <h2 id="model-edit-title">Editar modelo</h2>
+            <button type="button" class="modal-close" aria-label="Cerrar" data-close-modal>&times;</button>
+        </div>
+        <form class="modal-form" data-model-edit-form>
+            {% csrf_token %}
+            <div class="form-grid">
+                <label class="form-field form-field--full">
+                    <span class="form-label">Nombre del modelo</span>
+                    <input type="text" name="nombre" placeholder="Ej. iPhone 14 Pro" data-model-edit-name required>
+                </label>
+                <label class="form-field form-field--full">
+                    <span class="form-label">Marca asociada</span>
+                    <select name="marca" class="field__control" data-model-edit-brand data-brand-select>
+                        <option value="">Sin marca</option>
+                        {% for marca in marcas_admin_catalogo %}
+                            <option value="{{ marca.id }}">{{ marca.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="form-field form-field--checkbox">
+                    <span class="form-label">Estado</span>
+                    <label class="checkbox-toggle">
+                        <input type="checkbox" name="activo" data-model-edit-active>
+                        <span class="checkbox-toggle__track">
+                            <span class="checkbox-toggle__thumb"></span>
+                        </span>
+                        <span class="checkbox-toggle__label">Activo</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" data-model-edit-cancel data-close-modal>Cancelar</button>
+                <button type="button" class="btn btn-primary" data-model-edit-save>Actualizar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}

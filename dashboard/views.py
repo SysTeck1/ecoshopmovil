@@ -30,7 +30,7 @@ from django.utils import timezone
 from django.utils import dateparse
 from django.utils.dateparse import parse_date
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST, require_http_methods
+from django.views.decorators.http import require_http_methods, require_GET, require_POST
 from django.views.generic import TemplateView
 from django.urls import reverse, reverse_lazy
 
@@ -66,6 +66,7 @@ from ventas.models import (
     ProductoUnitDetail,
     ProductoSpecificFields,
     Proveedor,
+    TipoProducto,
     Venta,
     DetalleVenta,
     CuentaCredito,
@@ -1394,6 +1395,72 @@ class DashboardTemplateView(LoginRequiredMixin, TemplateView):
 class DashboardHomeView(DashboardTemplateView):
     template_name = "dashboard/inicio.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Fecha actual
+        today = timezone.localdate()
+        context["today"] = today
+        
+        # Ventas de hoy - calcular usando el property total
+        ventas_hoy_qs = Venta.objects.filter(fecha__date=today)
+        ventas_hoy_total = sum(venta.total for venta in ventas_hoy_qs)
+        context["ventas_hoy"] = ventas_hoy_total
+        context["ventas_count_hoy"] = ventas_hoy_qs.count()
+        
+        # Total productos en inventario
+        total_productos = Producto.objects.aggregate(
+            total_stock=Sum('stock'),
+            count=Count('id')
+        )
+        context["total_productos"] = total_productos['total_stock'] or 0
+        context["productos_count"] = total_productos['count'] or 0
+        
+        # Productos con bajo stock
+        productos_bajo_stock = Producto.objects.filter(
+            stock__lte=F('stock_minimo')
+        ).count()
+        context["productos_bajo_stock"] = productos_bajo_stock
+        
+        # Lista de productos críticos
+        productos_criticos = Producto.objects.filter(
+            stock__lte=F('stock_minimo')
+        ).order_by('stock')[:5]
+        context["productos_criticos"] = productos_criticos
+        
+        # Créditos pendientes
+        from ventas.models import CuentaCredito
+        creditos_pendientes = CuentaCredito.objects.filter(
+            estado='pendiente'
+        ).aggregate(
+            total=Sum('saldo_pendiente'),
+            count=Count('id')
+        )
+        context["creditos_pendientes"] = creditos_pendientes['total'] or 0
+        context["creditos_count"] = creditos_pendientes['count'] or 0
+        
+        # Lista de créditos pendientes (ordenados por created_at)
+        creditos_lista = CuentaCredito.objects.filter(
+            estado='pendiente'
+        ).select_related('cliente').order_by('-created_at')[:5]
+        context["creditos_lista"] = creditos_lista
+        
+        # Ventas recientes
+        ventas_recientes = Venta.objects.select_related('cliente').order_by('-fecha')[:5]
+        context["ventas_recientes"] = ventas_recientes
+        
+        # Estado de caja
+        caja_abierta = CashSession.objects.filter(estado='abierta').first()
+        context["caja_abierta"] = caja_abierta
+        
+        # Configuración del sitio
+        site_config = SiteConfiguration.get_solo()
+        context["site_config"] = site_config
+        context["global_tax_enabled"] = bool(getattr(site_config, "global_tax_enabled", False))
+        context["global_tax_rate"] = float((getattr(site_config, "global_tax_rate", Decimal("0")) or Decimal("0")).quantize(TWO_PLACES))
+        
+        return context
+
 
 class VentasView(DashboardTemplateView):
     template_name = "dashboard/ventas.html"
@@ -1531,32 +1598,48 @@ class VentasView(DashboardTemplateView):
             detalles = list(producto.unidades_detalle.all())
             detalles_map = {detalle.unidad_index: detalle for detalle in detalles}
 
+            # Calculate available stock (exclude sold units)
             stock_total = max(producto.stock or 0, 0)
             if detalles_map:
                 stock_total = max(stock_total, max(detalles_map.keys()))
+            
+            # Count available (not sold) units
+            unidades_disponibles = 0
+            for idx in range(stock_total):
+                unidad_index = idx + 1
+                detalle_unit = detalles_map.get(unidad_index)
+                
+                # Check if unit is sold
+                if detalle_unit and detalle_unit.vendido:
+                    continue
+                unidades_disponibles += 1
 
-            if stock_total <= 0:
+            if unidades_disponibles <= 0:
                 continue
-
-            if producto.marca_id and producto.marca and producto.marca.nombre:
-                brand_options[producto.marca_id] = producto.marca.nombre
-
-            if producto.modelo_id and producto.modelo:
-                model_options[producto.modelo_id] = {
-                    "id": producto.modelo_id,
-                    "name": producto.modelo.nombre,
-                    "brand_id": str(producto.modelo.marca_id) if producto.modelo.marca_id else "",
-                }
-
-            if producto.precio_venta is not None:
-                if min_price is None or producto.precio_venta < min_price:
-                    min_price = producto.precio_venta
-                if max_price is None or producto.precio_venta > max_price:
-                    max_price = producto.precio_venta
 
             for idx in range(stock_total):
                 unidad_index = idx + 1
                 unit_data = _resolve_unit_defaults(producto, unidad_index)
+
+                # Skip sold units
+                if unit_data.get("vendido", False):
+                    continue
+
+                if producto.marca_id and producto.marca and producto.marca.nombre:
+                    brand_options[producto.marca_id] = producto.marca.nombre
+
+                if producto.modelo_id and producto.modelo:
+                    model_options[producto.modelo_id] = {
+                        "id": producto.modelo_id,
+                        "name": producto.modelo.nombre,
+                        "brand_id": str(producto.modelo.marca_id) if producto.modelo.marca_id else "",
+                    }
+
+                if producto.precio_venta is not None:
+                    if min_price is None or producto.precio_venta < min_price:
+                        min_price = producto.precio_venta
+                    if max_price is None or producto.precio_venta > max_price:
+                        max_price = producto.precio_venta
 
                 color_label = (unit_data.get("color") or "").strip() or "Sin color"
                 almacenamiento_code = (unit_data.get("almacenamiento") or "").strip()
@@ -1595,7 +1678,7 @@ class VentasView(DashboardTemplateView):
                 impuesto_id = unit_data.get("impuesto_id") or ""
                 impuesto_label = unit_data.get("impuesto_label") or "Impuesto global"
                 unidad_label = f"Unidad {unidad_index}"
-                unit_data = _resolve_unit_defaults(producto, unidad_index)
+                
                 unit_options.append(
                     {
                         "key": f"{producto.id}:{unidad_index}",
@@ -1698,172 +1781,229 @@ class VentasView(DashboardTemplateView):
 @login_required
 @require_GET
 def sales_product_unit_search_api(request):
-    query = (request.GET.get("query") or "").strip()
-    brand_param = (request.GET.get("brand") or "").strip()
-    model_param = (request.GET.get("model") or "").strip()
-    color_param = (request.GET.get("color") or "").strip()
-    storage_param = (request.GET.get("storage") or "").strip()
-    ram_param = (request.GET.get("ram") or "").strip()
-    price_min_param = (request.GET.get("price_min") or "").strip()
-    price_max_param = (request.GET.get("price_max") or "").strip()
+    try:
+        query = (request.GET.get("query") or "").strip()
+        brand_param = (request.GET.get("brand") or "").strip()
+        model_param = (request.GET.get("model") or "").strip()
+        color_param = (request.GET.get("color") or "").strip()
+        storage_param = (request.GET.get("storage") or "").strip()
+        ram_param = (request.GET.get("ram") or "").strip()
+        price_min_param = (request.GET.get("price_min") or "").strip()
+        price_max_param = (request.GET.get("price_max") or "").strip()
 
-    has_additional_filters = any(
-        [
-            brand_param,
-            model_param,
-            color_param,
-            storage_param,
-            ram_param,
-            price_min_param,
-            price_max_param,
-        ]
-    )
-
-    if not query and not has_additional_filters:
-        return JsonResponse({"success": True, "results": []})
-
-    productos_qs = (
-        Producto.objects.filter(activo=True, stock__gt=0)
-        .select_related("marca", "modelo", "impuesto")
-        .prefetch_related("unidades_detalle")
-    )
-
-    if query:
-        search_filters = (
-            Q(nombre__icontains=query)
-            | Q(descripcion__icontains=query)
-            | Q(modelo__nombre__icontains=query)
-            | Q(marca__nombre__icontains=query)
-            | Q(imei__icontains=query)
+        has_additional_filters = any(
+            [
+                brand_param,
+                model_param,
+                color_param,
+                storage_param,
+                ram_param,
+                price_min_param,
+                price_max_param,
+            ]
         )
-        productos_qs = productos_qs.filter(search_filters)
 
-    if brand_param.isdigit():
-        productos_qs = productos_qs.filter(marca_id=int(brand_param))
+        if not query and not has_additional_filters:
+            return JsonResponse({"success": True, "results": []})
 
-    if model_param.isdigit():
-        productos_qs = productos_qs.filter(modelo_id=int(model_param))
+        productos_qs = (
+            Producto.objects.filter(activo=True, stock__gt=0)
+            .select_related("marca", "modelo", "impuesto")
+            .prefetch_related("unidades_detalle")
+        )
+    
+    # Filter out products where all units are sold
+        productos_con_stock_disponible = []
+        for producto in productos_qs:
+            tiene_unidades_disponibles = False
+            
+            # Calculate total available stock
+            stock_total = max(producto.stock or 0, 0)
+            detalles = list(producto.unidades_detalle.all())
+            detalles_map = {detalle.unidad_index: detalle for detalle in detalles}
+            
+            if detalles_map:
+                stock_total = max(stock_total, max(detalles_map.keys()))
+            
+            # Count available units
+            unidades_disponibles = 0
+            for idx in range(stock_total):
+                unidad_index = idx + 1
+                detalle_unit = detalles_map.get(unidad_index)
+                
+                # Unit is available if not sold or no detail exists
+                if not detalle_unit or not detalle_unit.vendido:
+                    unidades_disponibles += 1
+            
+            if unidades_disponibles > 0:
+                tiene_unidades_disponibles = True
+            
+            if tiene_unidades_disponibles:
+                productos_con_stock_disponible.append(producto)
+        
+        productos_con_stock_disponible_ids = [p.id for p in productos_con_stock_disponible]
+        productos_qs = Producto.objects.filter(id__in=productos_con_stock_disponible_ids)
 
-    price_min = None
-    price_max = None
-    if price_min_param:
-        try:
-            price_min = Decimal(price_min_param)
-        except (InvalidOperation, TypeError, ValueError):
-            price_min = None
-    if price_max_param:
-        try:
-            price_max = Decimal(price_max_param)
-        except (InvalidOperation, TypeError, ValueError):
-            price_max = None
+        if query:
+            search_filters = (
+                Q(nombre__icontains=query)
+                | Q(descripcion__icontains=query)
+                | Q(modelo__nombre__icontains=query)
+                | Q(marca__nombre__icontains=query)
+                | Q(imei__icontains=query)
+            )
+            productos_qs = productos_qs.filter(search_filters)
 
-    if price_min is not None:
-        productos_qs = productos_qs.filter(precio_venta__gte=price_min)
-    if price_max is not None:
-        productos_qs = productos_qs.filter(precio_venta__lte=price_max)
+        if brand_param.isdigit():
+            productos_qs = productos_qs.filter(marca_id=int(brand_param))
 
-    productos_qs = productos_qs.order_by("nombre")[:20]
+        if model_param.isdigit():
+            productos_qs = productos_qs.filter(modelo_id=int(model_param))
 
-    almacenamiento_map = dict(Producto.ALMACENAMIENTO_CHOICES)
-    ram_map = dict(Producto.RAM_CHOICES)
+        price_min = None
+        price_max = None
+        if price_min_param:
+            try:
+                price_min = Decimal(price_min_param)
+            except (InvalidOperation, TypeError, ValueError):
+                price_min = None
+        if price_max_param:
+            try:
+                price_max = Decimal(price_max_param)
+            except (InvalidOperation, TypeError, ValueError):
+                price_max = None
 
-    results: list[dict[str, object]] = []
+        if price_min is not None:
+            productos_qs = productos_qs.filter(precio_venta__gte=price_min)
+        if price_max is not None:
+            productos_qs = productos_qs.filter(precio_venta__lte=price_max)
 
-    for producto in productos_qs:
-        detalles = list(producto.unidades_detalle.all())
-        detalles_map = {detalle.unidad_index: detalle for detalle in detalles}
+        productos_qs = productos_qs.order_by("nombre")[:20]
 
-        stock_total = max(producto.stock or 0, 0)
-        if detalles_map:
-            stock_total = max(stock_total, max(detalles_map.keys()))
+        almacenamiento_map = dict(Producto.ALMACENAMIENTO_CHOICES)
+        ram_map = dict(Producto.RAM_CHOICES)
 
-        if stock_total <= 0:
-            continue
+        results: list[dict[str, object]] = []
 
-        raw_imeis = (producto.imei or "").replace("\r", "\n")
-        imeis = [valor.strip() for valor in raw_imeis.replace(",", "\n").split("\n") if valor.strip()]
+        for producto in productos_qs:
+            detalles = list(producto.unidades_detalle.all())
+            detalles_map = {detalle.unidad_index: detalle for detalle in detalles}
 
-        raw_colores = producto.colores_disponibles or ""
-        colores = [color.strip() for color in raw_colores.split(",") if color.strip()]
+            # Calculate available stock (exclude sold units)
+            stock_total = max(producto.stock or 0, 0)
+            if detalles_map:
+                stock_total = max(stock_total, max(detalles_map.keys()))
+            
+            # Count available units
+            unidades_disponibles = 0
+            for idx in range(stock_total):
+                unidad_index = idx + 1
+                detalle_unit = detalles_map.get(unidad_index)
+                
+                # Unit is available if not sold or no detail exists
+                if not detalle_unit or not detalle_unit.vendido:
+                    unidades_disponibles += 1
 
-        unidades_serializadas: list[dict[str, object]] = []
-
-        for idx in range(stock_total):
-            unidad_index = idx + 1
-            detalle_unit = detalles_map.get(unidad_index)
-            unit_defaults = _resolve_unit_defaults(producto, unidad_index)
-
-            almacenamiento_code = (unit_defaults.get("almacenamiento") or "").strip()
-            almacenamiento_label = unit_defaults.get("almacenamiento_label") or "No especificado"
-            ram_code = (unit_defaults.get("memoria_ram") or "").strip()
-            ram_label = unit_defaults.get("memoria_ram_label") or "No especificada"
-            imei_val = unit_defaults.get("imei") or ""
-            color_val = (unit_defaults.get("color") or "").strip()
-            condicion_nombre = unit_defaults.get("producto_condicion_label") or "Sin especificar"
-            usar_impuesto_global_unit = unit_defaults.get("usar_impuesto_global", True)
-            impuesto_id_unit = unit_defaults.get("impuesto_id") or ""
-            impuesto_label_unit = unit_defaults.get("impuesto_label") or ("Impuesto global" if usar_impuesto_global_unit else "Sin impuesto")
-            impuesto_porcentaje_unit = unit_defaults.get("impuesto_porcentaje") or "0"
-            impuesto_activo_unit = bool(unit_defaults.get("impuesto_activo"))
-            vida_bateria_unit = unit_defaults.get("vida_bateria") or ""
-            codigo_barras_unit = unit_defaults.get("codigo_barras") or ""
-
-            match_color = True
-            match_storage = True
-            match_ram = True
-
-            if color_param:
-                match_color = (color_val or "").lower() == color_param.lower()
-            if storage_param:
-                match_storage = almacenamiento_code.lower() == storage_param.lower()
-            if ram_param:
-                match_ram = ram_code.lower() == ram_param.lower()
-
-            if not (match_color and match_storage and match_ram):
+            if unidades_disponibles <= 0:
                 continue
 
-            unidades_serializadas.append(
+            raw_imeis = (producto.imei or "").replace("\r", "\n")
+            imeis = [valor.strip() for valor in raw_imeis.replace(",", "\n").split("\n") if valor.strip()]
+
+            raw_colores = producto.colores_disponibles or ""
+            colores = [color.strip() for color in raw_colores.split(",") if color.strip()]
+
+            unidades_serializadas: list[dict[str, object]] = []
+
+            for idx in range(stock_total):
+                unidad_index = idx + 1
+                detalle_unit = detalles_map.get(unidad_index)
+                unit_defaults = _resolve_unit_defaults(producto, unidad_index)
+                
+                # Skip sold units
+                if unit_defaults.get("vendido", False):
+                    continue
+
+                almacenamiento_code = (unit_defaults.get("almacenamiento") or "").strip()
+                almacenamiento_label = unit_defaults.get("almacenamiento_label") or "No especificado"
+                ram_code = (unit_defaults.get("memoria_ram") or "").strip()
+                ram_label = unit_defaults.get("memoria_ram_label") or "No especificada"
+                imei_val = unit_defaults.get("imei") or ""
+                color_val = (unit_defaults.get("color") or "").strip()
+                condicion_nombre = unit_defaults.get("producto_condicion_label") or "Sin especificar"
+                usar_impuesto_global_unit = unit_defaults.get("usar_impuesto_global", True)
+                impuesto_id_unit = unit_defaults.get("impuesto_id") or ""
+                impuesto_label_unit = unit_defaults.get("impuesto_label") or ("Impuesto global" if usar_impuesto_global_unit else "Sin impuesto")
+                impuesto_porcentaje_unit = unit_defaults.get("impuesto_porcentaje") or "0"
+                impuesto_activo_unit = bool(unit_defaults.get("impuesto_activo"))
+                vida_bateria_unit = unit_defaults.get("vida_bateria") or ""
+                codigo_barras_unit = unit_defaults.get("codigo_barras") or ""
+
+                match_color = True
+                match_storage = True
+                match_ram = True
+
+                if color_param:
+                    match_color = (color_val or "").lower() == color_param.lower()
+                if storage_param:
+                    match_storage = almacenamiento_code.lower() == storage_param.lower()
+                if ram_param:
+                    match_ram = ram_code.lower() == ram_param.lower()
+
+                if not (match_color and match_storage and match_ram):
+                    continue
+
+                unidades_serializadas.append(
+                    {
+                        "index": unidad_index,
+                        "imei": imei_val,
+                        "color": color_val,
+                        "almacenamiento": almacenamiento_label,
+                        "memoria_ram": ram_label,
+                        "vida_bateria": vida_bateria_unit,
+                        "codigo_barras": codigo_barras_unit,
+                        "condicion": condicion_nombre,
+                        "usar_impuesto_global": usar_impuesto_global_unit,
+                        "impuesto_id": impuesto_id_unit,
+                        "impuesto_label": impuesto_label_unit,
+                        "impuesto_porcentaje": str(impuesto_porcentaje_unit),
+                        "impuesto_activo": impuesto_activo_unit,
+                    }
+                )
+
+            if color_param and not unidades_serializadas:
+                continue
+            if storage_param and not unidades_serializadas:
+                continue
+            if ram_param and not unidades_serializadas:
+                continue
+
+            if not unidades_serializadas:
+                continue
+
+            results.append(
                 {
-                    "index": unidad_index,
-                    "imei": imei_val,
-                    "color": color_val,
-                    "almacenamiento": almacenamiento_label,
-                    "memoria_ram": ram_label,
-                    "vida_bateria": vida_bateria_unit,
-                    "codigo_barras": codigo_barras_unit,
-                    "condicion": condicion_nombre,
-                    "usar_impuesto_global": usar_impuesto_global_unit,
-                    "impuesto_id": impuesto_id_unit,
-                    "impuesto_label": impuesto_label_unit,
-                    "impuesto_porcentaje": str(impuesto_porcentaje_unit),
-                    "impuesto_activo": impuesto_activo_unit,
+                    "id": producto.id,
+                    "nombre": producto.nombre,
+                    "marca": producto.marca.nombre if producto.marca else "",
+                    "modelo": producto.modelo.nombre if producto.modelo else "",
+                    "stock": unidades_disponibles,  # Show available units, not total
+                    "precio_venta": str(producto.precio_venta) if producto.precio_venta is not None else "",
+                    "unidades": unidades_serializadas,
+                    "imagen": producto.imagen_principal,
                 }
             )
 
-        if color_param and not unidades_serializadas:
-            continue
-        if storage_param and not unidades_serializadas:
-            continue
-        if ram_param and not unidades_serializadas:
-            continue
-
-        if not unidades_serializadas:
-            continue
-
-        results.append(
-            {
-                "id": producto.id,
-                "nombre": producto.nombre,
-                "marca": producto.marca.nombre if producto.marca else "",
-                "modelo": producto.modelo.nombre if producto.modelo else "",
-                "stock": stock_total,
-                "precio_venta": str(producto.precio_venta) if producto.precio_venta is not None else "",
-                "unidades": unidades_serializadas,
-                "imagen": producto.imagen_principal,
-            }
-        )
-
-    return JsonResponse({"success": True, "results": results})
+            return JsonResponse({"success": True, "results": results})
+    
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error en sales_product_unit_search_api: {str(e)}")
+        return JsonResponse({
+            "success": False, 
+            "error": "Ocurrió un error al buscar productos. Intenta nuevamente."
+        }, status=500)
 
 
 @login_required
@@ -1892,6 +2032,13 @@ def scan_unit_barcode_api(request):
         
         # Get unit defaults
         unit_defaults = _resolve_unit_defaults(producto, detalle_unit.unidad_index)
+        
+        # Check if unit is sold
+        if unit_defaults.get("vendido", False):
+            return JsonResponse({
+                "success": False, 
+                "error": f"Unidad {detalle_unit.unidad_index} de {producto.nombre} ya fue vendida"
+            })
         
         # Build response in same format as product selector
         unit_data = _resolve_unit_defaults(producto, detalle_unit.unidad_index)
@@ -1929,21 +2076,158 @@ def scan_unit_barcode_api(request):
             "error": f"Error interno: {str(e)}"
         })
 
+@require_POST
+@login_required
+def create_tipo_producto_api(request):
+    """API para crear un nuevo tipo de producto"""
+    from ventas.models import TipoProducto
+    from django.http import JsonResponse
+    
+    try:
+        nombre = request.POST.get('nombre', '').strip()
+        icono = request.POST.get('icono', 'custom')
+        descripcion = request.POST.get('descripcion', '').strip()
+        
+        if not nombre:
+            return JsonResponse({
+                'success': False,
+                'error': 'El nombre del tipo de producto es requerido.'
+            })
+        
+        # Verificar si ya existe
+        if TipoProducto.objects.filter(nombre__iexact=nombre).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'Ya existe un tipo de producto con ese nombre.'
+            })
+        
+        # Crear nuevo tipo de producto
+        tipo_producto = TipoProducto.objects.create(
+            nombre=nombre,
+            icono=icono,
+            descripcion=descripcion,
+            activo=True
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'id': tipo_producto.id,
+            'nombre': tipo_producto.nombre,
+            'icono_display': tipo_producto.get_icono_display(),
+            'descripcion': tipo_producto.descripcion
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error al crear el tipo de producto: {str(e)}'
+        })
+
+
+@require_POST
+@login_required
+def edit_tipo_producto_api(request, pk):
+    """API para editar un tipo de producto"""
+    from ventas.models import TipoProducto
+    from django.http import JsonResponse
+    
+    try:
+        tipo_producto = TipoProducto.objects.get(pk=pk)
+        
+        nombre = request.POST.get('nombre', '').strip()
+        icono = request.POST.get('icono', 'custom')
+        descripcion = request.POST.get('descripcion', '').strip()
+        
+        if not nombre:
+            return JsonResponse({
+                'success': False,
+                'error': 'El nombre del tipo de producto es requerido.'
+            })
+        
+        # Verificar si ya existe (excluyendo el actual)
+        if TipoProducto.objects.filter(nombre__iexact=nombre).exclude(pk=pk).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'Ya existe un tipo de producto con ese nombre.'
+            })
+        
+        # Actualizar tipo de producto
+        tipo_producto.nombre = nombre
+        tipo_producto.icono = icono
+        tipo_producto.descripcion = descripcion
+        tipo_producto.save()
+        
+        return JsonResponse({
+            'success': True,
+            'id': tipo_producto.id,
+            'nombre': tipo_producto.nombre,
+            'icono_display': tipo_producto.get_icono_display(),
+            'descripcion': tipo_producto.descripcion
+        })
+        
+    except TipoProducto.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'El tipo de producto no existe.'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error al editar el tipo de producto: {str(e)}'
+        })
+
+
+@require_POST
+@login_required
+def toggle_tipo_producto_api(request, pk):
+    """API para activar/desactivar un tipo de producto"""
+    from ventas.models import TipoProducto
+    from django.http import JsonResponse
+    
+    try:
+        tipo_producto = TipoProducto.objects.get(pk=pk)
+        tipo_producto.activo = not tipo_producto.activo
+        tipo_producto.save()
+        
+        return JsonResponse({
+            'success': True,
+            'activo': tipo_producto.activo
+        })
+        
+    except TipoProducto.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'El tipo de producto no existe.'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error al cambiar el estado: {str(e)}'
+        })
+
 
 @login_required 
 def dynamic_inventory_create_view(request):
     """Vista para crear productos con formularios dinámicos según el tipo"""
     from .dynamic_forms import DynamicProductForm, DynamicSpecificFieldsForm, get_product_form_fields, get_specific_form_fields
-    from ventas.models import ProductoSpecificFields, Marca, Modelo, Categoria, Proveedor, Impuesto
+    from ventas.models import ProductoSpecificFields, Marca, Modelo, Categoria, Proveedor, Impuesto, TipoProducto
     from ventas.product_types import product_registry
     from django.contrib import messages
     from django.shortcuts import redirect, render
     
-    product_type = request.GET.get('type', 'phone')
+    product_type_slug = request.GET.get('type', 'phone')
+    
+    # Obtener el objeto TipoProducto o None si no existe
+    try:
+        product_type_obj = TipoProducto.objects.get(slug=product_type_slug, activo=True)
+        product_type_id = product_type_obj.id
+    except TipoProducto.DoesNotExist:
+        product_type_obj = None
+        product_type_id = None
     
     if request.method == 'POST':
-        form = DynamicProductForm(request.POST, request.FILES, product_type=product_type)
-        specific_form = DynamicSpecificFieldsForm(request.POST, product_type=product_type)
+        form = DynamicProductForm(request.POST, request.FILES, product_type=product_type_slug)
+        specific_form = DynamicSpecificFieldsForm(request.POST, product_type=product_type_slug)
         
         if form.is_valid() and specific_form.is_valid():
             try:
@@ -1961,25 +2245,29 @@ def dynamic_inventory_create_view(request):
             except Exception as e:
                 messages.error(request, f'Error al crear el producto: {str(e)}')
     else:
-        form = DynamicProductForm(product_type=product_type)
-        specific_form = DynamicSpecificFieldsForm(product_type=product_type)
+        form = DynamicProductForm(product_type=product_type_slug)
+        specific_form = DynamicSpecificFieldsForm(product_type=product_type_slug)
     
     # Obtener configuración del tipo de producto
-    type_config = product_registry.get_type(product_type)
+    type_config = product_registry.get_type(product_type_slug)
     
     context = {
         'form': form,
         'specific_form': specific_form,
-        'product_type': product_type,
+        'product_type': product_type_slug,
         'type_config': type_config,
         'product_types': product_registry.get_all_types(),
         'marcas': Marca.objects.filter(activo=True),
         'modelos': Modelo.objects.filter(activo=True),
-        'categorias': Categoria.objects.filter(activo=True, tipo_producto__in=[product_type, None]),
+        'categorias': Categoria.objects.filter(activo=True, tipo_producto__in=[product_type_id, None]),
         'proveedores': Proveedor.objects.all(),
         'impuestos': Impuesto.objects.filter(activo=True),
-        'allowed_fields': get_product_form_fields(product_type),
-        'specific_fields': get_specific_form_fields(product_type),
+        'tipos_producto': TipoProducto.objects.filter(activo=True),
+        'allowed_fields': get_product_form_fields(product_type_slug),
+        'specific_fields': get_specific_form_fields(product_type_slug),
+        # Add admin catalog data for modals
+        'marcas_admin_catalogo': Marca.objects.all().only("id", "nombre", "activo"),
+        'modelos_admin_catalogo': Modelo.objects.select_related("marca").order_by("nombre"),
     }
     
     return render(request, 'dashboard/dynamic_inventory_create.html', context)
@@ -2010,15 +2298,23 @@ def get_product_type_fields_api(request):
 @require_GET
 def get_categories_by_type_api(request):
     """API para obtener categorías filtradas por tipo de producto"""
-    from ventas.models import Categoria
+    from ventas.models import Categoria, TipoProducto
     
-    product_type = request.GET.get('type', '')
+    product_type_slug = request.GET.get('type', '')
+    product_type_id = None
     
-    if product_type:
+    if product_type_slug:
+        try:
+            product_type_obj = TipoProducto.objects.get(slug=product_type_slug, activo=True)
+            product_type_id = product_type_obj.id
+        except TipoProducto.DoesNotExist:
+            product_type_id = None
+    
+    if product_type_id is not None:
         # Obtener categorías específicas del tipo + categorías generales (sin tipo)
         categories = Categoria.objects.filter(
             activo=True, 
-            tipo_producto__in=[product_type, None, '']
+            tipo_producto__in=[product_type_id, None]
         ).values('id', 'nombre', 'tipo_producto')
     else:
         # Si no se especifica tipo, obtener todas las categorías activas
@@ -2390,6 +2686,8 @@ class ProductoDetailView(DashboardTemplateView):
                     "impuesto_porcentaje": impuesto_porcentaje,
                     "impuesto_label": impuesto_label,
                     "impuesto_activo": impuesto_activo,
+                    "vendido": detalle_unit.vendido if detalle_unit else False,
+                    "fecha_venta": detalle_unit.fecha_venta.strftime('%Y-%m-%d %H:%M') if detalle_unit and detalle_unit.fecha_venta else None,
                 }
             )
 
@@ -2634,6 +2932,8 @@ def _resolve_unit_defaults(producto: Producto, unidad_index: int) -> dict[str, s
         "impuesto_porcentaje": impuesto_porcentaje,
         "impuesto_label": impuesto_label,
         "impuesto_activo": impuesto_activo,
+        "vendido": detalle_unit.vendido if detalle_unit else False,
+        "fecha_venta": detalle_unit.fecha_venta.strftime('%Y-%m-%d %H:%M') if detalle_unit and detalle_unit.fecha_venta else None,
     }
 
 
@@ -3780,6 +4080,117 @@ def create_model_api(request):
 
 
 @require_POST
+def edit_brand_api(request, brand_id: int):
+    brand = get_object_or_404(Marca, pk=brand_id)
+    
+    nombre = request.POST.get('nombre', '').strip()
+    if not nombre:
+        return JsonResponse({"success": False, "error": "Debes indicar el nombre de la marca."}, status=400)
+    
+    activo = request.POST.get('activo') == 'true'
+    
+    # Check if name already exists for another brand
+    if Marca.objects.exclude(pk=brand_id).filter(nombre__iexact=nombre).exists():
+        return JsonResponse({"success": False, "error": "Ya existe una marca con ese nombre."}, status=409)
+    
+    brand.nombre = nombre
+    brand.activo = activo
+    brand.save(update_fields=["nombre", "activo", "updated_at"])
+    
+    return JsonResponse({
+        "success": True,
+        "id": brand.pk,
+        "nombre": brand.nombre,
+        "activo": brand.activo,
+        "estado_display": "Activo" if brand.activo else "Inactivo",
+    })
+
+
+@require_POST
+def edit_model_api(request, model_id: int):
+    modelo = get_object_or_404(Modelo, pk=model_id)
+    
+    nombre = request.POST.get('nombre', '').strip()
+    if not nombre:
+        return JsonResponse({"success": False, "error": "Debes indicar el nombre del modelo."}, status=400)
+    
+    marca_id = request.POST.get('marca')
+    marca = None
+    if marca_id:
+        marca = Marca.objects.filter(pk=marca_id).first()
+        if not marca:
+            return JsonResponse({"success": False, "error": "La marca seleccionada no existe."}, status=400)
+    
+    activo = request.POST.get('activo') == 'true'
+    
+    # Check if name already exists for another model with same brand
+    existing_query = Modelo.objects.exclude(pk=model_id).filter(nombre__iexact=nombre)
+    if marca:
+        existing_query = existing_query.filter(marca=marca)
+    else:
+        existing_query = existing_query.filter(marca__isnull=True)
+    
+    if existing_query.exists():
+        return JsonResponse({"success": False, "error": "Ya existe un modelo con ese nombre para la marca seleccionada."}, status=409)
+    
+    modelo.nombre = nombre
+    modelo.marca = marca
+    modelo.activo = activo
+    modelo.save(update_fields=["nombre", "marca", "activo", "updated_at"])
+    
+    return JsonResponse({
+        "success": True,
+        "id": modelo.pk,
+        "nombre": modelo.nombre,
+        "marca_id": modelo.marca.pk if modelo.marca else None,
+        "marca_nombre": modelo.marca.nombre if modelo.marca else None,
+        "activo": modelo.activo,
+        "estado_display": "Activo" if modelo.activo else "Inactivo",
+    })
+
+
+@require_POST
+def delete_brand_api(request, brand_id: int):
+    brand = get_object_or_404(Marca, pk=brand_id)
+    
+    # Check if brand is being used by any products or models
+    if Producto.objects.filter(marca=brand).exists():
+        return JsonResponse({"error": "No se puede eliminar la marca porque está siendo utilizada por productos."}, status=400)
+    
+    if Modelo.objects.filter(marca=brand).exists():
+        return JsonResponse({"error": "No se puede eliminar la marca porque tiene modelos asociados."}, status=400)
+    
+    brand_name = brand.nombre
+    brand.delete()
+    
+    return JsonResponse(
+        {
+            "success": True,
+            "message": f"Marca '{brand_name}' eliminada correctamente."
+        }
+    )
+
+
+@require_POST
+def delete_model_api(request, model_id: int):
+    modelo = get_object_or_404(Modelo, pk=model_id)
+    
+    # Check if model is being used by any products
+    if Producto.objects.filter(modelo=modelo).exists():
+        return JsonResponse({"error": "No se puede eliminar el modelo porque está siendo utilizado por productos."}, status=400)
+    
+    model_name = modelo.nombre
+    modelo.delete()
+    
+    return JsonResponse(
+        {
+            "success": True,
+            "message": f"Modelo '{model_name}' eliminado correctamente."
+        }
+    )
+
+
+@require_POST
 def create_tax_api(request):
     payload = _parse_json_body(request)
     if payload is None:
@@ -3887,6 +4298,9 @@ class ConfiguracionView(DashboardTemplateView):
         categoria_form.fields["nombre"].widget.attrs.update({"id": "category-register-name-input"})
         context["categoria_form"] = categoria_form
         context["next_categoria_codigo"] = Categoria.next_codigo()
+        
+        # Agregar tipos de producto
+        context["tipos_producto"] = TipoProducto.objects.all()
         if not hasattr(self, "force_open_category"):
             self.force_open_category = self.request.GET.get("open") == "categories"
         context["force_open_category"] = getattr(self, "force_open_category", False)
@@ -5001,9 +5415,40 @@ def registrar_venta_api(request):
             if unidad_index_int is not None and unidad_index_int <= 0:
                 unidad_index_int = None
 
-            updated = Producto.objects.filter(pk=producto.pk, stock__gte=cantidad).update(
-                stock=F("stock") - cantidad
-            )
+            # Si se especifica unidad_index, marcar unidades específicas como vendidas
+            if unidad_index_int:
+                # Buscar unidades específicas por título, almacenamiento y RAM
+                unidades_especificas = ProductoUnitDetail.objects.filter(
+                    producto=producto,
+                    unidad_index__gt=0
+                ).filter(
+                    Q(almacenamiento__isnull=False) & ~Q(almacenamiento__exact='') |
+                    Q(memoria_ram__isnull=False) & ~Q(memoria_ram__exact='')
+                ).order_by('unidad_index')[:cantidad]
+                
+                if len(unidades_especificas) < cantidad:
+                    transaction.set_rollback(True)
+                    return JsonResponse(
+                        {"error": f"No hay suficientes unidades específicas para el producto {producto.nombre}. Se requieren {cantidad}, disponibles: {len(unidades_especificas)}."},
+                        status=400,
+                    )
+                
+                # Marcar las unidades específicas como vendidas
+                from django.utils import timezone
+                for unidad in unidades_especificas:
+                    unidad.vendido = True
+                    unidad.fecha_venta = timezone.now()
+                    unidad.save()
+                
+                # Reducir stock general
+                updated = Producto.objects.filter(pk=producto.pk, stock__gte=cantidad).update(
+                    stock=F("stock") - cantidad
+                )
+            else:
+                # Si no se especifica unidad_index, comportamiento normal
+                updated = Producto.objects.filter(pk=producto.pk, stock__gte=cantidad).update(
+                    stock=F("stock") - cantidad
+                )
             if updated == 0:
                 transaction.set_rollback(True)
                 return JsonResponse(

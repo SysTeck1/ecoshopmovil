@@ -8,36 +8,33 @@
             Administra el catálogo de productos disponibles en tu inventario. Crea nuevos artículos y mantén actualizados sus datos.
         </p>
         <div class="inventory-header__actions">
-            <div class="btn-group">
-                <button type="button" class="btn btn-primary" id="open-create-product">Crear producto básico</button>
-                <div class="btn-dropdown">
-                    <button type="button" class="btn btn-primary btn-dropdown__toggle" data-dropdown-toggle>
-                        <span class="btn__icon">⚡</span>
-                        Crear por tipo
-                        <span class="btn__chevron">▼</span>
-                    </button>
-                    <div class="btn-dropdown__menu" data-dropdown-menu>
-                        <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=phone" class="btn-dropdown__item">
-                            <span class="btn-dropdown__icon">📱</span>
-                            Teléfonos
-                        </a>
-                        <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=accessory" class="btn-dropdown__item">
-                            <span class="btn-dropdown__icon">🔌</span>
-                            Accesorios
-                        </a>
-                        <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=laptop" class="btn-dropdown__item">
-                            <span class="btn-dropdown__icon">💻</span>
-                            Laptops
-                        </a>
-                        <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=tablet" class="btn-dropdown__item">
-                            <span class="btn-dropdown__icon">📟</span>
-                            Tablets
-                        </a>
-                        <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=gaming" class="btn-dropdown__item">
-                            <span class="btn-dropdown__icon">🎮</span>
-                            Gaming
-                        </a>
-                    </div>
+            <div class="btn-dropdown">
+                <button type="button" class="btn btn-primary btn-dropdown__toggle" data-dropdown-toggle>
+                    <span class="btn__icon">⚡</span>
+                    Crear producto
+                    <span class="btn__chevron">▼</span>
+                </button>
+                <div class="btn-dropdown__menu" data-dropdown-menu>
+                    <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=phone" class="btn-dropdown__item">
+                        <span class="btn-dropdown__icon">📱</span>
+                        Teléfonos
+                    </a>
+                    <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=accessory" class="btn-dropdown__item">
+                        <span class="btn-dropdown__icon">🔌</span>
+                        Accesorios
+                    </a>
+                    <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=laptop" class="btn-dropdown__item">
+                        <span class="btn-dropdown__icon">💻</span>
+                        Laptops
+                    </a>
+                    <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=tablet" class="btn-dropdown__item">
+                        <span class="btn-dropdown__icon">📟</span>
+                        Tablets
+                    </a>
+                    <a href="{% url 'dashboard:dynamic_inventory_create' %}?type=gaming" class="btn-dropdown__item">
+                        <span class="btn-dropdown__icon">🎮</span>
+                        Gaming
+                    </a>
                 </div>
             </div>
         </div>
@@ -1097,11 +1094,26 @@
     .modal-dialog {
         background: #ffffff;
         border-radius: 12px;
-        max-width: 520px;
+        max-width: 800px;
         width: 100%;
         max-height: 90vh;
         overflow-y: auto;
         box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    #edit-product-modal .modal-dialog {
+        max-width: 900px;
+    }
+
+    #edit-product-modal .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        padding: 20px;
+    }
+
+    #edit-product-modal .form-field--full {
+        grid-column: 1 / -1;
     }
 
     .modal-header {

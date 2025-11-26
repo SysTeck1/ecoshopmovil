@@ -233,8 +233,8 @@
         </div>
         <div class="modal-form modal-form--static product-search">
             <div class="product-search__input-group">
-                <input type="text" class="product-search__input" placeholder="Buscar por nombre de producto" data-product-search>
-                <span class="product-search__hint">Escribe el título del producto para listar sus unidades disponibles.</span>
+                <input type="text" class="product-search__input" placeholder="Buscar por nombre, código, IMEI, almacenamiento, RAM..." data-product-search>
+                <span class="product-search__hint">Escribe para buscar productos por cualquier atributo: nombre, código, IMEI, almacenamiento, RAM, color, etc.</span>
             </div>
             <div class="product-search__filters" data-product-filters>
                 <div class="product-search__filter">
@@ -6687,6 +6687,9 @@
 
         // Función para obtener cantidad actual en carrito por especificaciones (color no afecta agrupación)
         function getCurrentQuantityBySpecs(productId, storage, ram) {
+            if (!cartItems || cartItems.length === 0) {
+                return 0;
+            }
             var productKey = 'product_' + productId + '_' + storage + '_' + ram; // Sin color
             var existingItem = cartItems.find(function(item) {
                 return item.productKey === productKey;

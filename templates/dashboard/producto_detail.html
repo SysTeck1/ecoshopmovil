@@ -40,7 +40,7 @@
         {% if unidades_stock %}
             <div class="stock-gallery__grid">
                 {% for unidad in unidades_stock %}
-                    <article class="stock-card" data-unit-card="{{ unidad.index }}"
+                    <article class="stock-card {% if unidad.vendido %}stock-card--sold{% endif %}" data-unit-card="{{ unidad.index }}"
                         data-unit-imei="{{ unidad.imei|escape }}"
                         data-unit-color="{{ unidad.color|escape }}"
                         data-unit-storage="{{ unidad.almacenamiento|default:'' }}"
@@ -58,9 +58,16 @@
                         data-unit-tax-active="{{ unidad.impuesto_activo|yesno:'true,false' }}"
                     >
                         <div class="stock-card__status" aria-hidden="true">
-                            <span class="stock-card__badge" data-unit-condition-chip>
-                                {{ unidad.producto_condicion_label|default:"Sin especificar" }}
-                            </span>
+                            {% if unidad.vendido %}
+                                <span class="stock-card__badge stock-card__badge--sold">VENDIDO</span>
+                                {% if unidad.fecha_venta %}
+                                    <span class="stock-card__sold-date">{{ unidad.fecha_venta }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="stock-card__badge" data-unit-condition-chip>
+                                    {{ unidad.producto_condicion_label|default:"Sin especificar" }}
+                                </span>
+                            {% endif %}
                         </div>
                         <div class="stock-card__thumb" aria-hidden="true">
                             {% if producto_imagenes %}
@@ -130,29 +137,33 @@
                                 <li><span class="spec-icon">🧾</span> <span data-unit-tax>{{ unidad.impuesto_label|default:'Impuesto global' }}</span></li>
                             </ul>
                             <div class="stock-card__actions" aria-label="Acciones de la unidad">
-                                <button type="button"
-                                    class="stock-card__action stock-card__action--view"
-                                    data-open-unit-modal
-                                    data-unit-index="{{ unidad.index }}"
-                                >
-                                    Ver
-                                </button>
-                                <button type="button"
-                                    class="stock-card__action stock-card__action--edit"
-                                    data-open-edit-modal
-                                    data-unit-index="{{ unidad.index }}"
-                                >
-                                    Editar
-                                </button>
-                                {% if unidad.codigo_barras %}
-                                <button type="button"
-                                    class="stock-card__action stock-card__action--print"
-                                    data-print-label
-                                    data-unit-id="{{ unidad.id }}"
-                                    title="Imprimir etiqueta"
-                                >
-                                    🏷️
-                                </button>
+                                {% if not unidad.vendido %}
+                                    <button type="button"
+                                        class="stock-card__action stock-card__action--view"
+                                        data-open-unit-modal
+                                        data-unit-index="{{ unidad.index }}"
+                                    >
+                                        Ver
+                                    </button>
+                                    <button type="button"
+                                        class="stock-card__action stock-card__action--edit"
+                                        data-open-edit-modal
+                                        data-unit-index="{{ unidad.index }}"
+                                    >
+                                        Editar
+                                    </button>
+                                    {% if unidad.codigo_barras %}
+                                    <button type="button"
+                                        class="stock-card__action stock-card__action--print"
+                                        data-print-label
+                                        data-unit-id="{{ unidad.id }}"
+                                        title="Imprimir etiqueta"
+                                    >
+                                        🏷️
+                                    </button>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="stock-card__sold-notice">Unidad vendida - No disponible</span>
                                 {% endif %}
                             </div>
                         </div>
@@ -178,6 +189,12 @@
 
     .product-modal--tax .product-modal__dialog {
         max-width: 380px;
+        overflow-x: hidden;
+    }
+
+    .product-modal__dialog {
+        overflow-x: hidden;
+        max-width: 100%;
     }
 
     .product-modal--tax .product-modal__subtitle {
@@ -188,6 +205,19 @@
 
     .product-modal--tax .product-modal__form-field input {
         width: 100%;
+    }
+
+    .product-modal__form-field {
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .product-modal__form-field input,
+    .product-modal__form-field select,
+    .product-modal__form-field textarea {
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
     }
 
     .product-modal--tax-manager,
@@ -473,6 +503,52 @@
         transform: translateY(-1px);
     }
 
+    /* Sold unit styles */
+    .stock-card--sold {
+        opacity: 0.6;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 2px dashed #6c757d;
+    }
+
+    .stock-card--sold .stock-card__thumb {
+        filter: grayscale(100%);
+    }
+
+    .stock-card__badge--sold {
+        background: #dc3545;
+        color: white;
+        font-weight: 600;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        animation: pulse 2s infinite;
+    }
+
+    .stock-card__sold-date {
+        display: block;
+        font-size: 10px;
+        color: #6c757d;
+        margin-top: 2px;
+    }
+
+    .stock-card__sold-notice {
+        display: block;
+        text-align: center;
+        color: #6c757d;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 8px;
+        background: rgba(108, 117, 125, 0.1);
+        border-radius: 4px;
+    }
+
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.7; }
+        100% { opacity: 1; }
+    }
+
+    
     .product-modal {
         position: fixed;
         inset: 0;
@@ -831,8 +907,10 @@
     .product-modal__specs-grid {
         display: grid;
         gap: 16px;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         align-items: stretch;
+        max-width: 100%;
+        overflow: hidden;
     }
 
     @media (max-width: 768px) {
@@ -871,7 +949,10 @@
         box-shadow: none;
         transition: border-color 0.15s ease, box-shadow 0.15s ease;
         width: 100%;
+        max-width: 100%;
         box-sizing: border-box;
+        overflow: hidden;
+        min-width: 0;
     }
 
     .product-modal__spec-card:hover,
@@ -2371,22 +2452,29 @@
             if (
                 normalized.includes("nuevo") ||
                 normalized.includes("excelente") ||
-                normalized.includes("clase a") ||
                 normalized.includes("a+") ||
                 normalized.includes("a+")
             ) {
                 return "stock-card__badge--success";
             }
             if (
+                normalized.includes("clase a") ||
+                normalized.includes("CLASE A")
+            ) {
+                return "stock-card__badge--info";
+            }
+            if (
                 normalized.includes("usado") ||
                 normalized.includes("semi") ||
                 normalized.includes("clase b") ||
+                normalized.includes("CLASE B") ||
                 normalized.includes("b+")
             ) {
                 return "stock-card__badge--warning";
             }
             if (
                 normalized.includes("clase c") ||
+                normalized.includes("CLASE C") ||
                 normalized.includes("repar") ||
                 normalized.includes("dañ") ||
                 normalized.includes("averiado")
