@@ -5137,6 +5137,34 @@
                                             Incluir leyendas fiscales
                                         </label>
                                     </div>
+                                    
+                                    <div class="form-field">
+                                        <label>
+                                            <input type="checkbox" id="incluir-logo" checked>
+                                            Incluir logo de la empresa
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="form-field" id="logo-config">
+                                        <label>Tamaño del Logo</label>
+                                        <select id="tamano-logo">
+                                            <option value="small">Pequeño (20mm)</option>
+                                            <option value="medium" selected>Mediano (30mm)</option>
+                                            <option value="large">Grande (40mm)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-field" id="logo-position">
+                                        <label>Posición del Logo</label>
+                                        <select id="posicion-logo">
+                                            <option value="top-left" selected>Superior Izquierda</option>
+                                            <option value="top-center">Superior Centro</option>
+                                            <option value="top-right">Superior Derecha</option>
+                                            <option value="bottom-left">Inferior Izquierda</option>
+                                            <option value="bottom-center">Inferior Centro</option>
+                                            <option value="bottom-right">Inferior Derecha</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="modal-actions">
                                     <button type="button" class="btn btn-secondary" data-close-edit-factura>Cancelar</button>
@@ -5171,7 +5199,10 @@
                         secuenciaInicial: document.getElementById('secuencia-inicial').value,
                         infoAdicional: document.getElementById('info-adicional').value,
                         incluirITBIS: document.getElementById('incluir-ITBIS').checked,
-                        incluirLeyendas: document.getElementById('incluir-leyendas').checked
+                        incluirLeyendas: document.getElementById('incluir-leyendas').checked,
+                        incluirLogo: document.getElementById('incluir-logo').checked,
+                        tamanoLogo: document.getElementById('tamano-logo').value,
+                        posicionLogo: document.getElementById('posicion-logo').value
                     };
                     
                     // Save to localStorage
@@ -5180,6 +5211,20 @@
                     showToast('Configuración de factura guardada exitosamente', 'success');
                     modal.remove();
                 });
+                
+                // Toggle logo options
+                var incluirLogoCheckbox = document.getElementById('incluir-logo');
+                var logoConfig = document.getElementById('logo-config');
+                var logoPosition = document.getElementById('logo-position');
+                
+                function toggleLogoOptions() {
+                    var showLogo = incluirLogoCheckbox.checked;
+                    logoConfig.style.display = showLogo ? 'block' : 'none';
+                    logoPosition.style.display = showLogo ? 'block' : 'none';
+                }
+                
+                incluirLogoCheckbox.addEventListener('change', toggleLogoOptions);
+                toggleLogoOptions(); // Initialize state
                 
                 // Preview
                 modal.querySelector('[data-preview-factura]').addEventListener('click', function() {
