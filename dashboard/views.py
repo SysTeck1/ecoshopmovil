@@ -4221,21 +4221,24 @@ def delete_brand_api(request, brand_id: int):
 
 @require_POST
 def delete_model_api(request, model_id: int):
-    modelo = get_object_or_404(Modelo, pk=model_id)
-    
-    # Check if model is being used by any products
-    if Producto.objects.filter(modelo=modelo).exists():
-        return JsonResponse({"error": "No se puede eliminar el modelo porque está siendo utilizado por productos."}, status=400)
-    
-    model_name = modelo.nombre
-    modelo.delete()
-    
-    return JsonResponse(
-        {
+    try:
+        modelo = Modelo.objects.filter(pk=model_id).first()
+        if not modelo:
+            return JsonResponse({"success": False, "error": "El modelo seleccionado no existe."}, status=404)
+        
+        # Check if model is being used by any products
+        if Producto.objects.filter(modelo=modelo).exists():
+            return JsonResponse({"success": False, "error": "No se puede eliminar el modelo porque está siendo utilizado por productos."}, status=400)
+        
+        model_name = modelo.nombre
+        modelo.delete()
+        
+        return JsonResponse({
             "success": True,
             "message": f"Modelo '{model_name}' eliminado correctamente."
-        }
-    )
+        })
+    except Exception as e:
+        return JsonResponse({"success": False, "error": f"Error al eliminar el modelo: {str(e)}"}, status=500)
 
 
 @require_POST
