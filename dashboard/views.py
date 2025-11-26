@@ -4029,7 +4029,11 @@ def toggle_model_status_api(request, model_id: int):
 
 @require_POST
 def create_brand_api(request):
-    payload = _parse_json_body(request)
+    try:
+        payload = _parse_json_body(request)
+    except Exception as e:
+        return JsonResponse({"error": f"Error parsing JSON: {str(e)}"}, status=400)
+    
     if payload is None:
         return JsonResponse({"error": "Datos inválidos."}, status=400)
 
