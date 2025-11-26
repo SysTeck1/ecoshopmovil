@@ -13,12 +13,25 @@ from .models import (
     FiscalVoucherConfig,
     FiscalVoucher,
     FiscalVoucherLine,
+    TipoProducto,
 )
 
 @admin.register(Categoria)
 class CategoriaAdmin(admin.ModelAdmin):
-    list_display = ("codigo", "nombre", "created_at")
+    list_display = ("codigo", "nombre", "tipo_producto", "activo", "created_at")
+    list_filter = ("activo", "tipo_producto")
     search_fields = ("codigo", "nombre")
+    list_editable = ("activo",)
+    readonly_fields = ("codigo",)
+    fieldsets = (
+        (None, {
+            "fields": ("nombre", "tipo_producto", "activo")
+        }),
+        ("Información del Sistema", {
+            "fields": ("codigo", "created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
 
 
 @admin.register(Marca)
@@ -130,3 +143,22 @@ class FiscalVoucherAdmin(admin.ModelAdmin):
         "updated_at",
     )
     inlines = [FiscalVoucherLineInline]
+
+
+@admin.register(TipoProducto)
+class TipoProductoAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "slug", "icono", "activo", "created_at")
+    list_filter = ("activo", "icono")
+    search_fields = ("nombre", "slug")
+    list_editable = ("activo",)
+    readonly_fields = ("slug",)
+    prepopulated_fields = {"slug": ("nombre",)}
+    fieldsets = (
+        (None, {
+            "fields": ("nombre", "slug", "icono", "descripcion", "activo")
+        }),
+        ("Información del Sistema", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
