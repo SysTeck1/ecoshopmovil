@@ -5528,10 +5528,11 @@ def registrar_venta_api(request):
                     unidad.fecha_venta = timezone.now()
                     unidad.save()
                 
-                # NO reducir stock general para unidades específicas vendidas
-                # Las unidades marcadas como vendidas permanecen en el stock total
-                # para mantener historial y consistencia
-                updated = 1  # Simular actualización exitosa
+                # Reducir stock general para unidades específicas vendidas
+                # Mantener consistencia entre stock general y unidades vendidas
+                updated = Producto.objects.filter(pk=producto.pk, stock__gte=cantidad).update(
+                    stock=F("stock") - cantidad
+                )
             else:
                 # Si no se especifica unidad_index, comportamiento normal
                 updated = Producto.objects.filter(pk=producto.pk, stock__gte=cantidad).update(
