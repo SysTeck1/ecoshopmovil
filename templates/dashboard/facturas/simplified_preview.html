@@ -36,6 +36,14 @@
             height: auto;
         }
         
+        .logo-small img {
+            max-width: 50px;
+        }
+        
+        .logo-large img {
+            max-width: 150px;
+        }
+        
         .business-info {
             flex: 2;
             text-align: center;
@@ -152,9 +160,9 @@
 </head>
 <body>
     <div class="header">
-        <div class="logo-section">
+        <div class="logo-section{% if tamano_logo == 'small' %} logo-small{% elif tamano_logo == 'large' %} logo-large{% endif %}">
             {% if incluir_logo %}
-            <img src="{{ logo_url }}" alt="Logo" style="max-width: {% if tamano_logo == 'small' %}50px{% elif tamano_logo == 'large' %}150px{% else %}100px{% endif %};">
+            <img src="{{ logo_url }}" alt="Logo">
             {% endif %}
         </div>
         
