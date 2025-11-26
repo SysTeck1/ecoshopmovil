@@ -4152,7 +4152,9 @@ def edit_brand_api(request, brand_id: int):
 @require_POST
 def edit_model_api(request, model_id: int):
     try:
-        modelo = get_object_or_404(Modelo, pk=model_id)
+        modelo = Modelo.objects.filter(pk=model_id).first()
+        if not modelo:
+            return JsonResponse({"success": False, "error": "El modelo seleccionado no existe."}, status=404)
         
         nombre = request.POST.get('nombre', '').strip()
         if not nombre:
