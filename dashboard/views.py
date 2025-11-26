@@ -2570,9 +2570,12 @@ class ProductoDetailView(DashboardTemplateView):
         detalles_qs = producto.unidades_detalle.select_related("condicion").all()
         detalles_map = {detalle.unidad_index: detalle for detalle in detalles_qs}
 
+        # Usar el stock real del producto, no el máximo índice de detalles
         stock_total = max(producto.stock or 0, 0)
-        if detalles_map:
-            stock_total = max(stock_total, max(detalles_map.keys()))
+        
+        # Si no hay stock definido pero hay detalles, usar el máximo índice + 1
+        if stock_total == 0 and detalles_map:
+            stock_total = max(detalles_map.keys())
 
         raw_imeis = (producto.imei or "").replace("\r", "\n")
         imeis = [valor.strip() for valor in raw_imeis.replace(",", "\n").split("\n") if valor.strip()]
