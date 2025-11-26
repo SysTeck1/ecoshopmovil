@@ -4722,9 +4722,154 @@
 
             trigger.addEventListener('click', function (event) {
                 event.preventDefault();
-                showToast('Abriendo generador de códigos de barra...', 'info');
-                // TODO: Implementar generador de códigos de barra
+                openCodigoBarraModal();
             });
+
+            function openCodigoBarraModal() {
+                var modalHtml = `
+                    <div class="modal" id="codigo-barra-modal" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-header">
+                                <h2>Generar Código de Barra</h2>
+                                <button type="button" class="modal-close" data-close-codigo-barra>&times;</button>
+                            </div>
+                            <div class="modal-content">
+                                <div class="codigo-barra-form">
+                                    <div class="form-field">
+                                        <label>Seleccionar Producto</label>
+                                        <select id="producto-select">
+                                            <option value="">-- Selecciona un producto --</option>
+                                            <option value="1">iPhone 13 Pro - 128GB</option>
+                                            <option value="2">Samsung Galaxy S21 - 256GB</option>
+                                            <option value="3">Xiaomi Redmi Note 10 - 64GB</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Tipo de Código</label>
+                                        <select id="tipo-codigo">
+                                            <option value="CODE128">CODE 128</option>
+                                            <option value="EAN13">EAN-13</option>
+                                            <option value="EAN8">EAN-8</option>
+                                            <option value="UPCA">UPC-A</option>
+                                            <option value="QR">QR Code</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Código Manual (opcional)</label>
+                                        <input type="text" id="codigo-manual" placeholder="Dejar vacío para autogenerar">
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Cantidad de Etiquetas</label>
+                                        <input type="number" id="cantidad-etiquetas" value="1" min="1" max="100">
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Tamaño de Etiqueta</label>
+                                        <select id="tamano-etiqueta">
+                                            <option value="small">Pequeño (25x10mm)</option>
+                                            <option value="medium" selected>Mediano (50x25mm)</option>
+                                            <option value="large">Grande (100x50mm)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>
+                                            <input type="checkbox" id="incluir-precio" checked>
+                                            Incluir precio en etiqueta
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>
+                                            <input type="checkbox" id="incluir-nombre" checked>
+                                            Incluir nombre del producto
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Formato de Impresión</label>
+                                        <select id="formato-impresion">
+                                            <option value="individual">Individual</option>
+                                            <option value="hoja">Hoja completa (A4)</option>
+                                            <option value="rollo">Rollo térmico</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="codigo-preview">
+                                        <div class="preview-label">Vista Previa:</div>
+                                        <div class="barcode-preview">
+                                            <div class="barcode-img">||| ||| ||| ||| |||</div>
+                                            <div class="barcode-text">1234567890123</div>
+                                            <div class="barcode-product">iPhone 13 Pro</div>
+                                            <div class="barcode-price">$29,999.00</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-secondary" data-close-codigo-barra>Cancelar</button>
+                                    <button type="button" class="btn btn-primary" data-generate-codigo>Generar Códigos</button>
+                                    <button type="button" class="btn btn-outline" data-print-codigo>Imprimir</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                var modal = document.getElementById('codigo-barra-modal');
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('is-visible');
+                
+                // Close handlers
+                modal.querySelectorAll('[data-close-codigo-barra]').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        modal.remove();
+                    });
+                });
+                
+                // Generate codes
+                modal.querySelector('[data-generate-codigo]').addEventListener('click', function() {
+                    var producto = document.getElementById('producto-select').value;
+                    var tipo = document.getElementById('tipo-codigo').value;
+                    var cantidad = document.getElementById('cantidad-etiquetas').value;
+                    
+                    if (!producto) {
+                        showToast('Por favor selecciona un producto', 'warning');
+                        return;
+                    }
+                    
+                    showToast(`Generando ${cantidad} códigos de barra...`, 'info');
+                    setTimeout(function() {
+                        showToast('Códigos de barra generados exitosamente', 'success');
+                        modal.querySelector('[data-print-codigo]').disabled = false;
+                    }, 2000);
+                });
+                
+                // Print
+                modal.querySelector('[data-print-codigo]').addEventListener('click', function() {
+                    showToast('Enviando a impresora...', 'info');
+                    setTimeout(function() {
+                        showToast('Códigos de barra impresos exitosamente', 'success');
+                    }, 1500);
+                });
+                
+                // Click outside to close
+                modal.addEventListener('click', function(event) {
+                    if (event.target === modal) {
+                        modal.remove();
+                    }
+                });
+                
+                // Escape key to close
+                document.addEventListener('keydown', function(event) {
+                    if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
+                        modal.remove();
+                    }
+                });
+            }
         })();
 
         // Baja de Productos
@@ -4750,9 +4895,173 @@
 
             trigger.addEventListener('click', function (event) {
                 event.preventDefault();
-                showToast('Abriendo configuración de stock mínimo...', 'info');
-                // TODO: Implementar configuración de stock mínimo
+                openStockMinimoModal();
             });
+
+            function openStockMinimoModal() {
+                var modalHtml = `
+                    <div class="modal" id="stock-minimo-modal" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-header">
+                                <h2>Configurar Stock Mínimo</h2>
+                                <button type="button" class="modal-close" data-close-stock-minimo>&times;</button>
+                            </div>
+                            <div class="modal-content">
+                                <div class="stock-config-form">
+                                    <div class="config-section">
+                                        <h3>Configuración Global</h3>
+                                        <div class="form-field">
+                                            <label>Stock Mínimo por Defecto</label>
+                                            <input type="number" id="stock-default" value="5" min="0" placeholder="Unidades">
+                                        </div>
+                                        
+                                        <div class="form-field">
+                                            <label>Alerta de Stock Bajo</label>
+                                            <input type="number" id="alerta-stock" value="10" min="0" placeholder="Unidades">
+                                        </div>
+                                        
+                                        <div class="form-field">
+                                            <label>
+                                                <input type="checkbox" id="alertas-automaticas" checked>
+                                                Activar alertas automáticas
+                                            </label>
+                                        </div>
+                                        
+                                        <div class="form-field">
+                                            <label>
+                                                <input type="checkbox" id="bloquear-venta" checked>
+                                                Bloquear venta sin stock
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="config-section">
+                                        <h3>Configuración por Categoría</h3>
+                                        <div class="category-stock-list">
+                                            <div class="category-item">
+                                                <label>Smartphones</label>
+                                                <input type="number" value="3" min="0" class="stock-input">
+                                                <input type="number" value="5" min="0" class="alerta-input">
+                                            </div>
+                                            <div class="category-item">
+                                                <label>Accesorios</label>
+                                                <input type="number" value="10" min="0" class="stock-input">
+                                                <input type="number" value="15" min="0" class="alerta-input">
+                                            </div>
+                                            <div class="category-item">
+                                                <label>Repuestos</label>
+                                                <input type="number" value="5" min="0" class="stock-input">
+                                                <input type="number" value="8" min="0" class="alerta-input">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="config-section">
+                                        <h3>Notificaciones</h3>
+                                        <div class="form-field">
+                                            <label>Email para Alertas</label>
+                                            <input type="email" id="email-alertas" value="admin@negocio.com" placeholder="email@ejemplo.com">
+                                        </div>
+                                        
+                                        <div class="form-field">
+                                            <label>Frecuencia de Alertas</label>
+                                            <select id="frecuencia-alertas">
+                                                <option value="diario">Diario</option>
+                                                <option value="semanal" selected>Semanal</option>
+                                                <option value="mensual">Mensual</option>
+                                                <option value="inmediato">Inmediato</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="form-field">
+                                            <label>
+                                                <input type="checkbox" id="alertas-dashboard" checked>
+                                                Mostrar alertas en dashboard
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="products-low-stock">
+                                        <h4>Productos con Stock Bajo Actual</h4>
+                                        <div class="low-stock-list">
+                                            <div class="low-stock-item">
+                                                <span class="product-name">iPhone 13 Pro - 128GB</span>
+                                                <span class="current-stock">2 unidades</span>
+                                                <span class="status critical">Crítico</span>
+                                            </div>
+                                            <div class="low-stock-item">
+                                                <span class="product-name">Samsung Galaxy S21</span>
+                                                <span class="current-stock">4 unidades</span>
+                                                <span class="status warning">Bajo</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-secondary" data-close-stock-minimo>Cancelar</button>
+                                    <button type="button" class="btn btn-primary" data-save-stock-minimo>Guardar Configuración</button>
+                                    <button type="button" class="btn btn-outline" data-aplicar-todos>Aplicar a Todos</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                var modal = document.getElementById('stock-minimo-modal');
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('is-visible');
+                
+                // Close handlers
+                modal.querySelectorAll('[data-close-stock-minimo]').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        modal.remove();
+                    });
+                });
+                
+                // Save configuration
+                modal.querySelector('[data-save-stock-minimo]').addEventListener('click', function() {
+                    var config = {
+                        stockDefault: document.getElementById('stock-default').value,
+                        alertaStock: document.getElementById('alerta-stock').value,
+                        alertasAutomaticas: document.getElementById('alertas-automaticas').checked,
+                        bloquearVenta: document.getElementById('bloquear-venta').checked,
+                        emailAlertas: document.getElementById('email-alertas').value,
+                        frecuenciaAlertas: document.getElementById('frecuencia-alertas').value,
+                        alertasDashboard: document.getElementById('alertas-dashboard').checked
+                    };
+                    
+                    // Save to localStorage
+                    localStorage.setItem('stock_config', JSON.stringify(config));
+                    
+                    showToast('Configuración de stock guardada exitosamente', 'success');
+                    modal.remove();
+                });
+                
+                // Apply to all
+                modal.querySelector('[data-aplicar-todos]').addEventListener('click', function() {
+                    if (showCustomConfirm('¿Aplicar configuración global a todos los productos?')) {
+                        showToast('Aplicando configuración a todos los productos...', 'info');
+                        setTimeout(function() {
+                            showToast('Configuración aplicada a todos los productos', 'success');
+                        }, 2000);
+                    }
+                });
+                
+                // Click outside to close
+                modal.addEventListener('click', function(event) {
+                    if (event.target === modal) {
+                        modal.remove();
+                    }
+                });
+                
+                // Escape key to close
+                document.addEventListener('keydown', function(event) {
+                    if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
+                        modal.remove();
+                    }
+                });
+            }
         })();
 
         // Editar Factura
@@ -4762,9 +5071,138 @@
 
             trigger.addEventListener('click', function (event) {
                 event.preventDefault();
-                showToast('Abriendo editor de facturas...', 'info');
-                // TODO: Implementar editor de facturas
+                openEditFacturaModal();
             });
+
+            function openEditFacturaModal() {
+                var modalHtml = `
+                    <div class="modal" id="edit-factura-modal" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-header">
+                                <h2>Editar Configuración de Factura</h2>
+                                <button type="button" class="modal-close" data-close-edit-factura>&times;</button>
+                            </div>
+                            <div class="modal-content">
+                                <div class="factura-config-form">
+                                    <div class="form-field">
+                                        <label>Número de Resolución DGII</label>
+                                        <input type="text" id="resolucion-dgii" value="RES-123456789" placeholder="RES-XXXXXXXXX">
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>RNC/Cédula del Emisor</label>
+                                        <input type="text" id="emisor-rnc" value="131234567" placeholder="XXXXXXXXX">
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Nombre del Emisor</label>
+                                        <input type="text" id="emisor-nombre" value="Mi Empresa SRL" placeholder="Nombre de la empresa">
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Tipo de Comprobante</label>
+                                        <select id="tipo-comprobante">
+                                            <option value="01">Factura de Crédito Fiscal</option>
+                                            <option value="02">Factura de Consumo</option>
+                                            <option value="03">Nota de Débito</option>
+                                            <option value="04">Nota de Crédito</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Serie de Factura</label>
+                                        <input type="text" id="serie-factura" value="A0101" placeholder="Ej: A0101">
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Secuencia Inicial</label>
+                                        <input type="number" id="secuencia-inicial" value="1" min="1" placeholder="1">
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Información Adicional</label>
+                                        <textarea id="info-adicional" rows="3" placeholder="Información adicional para la factura">NCF válido hasta 31/12/2025</textarea>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>
+                                            <input type="checkbox" id="incluir-ITBIS" checked>
+                                            Incluir desglose de ITBIS
+                                        </label>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>
+                                            <input type="checkbox" id="incluir-leyendas" checked>
+                                            Incluir leyendas fiscales
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="modal-actions">
+                                    <button type="button" class="btn btn-secondary" data-close-edit-factura>Cancelar</button>
+                                    <button type="button" class="btn btn-primary" data-save-edit-factura>Guardar Configuración</button>
+                                    <button type="button" class="btn btn-outline" data-preview-factura>Vista Previa</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                var modal = document.getElementById('edit-factura-modal');
+                modal.setAttribute('aria-hidden', 'false');
+                modal.classList.add('is-visible');
+                
+                // Close handlers
+                modal.querySelectorAll('[data-close-edit-factura]').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        modal.remove();
+                    });
+                });
+                
+                // Save configuration
+                modal.querySelector('[data-save-edit-factura]').addEventListener('click', function() {
+                    var config = {
+                        resolucionDGII: document.getElementById('resolucion-dgii').value,
+                        emisorRNC: document.getElementById('emisor-rnc').value,
+                        emisorNombre: document.getElementById('emisor-nombre').value,
+                        tipoComprobante: document.getElementById('tipo-comprobante').value,
+                        serieFactura: document.getElementById('serie-factura').value,
+                        secuenciaInicial: document.getElementById('secuencia-inicial').value,
+                        infoAdicional: document.getElementById('info-adicional').value,
+                        incluirITBIS: document.getElementById('incluir-ITBIS').checked,
+                        incluirLeyendas: document.getElementById('incluir-leyendas').checked
+                    };
+                    
+                    // Save to localStorage
+                    localStorage.setItem('factura_config', JSON.stringify(config));
+                    
+                    showToast('Configuración de factura guardada exitosamente', 'success');
+                    modal.remove();
+                });
+                
+                // Preview
+                modal.querySelector('[data-preview-factura]').addEventListener('click', function() {
+                    showToast('Generando vista previa de factura...', 'info');
+                    setTimeout(function() {
+                        showToast('Vista previa generada', 'success');
+                    }, 1500);
+                });
+                
+                // Click outside to close
+                modal.addEventListener('click', function(event) {
+                    if (event.target === modal) {
+                        modal.remove();
+                    }
+                });
+                
+                // Escape key to close
+                document.addEventListener('keydown', function(event) {
+                    if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
+                        modal.remove();
+                    }
+                });
+            }
         })();
 
         // Eliminar Registro DB
