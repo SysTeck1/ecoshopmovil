@@ -3991,8 +3991,11 @@ def registrar_pago_tardio_credito_api(request):
 
 def _parse_json_body(request):
     try:
-        return json.loads(request.body or "{}")
-    except json.JSONDecodeError:
+        body = request.body
+        if not body:
+            return {}
+        return json.loads(body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
         return None
 
 
@@ -4030,11 +4033,19 @@ def toggle_model_status_api(request, model_id: int):
 @require_POST
 def create_brand_api(request):
     try:
-        payload = _parse_json_body(request)
+        # Check if it's form data or JSON
+        if request.content_type and 'application/json' in request.content_type:
+            payload = _parse_json_body(request)
+        else:
+            # Handle form data
+            payload = {
+                'nombre': request.POST.get('nombre', '').strip(),
+                'activo': request.POST.get('activo', 'true').lower() in ['true', '1', 'on']
+            }
     except Exception as e:
-        return JsonResponse({"error": f"Error parsing JSON: {str(e)}"}, status=400)
+        return JsonResponse({"error": f"Error parsing request: {str(e)}"}, status=400)
     
-    if payload is None:
+    if not payload:
         return JsonResponse({"error": "Datos inválidos."}, status=400)
 
     nombre = (payload.get("nombre") or "").strip()
