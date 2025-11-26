@@ -133,10 +133,10 @@
                     <th>Tipo</th>
                     <th>Categoría</th>
                     <th>Modelo</th>
-                    <th>Precio costo</th>
                     <th>Precio venta</th>
                     <th>Stock actual</th>
                     <th>Stock mínimo</th>
+                    <th>Total vendido</th>
                     <th>Estado</th>
                     <th class="actions-column">Acciones</th>
                 </tr>
@@ -166,10 +166,10 @@
                         </td>
                         <td>{{ producto.categoria.nombre|default:"Sin categoría" }}</td>
                         <td>{{ producto.modelo|default:"-" }}</td>
-                        <td>{{ producto.precio_compra|default:"0.00" }} RD$</td>
                         <td>{{ producto.precio_venta|default:"0.00" }} RD$</td>
                         <td>{{ producto.stock|default:"0" }}</td>
                         <td>{{ producto.stock_minimo|default:"0" }}</td>
+                        <td>{{ producto.total_vendido|default:"0" }}</td>
                         <td>
                             <span class="status-pill status-pill--{{ producto.activo|yesno:'activo,inactivo' }}">
                                 {{ producto.activo|yesno:'Activo,Inactivo' }}

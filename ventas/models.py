@@ -466,6 +466,12 @@ class Producto(TimeStampedModel):
                 urls.append(url)
         return urls
 
+    @property
+    def total_vendido(self):
+        """Calcula el total de unidades vendidas de este producto"""
+        from ventas.models import ProductoUnitDetail
+        return ProductoUnitDetail.objects.filter(producto=self, vendido=True).count()
+
 
 class ProductoUnitDetail(TimeStampedModel):
     """Información granular por unidad de inventario."""
