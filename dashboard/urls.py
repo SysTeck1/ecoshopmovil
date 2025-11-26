@@ -28,7 +28,7 @@ urlpatterns = [
         name="generate_barcode_labels_api",
     ),
     path(
-        "factura/preview/",
+        "facturas/vista-previa/",
         views.factura_preview_view,
         name="factura_preview",
     ),
