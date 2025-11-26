@@ -1391,6 +1391,12 @@ class DashboardTemplateView(LoginRequiredMixin, TemplateView):
     login_url = reverse_lazy("public:login")
     redirect_field_name = "next"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Agregar logo URL para templates
+        context["dashboard_logo_url"] = "/static/img/logo/logo.svg"
+        return context
+
 
 class DashboardHomeView(DashboardTemplateView):
     template_name = "dashboard/inicio.html"
