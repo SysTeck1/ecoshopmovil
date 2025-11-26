@@ -22,7 +22,7 @@ class CategoriaAdmin(admin.ModelAdmin):
     list_filter = ("activo", "tipo_producto")
     search_fields = ("codigo", "nombre")
     list_editable = ("activo",)
-    readonly_fields = ("codigo",)
+    readonly_fields = ("codigo", "created_at", "updated_at")
     fieldsets = (
         (None, {
             "fields": ("nombre", "tipo_producto", "activo")
