@@ -207,6 +207,11 @@ urlpatterns = [
         name="toggle_tipo_producto_api",
     ),
     path(
+        "inventario/tipo-producto/<int:pk>/delete/",
+        views.delete_tipo_producto_api,
+        name="delete_tipo_producto_api",
+    ),
+    path(
         "inventario/impuestos/crear/",
         views.create_tax_api,
         name="create_tax_api",

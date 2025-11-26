@@ -2215,6 +2215,43 @@ def toggle_tipo_producto_api(request, pk):
         })
 
 
+@require_POST
+@login_required
+def delete_tipo_producto_api(request, pk):
+    """API para eliminar un tipo de producto"""
+    from ventas.models import TipoProducto, Producto
+    from django.http import JsonResponse
+    
+    try:
+        tipo_producto = TipoProducto.objects.filter(pk=pk).first()
+        if not tipo_producto:
+            return JsonResponse({
+                'success': False,
+                'error': 'El tipo de producto no existe.'
+            }, status=404)
+        
+        # Check if it's being used by products
+        if Producto.objects.filter(tipo_producto=tipo_producto).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'No se puede eliminar el tipo de producto porque está siendo utilizado por productos.'
+            }, status=400)
+        
+        tipo_name = tipo_producto.nombre
+        tipo_producto.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Tipo de producto "{tipo_name}" eliminado correctamente.'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error al eliminar el tipo de producto: {str(e)}'
+        }, status=500)
+
+
 @login_required 
 def dynamic_inventory_create_view(request):
     """Vista para crear productos con formularios dinámicos según el tipo"""
