@@ -3,6 +3,7 @@ import logging
 from datetime import timedelta
 from django.http import HttpResponse
 from django.template.loader import render_to_string
+from django.utils import timezone
 
 from django.conf import settings
 from django.contrib import messages
@@ -5842,7 +5843,20 @@ def factura_preview_view(request):
         'total_itbis': 4069.00,
         'total_general': 35369.00,
         'forma_pago': 'Efectivo',
-        'logo_url': f"{settings.STATIC_URL}img/logo/logo.png" if settings.DEBUG else "/static/img/logo/logo.png"
+        'logo_url': f"{settings.STATIC_URL}img/logo/logo.png" if settings.DEBUG else "/static/img/logo/logo.png",
+        # Variables para opciones de formato
+        'include_watermark': request.GET.get('include_watermark', 'true').lower() == 'true',
+        'include_footer': request.GET.get('include_footer', 'true').lower() == 'true',
+        'simple_items': request.GET.get('simple_items', 'true').lower() == 'true',
+        'no_taxes': request.GET.get('no_taxes', 'false').lower() == 'true',
+        'compact_mode': request.GET.get('compact_mode', 'true').lower() == 'true',
+        'cut_line': request.GET.get('cut_line', 'false').lower() == 'true',
+        'include_images': request.GET.get('include_images', 'true').lower() == 'true',
+        'include_specs': request.GET.get('include_specs', 'true').lower() == 'true',
+        'letter_header': request.GET.get('letter_header', 'true').lower() == 'true',
+        'letter_watermark': request.GET.get('letter_watermark', 'false').lower() == 'true',
+        'a4_header': request.GET.get('a4_header', 'true').lower() == 'true',
+        'a4_footer': request.GET.get('a4_footer', 'true').lower() == 'true',
     }
     
     # Renderizar template HTML
