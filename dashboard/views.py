@@ -4043,14 +4043,14 @@ def create_brand_api(request):
                 'activo': request.POST.get('activo', 'true').lower() in ['true', '1', 'on']
             }
     except Exception as e:
-        return JsonResponse({"error": f"Error parsing request: {str(e)}"}, status=400)
+        return JsonResponse({"success": False, "error": f"Error parsing request: {str(e)}"}, status=400)
     
     if not payload:
-        return JsonResponse({"error": "Datos inválidos."}, status=400)
+        return JsonResponse({"success": False, "error": "Datos inválidos."}, status=400)
 
     nombre = (payload.get("nombre") or "").strip()
     if not nombre:
-        return JsonResponse({"error": "Debes indicar el nombre de la marca."}, status=400)
+        return JsonResponse({"success": False, "error": "Debes indicar el nombre de la marca."}, status=400)
 
     activo = bool(payload.get("activo", True))
 
@@ -4058,17 +4058,17 @@ def create_brand_api(request):
     try:
         brand.save()
     except IntegrityError:
-        return JsonResponse({"error": "Ya existe una marca con ese nombre."}, status=409)
+        return JsonResponse({"success": False, "error": "Ya existe una marca con ese nombre."}, status=409)
+    except Exception as e:
+        return JsonResponse({"success": False, "error": f"Error al guardar la marca: {str(e)}"}, status=500)
 
-    return JsonResponse(
-        {
-            "id": brand.pk,
-            "nombre": brand.nombre,
-            "activo": brand.activo,
-            "estado_display": "Activo" if brand.activo else "Inactivo",
-        },
-        status=201,
-    )
+    return JsonResponse({
+        "success": True,
+        "id": brand.pk,
+        "nombre": brand.nombre,
+        "activo": brand.activo,
+        "estado_display": "Activo" if brand.activo else "Inactivo",
+    }, status=201)
 
 
 @require_POST
