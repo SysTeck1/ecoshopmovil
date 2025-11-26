@@ -1,6 +1,8 @@
 import json
 import logging
 from datetime import timedelta
+from django.http import HttpResponse
+from django.template.loader import render_to_string
 
 from django.conf import settings
 from django.contrib import messages
@@ -5772,3 +5774,122 @@ def registrar_venta_api(request):
         }
 
     return JsonResponse(data)
+
+
+@login_required
+def factura_preview_view(request):
+    """
+    Vista previa de factura en PDF basada en la configuración
+    """
+    # Obtener parámetros de configuración
+    tipo = request.GET.get('tipo', '01')
+    formato = request.GET.get('formato', 'standard')
+    serie = request.GET.get('serie', 'A0101')
+    emisor = request.GET.get('emisor', 'Mi Empresa SRL')
+    rnc = request.GET.get('rnc', '131234567')
+    resolucion = request.GET.get('resolucion', 'RES-123456789')
+    incluir_itbis = request.GET.get('incluir_itbis', 'true').lower() == 'true'
+    incluir_leyendas = request.GET.get('incluir_leyendas', 'true').lower() == 'true'
+    incluir_logo = request.GET.get('incluir_logo', 'true').lower() == 'true'
+    tamano_logo = request.GET.get('tamano_logo', 'medium')
+    posicion_logo = request.GET.get('posicion_logo', 'top-left')
+    
+    # Datos de ejemplo para la vista previa
+    context = {
+        'tipo_comprobante': tipo,
+        'formato_factura': formato,
+        'serie_factura': serie,
+        'emisor_nombre': emisor,
+        'emisor_rnc': rnc,
+        'resolucion_dgii': resolucion,
+        'incluir_itbis': incluir_itbis,
+        'incluir_leyendas': incluir_leyendas,
+        'incluir_logo': incluir_logo,
+        'tamano_logo': tamano_logo,
+        'posicion_logo': posicion_logo,
+        'numero_factura': f'{serie}-000001',
+        'fecha': timezone.now().strftime('%d/%m/%Y'),
+        'cliente': {
+            'nombre': 'CLIENTE DEMO',
+            'rnc': '12345678901',
+            'direccion': 'Calle Principal #123, Santo Domingo',
+            'telefono': '809-555-1234'
+        },
+        'items': [
+            {
+                'descripcion': 'iPhone 13 Pro - 128GB - Azul',
+                'cantidad': 1,
+                'precio_unitario': 29999.00,
+                'itbis': 3900.00,
+                'total': 33899.00
+            },
+            {
+                'descripcion': 'Funda de Silicone - Rosa',
+                'cantidad': 2,
+                'precio_unitario': 500.00,
+                'itbis': 65.00,
+                'total': 1130.00
+            },
+            {
+                'descripcion': 'Protector de Pantalla - Templado',
+                'cantidad': 1,
+                'precio_unitario': 800.00,
+                'itbis': 104.00,
+                'total': 904.00
+            }
+        ],
+        'subtotal': 31300.00,
+        'total_itbis': 4069.00,
+        'total_general': 35369.00,
+        'forma_pago': 'Efectivo',
+        'logo_url': f"{settings.STATIC_URL}img/logo/logo.png" if settings.DEBUG else "/static/img/logo/logo.png"
+    }
+    
+    # Renderizar template HTML
+    if formato == 'thermal':
+        template_name = 'dashboard/facturas/thermal_preview.html'
+    elif formato == 'simplified':
+        template_name = 'dashboard/facturas/simplified_preview.html'
+    elif formato == 'detailed':
+        template_name = 'dashboard/facturas/detailed_preview.html'
+    elif formato == 'letter':
+        template_name = 'dashboard/facturas/letter_preview.html'
+    elif formato == 'a4':
+        template_name = 'dashboard/facturas/a4_preview.html'
+    else:
+        template_name = 'dashboard/facturas/standard_preview.html'
+    
+    # Para desarrollo, devolver HTML simple
+    if settings.DEBUG:
+        html_content = render_to_string(template_name, context, request)
+        return HttpResponse(html_content)
+    
+    # En producción, generar PDF (requiere instalación de weasyprint)
+    try:
+        from weasyprint import HTML, CSS
+        from django.templatetags.static import static
+        
+        html_content = render_to_string(template_name, context, request)
+        
+        # Configurar CSS según formato
+        css_files = []
+        if formato == 'thermal':
+            css_files.append(CSS(string='@page { size: 80mm 297mm; margin: 5mm; }'))
+        elif formato == 'letter':
+            css_files.append(CSS(string='@page { size: letter; margin: 15mm; }'))
+        elif formato == 'a4':
+            css_files.append(CSS(string='@page { size: A4; margin: 15mm; }'))
+        else:
+            css_files.append(CSS(string='@page { size: letter; margin: 15mm; }'))
+        
+        # Generar PDF
+        pdf = HTML(string=html_content).write_pdf(stylesheets=css_files)
+        
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = 'inline; filename="factura_preview.pdf"'
+        return response
+        
+    except ImportError:
+        # Si weasyprint no está instalado, devolver HTML
+        html_content = render_to_string(template_name, context, request)
+        return HttpResponse(html_content)

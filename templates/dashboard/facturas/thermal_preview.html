@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vista Previa de Factura - Térmico</title>
+    <style>
+        @page {
+            size: 80mm 297mm;
+            margin: 5mm;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            margin: 0;
+            padding: 10px;
+            background: white;
+            width: 70mm;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        .header h2 {
+            margin: 0;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .header p {
+            margin: 2px 0;
+            font-size: 8px;
+        }
+        
+        .comprobante-info {
+            text-align: center;
+            margin-bottom: 15px;
+            border: 1px solid #000;
+            padding: 5px;
+        }
+        
+        .comprobante-info h3 {
+            margin: 0;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .cliente-info {
+            margin-bottom: 10px;
+            font-size: 9px;
+        }
+        
+        .items {
+            margin-bottom: 10px;
+        }
+        
+        .item {
+            margin-bottom: 5px;
+            font-size: 9px;
+            border-bottom: 1px dashed #ccc;
+            padding-bottom: 3px;
+        }
+        
+        .item-desc {
+            font-weight: bold;
+        }
+        
+        .item-details {
+            font-size: 8px;
+            color: #666;
+        }
+        
+        .totales {
+            margin-bottom: 10px;
+            font-size: 9px;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+        }
+        
+        .total-line {
+            display: flex;
+            justify-content: space-between;
+            margin: 2px 0;
+        }
+        
+        .total-final {
+            font-weight: bold;
+            font-size: 10px;
+            border-top: 1px solid #000;
+            padding-top: 3px;
+            margin-top: 5px;
+        }
+        
+        .footer {
+            text-align: center;
+            font-size: 8px;
+            margin-top: 15px;
+        }
+        
+        .cut-line {
+            border-top: 1px dashed #000;
+            margin-top: 20px;
+            padding-top: 5px;
+            text-align: center;
+            font-size: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        {% if incluir_logo %}
+        <div style="text-align: center; margin-bottom: 5px;">
+            <img src="{{ logo_url }}" alt="Logo" style="max-width: 40px; height: auto;">
+        </div>
+        {% endif %}
+        <h2>{{ emisor_nombre }}</h2>
+        <p>RNC: {{ emisor_rnc }}</p>
+        <p>Tel: 809-555-1234</p>
+    </div>
+    
+    <div class="comprobante-info">
+        <h3>{% if tipo_comprobante == '01' %}FACTURA{% elif tipo_comprobante == '02' %}FACTURA CONS.{% else %}COMPROBANTE{% endif %}</h3>
+        <p><strong>NCF:</strong> {{ numero_factura }}</p>
+        <p><strong>Fecha:</strong> {{ fecha }}</p>
+    </div>
+    
+    <div class="cliente-info">
+        <p><strong>CLIENTE:</strong> {{ cliente.nombre }}</p>
+        <p><strong>RNC:</strong> {{ cliente.rnc }}</p>
+        {% if cliente.direccion %}<p>{{ cliente.direccion }}</p>{% endif %}
+    </div>
+    
+    <div class="items">
+        {% for item in items %}
+        <div class="item">
+            <div class="item-desc">{{ item.cantidad }}x {{ item.descripcion }}</div>
+            <div class="item-details">
+                {% if incluir_itbis %}Unit: ${{ item.precio_unitario|floatformat:2 }} | ITBIS: ${{ item.itbis|floatformat:2 }}{% endif %}
+            </div>
+            <div style="text-align: right; font-weight: bold;">
+                ${{ item.total|floatformat:2 }}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <div class="totales">
+        <div class="total-line">
+            <span>Subtotal:</span>
+            <span>${{ subtotal|floatformat:2 }}</span>
+        </div>
+        {% if incluir_itbis %}
+        <div class="total-line">
+            <span>ITBIS (18%):</span>
+            <span>${{ total_itbis|floatformat:2 }}</span>
+        </div>
+        {% endif %}
+        <div class="total-line total-final">
+            <span>TOTAL:</span>
+            <span>${{ total_general|floatformat:2 }}</span>
+        </div>
+        <div class="total-line">
+            <span>Pago:</span>
+            <span>{{ forma_pago }}</span>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Gracias por su compra</p>
+        {% if incluir_leyendas %}
+        <p>Res. DGII: {{ resolucion_dgii }}</p>
+        {% endif %}
+    </div>
+    
+    {% if cut_line %}
+    <div class="cut-line">
+        <p>- CORTE -</p>
+    </div>
+    {% endif %}
+    
+    <script>
+        window.onload = function() {
+            if (window.location.search.includes('print=true')) {
+                setTimeout(function() {
+                    window.print();
+                }, 200);
+            }
+        };
+    </script>
+</body>
+</html>

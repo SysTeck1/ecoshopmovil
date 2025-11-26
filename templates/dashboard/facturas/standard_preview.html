@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vista Previa de Factura</title>
+    <style>
+        @page {
+            size: letter;
+            margin: 15mm;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 12px;
+            margin: 0;
+            padding: 20px;
+            background: white;
+        }
+        
+        .factura-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+        }
+        
+        .logo-container {
+            flex: 1;
+            text-align: left;
+        }
+        
+        .logo-container img {
+            max-width: 120px;
+            height: auto;
+        }
+        
+        .empresa-info {
+            flex: 2;
+            text-align: center;
+        }
+        
+        .empresa-info h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .empresa-info p {
+            margin: 5px 0;
+            font-size: 11px;
+        }
+        
+        .comprobante-info {
+            flex: 1;
+            text-align: right;
+        }
+        
+        .comprobante-info h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .comprobante-info p {
+            margin: 5px 0;
+            font-size: 11px;
+        }
+        
+        .cliente-info {
+            margin-bottom: 20px;
+        }
+        
+        .cliente-info h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+        
+        .cliente-info p {
+            margin: 3px 0;
+            font-size: 11px;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        .items-table th {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        
+        .items-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            font-size: 11px;
+        }
+        
+        .items-table .text-right {
+            text-align: right;
+        }
+        
+        .totales {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+        
+        .totales p {
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        
+        .totales .total-general {
+            font-weight: bold;
+            font-size: 14px;
+            border-top: 2px solid #333;
+            padding-top: 5px;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            border-top: 1px solid #ccc;
+            padding-top: 15px;
+            font-size: 10px;
+            text-align: center;
+        }
+        
+        .leyendas {
+            margin-top: 10px;
+            font-size: 9px;
+            text-align: center;
+            color: #666;
+        }
+        
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 72px;
+            color: rgba(0, 0, 0, 0.1);
+            z-index: -1;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    {% if include_watermark %}
+    <div class="watermark">DOCUMENTO NO VALIDO</div>
+    {% endif %}
+    
+    <div class="factura-header">
+        <div class="logo-container">
+            {% if incluir_logo %}
+            <img src="{{ logo_url }}" alt="Logo" style="max-width: {% if tamano_logo == 'small' %}60px{% elif tamano_logo == 'large' %}180px{% else %}120px{% endif %};">
+            {% endif %}
+        </div>
+        
+        <div class="empresa-info">
+            <h2>{{ emisor_nombre }}</h2>
+            <p>RNC: {{ emisor_rnc }}</p>
+            <p>Resolución DGII: {{ resolucion_dgii }}</p>
+            <p>Tel: 809-555-1234 | Email: info@empresa.com</p>
+        </div>
+        
+        <div class="comprobante-info">
+            <h3>{% if tipo_comprobante == '01' %}FACTURA DE CRÉDITO FISCAL{% elif tipo_comprobante == '02' %}FACTURA DE CONSUMO{% elif tipo_comprobante == '03' %}NOTA DE DÉBITO{% elif tipo_comprobante == '04' %}NOTA DE CRÉDITO{% else %}COMPROBANTE FISCAL{% endif %}</h3>
+            <p><strong>NCF:</strong> {{ numero_factura }}</p>
+            <p><strong>Fecha:</strong> {{ fecha }}</p>
+            <p><strong>Serie:</strong> {{ serie_factura }}</p>
+        </div>
+    </div>
+    
+    <div class="cliente-info">
+        <h4>Información del Cliente</h4>
+        <p><strong>Nombre:</strong> {{ cliente.nombre }}</p>
+        <p><strong>RNC/Cédula:</strong> {{ cliente.rnc }}</p>
+        <p><strong>Dirección:</strong> {{ cliente.direccion }}</p>
+        <p><strong>Teléfono:</strong> {{ cliente.telefono }}</p>
+    </div>
+    
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th>Cant.</th>
+                <th>Descripción</th>
+                <th class="text-right">Precio Unit.</th>
+                {% if incluir_itbis %}<th class="text-right">ITBIS</th>{% endif %}
+                <th class="text-right">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.cantidad }}</td>
+                <td>{{ item.descripcion }}</td>
+                <td class="text-right">${{ item.precio_unitario|floatformat:2 }}</td>
+                {% if incluir_itbis %}<td class="text-right">${{ item.itbis|floatformat:2 }}</td>{% endif %}
+                <td class="text-right">${{ item.total|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="totales">
+        <p><strong>Subtotal:</strong> ${{ subtotal|floatformat:2 }}</p>
+        {% if incluir_itbis %}<p><strong>ITBIS (18%):</strong> ${{ total_itbis|floatformat:2 }}</p>{% endif %}
+        <p class="total-general"><strong>Total General:</strong> ${{ total_general|floatformat:2 }}</p>
+        <p><strong>Forma de Pago:</strong> {{ forma_pago }}</p>
+    </div>
+    
+    {% if include_footer %}
+    <div class="footer">
+        <p><strong>Original:</strong> Cliente | <strong>Copia:</strong> Vendedor</p>
+        <p>Gracias por su preferencia</p>
+    </div>
+    {% endif %}
+    
+    {% if incluir_leyendas %}
+    <div class="leyendas">
+        <p>"La reproducción total o parcial de este documento sin autorización de la DGII constituye un delito"</p>
+        <p>"Este comprobante es válido para fines fiscales"</p>
+        <p>"Autorizado por la Dirección General de Impuestos Internos mediante Resolución {{ resolucion_dgii }}"</p>
+    </div>
+    {% endif %}
+    
+    <script>
+        // Auto-print functionality
+        window.onload = function() {
+            if (window.location.search.includes('print=true')) {
+                setTimeout(function() {
+                    window.print();
+                }, 500);
+            }
+        };
+    </script>
+</body>
+</html>

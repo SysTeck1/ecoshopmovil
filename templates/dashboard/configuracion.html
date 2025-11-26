@@ -5377,10 +5377,45 @@
                 
                 // Preview
                 modal.querySelector('[data-preview-factura]').addEventListener('click', function() {
+                    var config = {
+                        resolucionDGII: document.getElementById('resolucion-dgii').value,
+                        emisorRNC: document.getElementById('emisor-rnc').value,
+                        emisorNombre: document.getElementById('emisor-nombre').value,
+                        tipoComprobante: document.getElementById('tipo-comprobante').value,
+                        formatoFactura: document.getElementById('formato-factura').value,
+                        serieFactura: document.getElementById('serie-factura').value,
+                        secuenciaInicial: document.getElementById('secuencia-inicial').value,
+                        infoAdicional: document.getElementById('info-adicional').value,
+                        incluirITBIS: document.getElementById('incluir-ITBIS').checked,
+                        incluirLeyendas: document.getElementById('incluir-leyendas').checked,
+                        incluirLogo: document.getElementById('incluir-logo').checked,
+                        tamanoLogo: document.getElementById('tamano-logo').value,
+                        posicionLogo: document.getElementById('posicion-logo').value
+                    };
+                    
                     showToast('Generando vista previa de factura...', 'info');
+                    
+                    // Abrir visor PDF en nueva ventana
                     setTimeout(function() {
-                        showToast('Vista previa generada', 'success');
-                    }, 1500);
+                        var pdfUrl = '/app/factura/preview/?' + new URLSearchParams({
+                            tipo: config.tipoComprobante,
+                            formato: config.formatoFactura,
+                            serie: config.serieFactura,
+                            emisor: config.emisorNombre,
+                            rnc: config.emisorRNC,
+                            resolucion: config.resolucionDGII,
+                            incluir_itbis: config.incluirITBIS,
+                            incluir_leyendas: config.incluirLeyendas,
+                            incluir_logo: config.incluirLogo,
+                            tamano_logo: config.tamanoLogo,
+                            posicion_logo: config.posicionLogo,
+                            preview: 'true'
+                        }).toString();
+                        
+                        // Abrir en nueva ventana para vista previa e impresión
+                        window.open(pdfUrl, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
+                        showToast('Vista previa abierta en nueva ventana', 'success');
+                    }, 1000);
                 });
                 
                 // Click outside to close
