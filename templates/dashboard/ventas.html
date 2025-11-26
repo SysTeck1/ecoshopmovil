@@ -393,11 +393,12 @@
                                 <th>Hora</th>
                                 <th>Cajero</th>
                                 <th>Medio de pago</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody data-sales-table-body>
                             <tr>
-                                <td colspan="10" class="sales-history__empty">Selecciona un rango o busca por nombre/documento.</td>
+                                <td colspan="11" class="sales-history__empty">Selecciona un rango o busca por nombre/documento.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -3378,7 +3379,7 @@
                 return;
             }
             if (!Array.isArray(data) || !data.length) {
-                salesTableBody.innerHTML = '<tr><td colspan="10" class="sales-history__empty">No se encontraron ventas para los filtros seleccionados.</td></tr>';
+                salesTableBody.innerHTML = '<tr><td colspan="11" class="sales-history__empty">No se encontraron ventas para los filtros seleccionados.</td></tr>';
                 return;
             }
 
@@ -3400,6 +3401,16 @@
                     '<td>' + (sale.hora || '-') + '</td>',
                     '<td>' + (sale.cajero || '-') + '</td>',
                     '<td>' + (sale.metodo_pago || '-') + '</td>',
+                    '<td>',
+                    '    <div class="sales-history__table-actions">',
+                    '        <button type="button" class="btn btn-outline btn-icon btn-icon--sm" data-download-invoice data-sale-id="' + sale.id + '" title="Descargar factura">',
+                    '            <span class="icon">📄</span>',
+                    '        </button>',
+                    '        <button type="button" class="btn btn-outline btn-icon btn-icon--sm" data-download-ticket data-sale-id="' + sale.id + '" title="Descargar ticket">',
+                    '            <span class="icon">🎫</span>',
+                    '        </button>',
+                    '    </div>',
+                    '</td>',
                     '</tr>'
                 ].join('');
             });
@@ -6258,6 +6269,17 @@
                             '           <div class="sales-history__totals-item"><span class="sales-history__totals-label">Abonado</span><span class="sales-history__totals-value">' + abonadoDisplay + '</span></div>',
                             '           <div class="sales-history__totals-item"><span class="sales-history__totals-label">Saldo pendiente</span><span class="sales-history__totals-value">' + saldoDisplay + '</span></div>',
                             '       </div>',
+                            '       <div class="sales-history__actions">',
+                            '           <div class="sales-history__actions-title">Descargar documentos</div>',
+                            '           <div class="sales-history__actions-buttons">',
+                            '               <button type="button" class="btn btn-outline btn-icon btn-icon--sm" data-download-invoice data-sale-id="' + sale.id + '" title="Descargar factura">',
+                            '                   <span class="icon">📄</span> Factura',
+                            '               </button>',
+                            '               <button type="button" class="btn btn-outline btn-icon btn-icon--sm" data-download-ticket data-sale-id="' + sale.id + '" title="Descargar ticket">',
+                            '                   <span class="icon">🎫</span> Ticket',
+                            '               </button>',
+                            '           </div>',
+                            '       </div>',
                             '   </div>',
                             '</article>'
                         );
@@ -6695,6 +6717,175 @@
                 return item.productKey === productKey;
             });
             return existingItem ? existingItem.quantity : 0;
+        }
+
+        // Funciones para descargar documentos de ventas
+        function bindDownloadButtons() {
+            // Botones de descarga en la tabla
+            document.querySelectorAll('[data-download-invoice]').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    var saleId = this.getAttribute('data-sale-id');
+                    downloadInvoice(saleId);
+                });
+            });
+
+            document.querySelectorAll('[data-download-ticket]').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    var saleId = this.getAttribute('data-sale-id');
+                    downloadTicket(saleId);
+                });
+            });
+        }
+
+        function downloadInvoice(saleId) {
+            var url = '/app/ventas/' + saleId + '/factura/';
+            window.open(url, '_blank');
+        }
+
+        function downloadTicket(saleId) {
+            var url = '/app/ventas/' + saleId + '/ticket/';
+            window.open(url, '_blank');
+        }
+
+        // Llamar a bindDownloadButtons después de renderizar las ventas
+        function renderSalesResults(data) {
+            var orderedResults = sortSalesData(data);
+
+            if (salesResultsContainer) {
+                if (!orderedResults.length) {
+                    salesResultsContainer.innerHTML = '<div class="sales-history__empty">No se encontraron ventas para los filtros seleccionados.</div>';
+                } else {
+                    var metaList = orderedResults.map(function (sale) {
+                        var subtotalDisplay = sale.subtotal || (typeof sale.subtotal_num === 'number' ? formatCurrency(sale.subtotal_num) : '-');
+                        var taxDisplay = sale.impuestos || (typeof sale.impuestos_num === 'number' ? formatCurrency(sale.impuestos_num) : '-');
+                        var totalDisplay = sale.total || (typeof sale.total_num === 'number' ? formatCurrency(sale.total_num) : '-');
+                        var abonadoDisplay = sale.total_abonado || (typeof sale.total_abonado_num === 'number' ? formatCurrency(sale.total_abonado_num) : '-');
+                        var saldoDisplay = sale.saldo_pendiente || (typeof sale.saldo_pendiente_num === 'number' ? formatCurrency(sale.saldo_pendiente_num) : '-');
+                        var fechaDisplay = sale.fecha_formateada || [sale.fecha, sale.hora].filter(Boolean).join(' ');
+
+                        var detallesList = (sale.detalles || []).map(function (detalle) {
+                            var parts = [];
+                            if (detalle.producto) {
+                                parts.push(detalle.producto);
+                            }
+                            if (detalle.cantidad != null) {
+                                parts.push('x ' + detalle.cantidad);
+                            }
+                            var lineSubtotal = detalle.subtotal_formatted || (typeof detalle.subtotal === 'number' ? formatCurrency(detalle.subtotal) : '');
+                            var lineTax = detalle.impuesto_formatted || (typeof detalle.impuesto === 'number' ? formatCurrency(detalle.impuesto) : '');
+                            var lineTotal = detalle.total_formatted || (typeof detalle.total === 'number' ? formatCurrency(detalle.total) : '');
+                            var extras = [];
+                            if (lineSubtotal) {
+                                extras.push('Subtotal ' + lineSubtotal);
+                            }
+                            if (lineTax && lineTax !== 'RD$ 0.00') {
+                                extras.push('ITBIS ' + lineTax);
+                            }
+                            if (lineTotal) {
+                                extras.push('Total ' + lineTotal);
+                            }
+                            if (extras.length) {
+                                parts.push(extras.join(' • '));
+                            }
+                            return '<li>' + parts.join(' • ') + '</li>';
+                        }).join('');
+
+                        var badge = '<span class="sales-history__badge">' + (sale.factura || '-') + '</span>';
+                        var creditBadge = '';
+                        if (sale.es_credito) {
+                            if (sale.progreso_cuotas) {
+                                creditBadge = '<span class="sales-history__badge sales-history__badge--credit">Crédito ' + sale.progreso_cuotas + '</span>';
+                            } else {
+                                creditBadge = '<span class="sales-history__badge sales-history__badge--credit">Crédito</span>';
+                            }
+                        }
+
+                        var bodyParts = [
+                            '<article class="sales-history__item" data-sale-accordion>',
+                            '   <button class="sales-history__accordion-trigger" type="button" data-sale-accordion-toggle>',
+                            '       <div class="sales-history__summary">',
+                            '           <div class="sales-history__summary-row">',
+                            '               <div class="sales-history__summary-main">' + badge + creditBadge + '<strong>' + (sale.cliente_nombre || '-') + '</strong></div>',
+                            '               <div class="sales-history__summary-extra">',
+                            '                   <span>' + (sale.metodo_pago || '-') + '</span>',
+                            '               </div>',
+                            '           </div>',
+                            '           <div class="sales-history__summary-date">' + (fechaDisplay || '-') + '</div>',
+                            '       </div>',
+                            '       <span class="sales-history__trigger-icon" aria-hidden="true">▾</span>',
+                            '   </button>',
+                            '   <div class="sales-history__body" data-sale-accordion-body>',
+                            '       <div class="sales-history__meta-grid">',
+                            '           <div class="sales-history__meta-item"><span class="sales-history__meta-label">Documento</span><span class="sales-history__meta-value">' + (sale.cliente_documento || '-') + '</span></div>',
+                            '           <div class="sales-history__meta-item"><span class="sales-history__meta-label">Cajero</span><span class="sales-history__meta-value">' + (sale.cajero || '-') + '</span></div>'
+                        ];
+
+                        if (sale.vendedor) {
+                            bodyParts.push(
+                                '           <div class="sales-history__meta-item"><span class="sales-history__meta-label">Vendedor</span><span class="sales-history__meta-value">' + sale.vendedor + '</span></div>'
+                            );
+                        }
+
+                        bodyParts.push(
+                            '           <div class="sales-history__meta-item"><span class="sales-history__meta-label">Estado</span><span class="sales-history__meta-value">' + (sale.estado || '-') + '</span></div>'
+                        );
+
+                        // Agregar información de cuotas si es venta a crédito
+                        if (sale.es_credito && sale.progreso_cuotas) {
+                            bodyParts.push(
+                                '           <div class="sales-history__meta-item"><span class="sales-history__meta-label">Progreso cuotas</span><span class="sales-history__meta-value">' + sale.progreso_cuotas + '</span></div>'
+                            );
+                        }
+                        if (sale.es_credito && sale.frecuencia_display) {
+                            bodyParts.push(
+                                '           <div class="sales-history__meta-item"><span class="sales-history__meta-label">Frecuencia</span><span class="sales-history__meta-value">' + sale.frecuencia_display + '</span></div>'
+                            );
+                        }
+
+                        bodyParts.push('       </div>');
+
+                        if (detallesList) {
+                            bodyParts.push(
+                                '       <div class="sales-history__details-wrapper">',
+                                '           <strong>Productos</strong>',
+                                '           <ul class="sales-history__details">' + detallesList + '</ul>',
+                                '       </div>'
+                            );
+                        }
+
+                        bodyParts.push(
+                            '       <div class="sales-history__totals">',
+                            '           <div class="sales-history__totals-item"><span class="sales-history__totals-label">Subtotal</span><span class="sales-history__totals-value">' + subtotalDisplay + '</span></div>',
+                            '           <div class="sales-history__totals-item"><span class="sales-history__totals-label">ITBIS</span><span class="sales-history__totals-value">' + taxDisplay + '</span></div>',
+                            '           <div class="sales-history__totals-item"><span class="sales-history__totals-label">Total</span><span class="sales-history__totals-value">' + totalDisplay + '</span></div>',
+                            '           <div class="sales-history__totals-item"><span class="sales-history__totals-label">Abonado</span><span class="sales-history__totals-value">' + abonadoDisplay + '</span></div>',
+                            '           <div class="sales-history__totals-item"><span class="sales-history__totals-label">Saldo pendiente</span><span class="sales-history__totals-value">' + saldoDisplay + '</span></div>',
+                            '       </div>',
+                            '       <div class="sales-history__actions">',
+                            '           <div class="sales-history__actions-title">Descargar documentos</div>',
+                            '           <div class="sales-history__actions-buttons">',
+                            '               <button type="button" class="btn btn-outline btn-icon btn-icon--sm" data-download-invoice data-sale-id="' + sale.id + '" title="Descargar factura">',
+                            '                   <span class="icon">📄</span> Factura',
+                            '               </button>',
+                            '               <button type="button" class="btn btn-outline btn-icon btn-icon--sm" data-download-ticket data-sale-id="' + sale.id + '" title="Descargar ticket">',
+                            '                   <span class="icon">🎫</span> Ticket',
+                            '               </button>',
+                            '           </div>',
+                            '       </div>',
+                            '   </div>',
+                            '</article>'
+                        );
+
+                        return bodyParts.join('');
+                    });
+
+                    salesResultsContainer.innerHTML = '<div class="sales-history__list">' + metaList.join('') + '</div>';
+                }
+            }
+
+            renderSaleTableRows(orderedResults);
+            bindSalesAccordions();
+            bindDownloadButtons(); // Bind download buttons after rendering
         }
     </script>
 {% endblock %}
