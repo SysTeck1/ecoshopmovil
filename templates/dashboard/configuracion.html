@@ -5106,7 +5106,114 @@
                                             <option value="02">Factura de Consumo</option>
                                             <option value="03">Nota de Débito</option>
                                             <option value="04">Nota de Crédito</option>
+                                            <option value="11">Factura de Proveedor</option>
+                                            <option value="12">Comprobante de Gasto Menor</option>
                                         </select>
+                                    </div>
+                                    
+                                    <div class="form-field">
+                                        <label>Formato de Factura</label>
+                                        <select id="formato-factura">
+                                            <option value="standard" selected>Estándar DGII</option>
+                                            <option value="simplified">Simplificado</option>
+                                            <option value="detailed">Detallado</option>
+                                            <option value="thermal">Térmico (80mm)</option>
+                                            <option value="letter">Carta (Letter)</option>
+                                            <option value="a4">A4</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-field" id="formato-config">
+                                        <label>Configuración Adicional</label>
+                                        <div id="standard-options" class="formato-options">
+                                            <div class="option-item">
+                                                <label>
+                                                    <input type="checkbox" id="include-watermark" checked>
+                                                    Marca de agua
+                                                </label>
+                                            </div>
+                                            <div class="option-item">
+                                                <label>
+                                                    <input type="checkbox" id="include-footer" checked>
+                                                    Pie de página completo
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="simplified-options" class="formato-options" style="display: none;">
+                                            <div class="option-item">
+                                                <label>
+                                                    <input type="checkbox" id="simple-items" checked>
+                                                    Items simplificados
+                                                </label>
+                                            </div>
+                                            <div class="option-item">
+                                                <label>
+                                                    <input type="checkbox" id="no-taxes">
+                                                    Sin desglose de impuestos
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="thermal-options" class="formato-options" style="display: none;">
+                                            <div class="option-item">
+                                                <label>
+                                                    <input type="checkbox" id="compact-mode" checked>
+                                                    Modo compacto
+                                                </label>
+                                            </div>
+                                            <div class="option-item">
+                                                <label>
+                                                    <input type="checkbox" id="cut-line">
+                                                    Línea de corte
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="detailed-options" class="formato-options" style="display: none;">
+                                            <div class="option-item">
+                                                <label>
+                                                    <input type="checkbox" id="include-images" checked>
+                                                    Incluir imágenes de productos
+                                                </label>
+                                            </div>
+                                            <div class="option-item">
+                                                <label>
+                                                    <input type="checkbox" id="include-specs" checked>
+                                                    Especificaciones técnicas
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="letter-options" class="formato-options" style="display: none;">
+                                            <div class="option-item">
+                                                <label>
+                                                    <input type="checkbox" id="letter-header" checked>
+                                                    Encabezado completo
+                                                </label>
+                                            </div>
+                                            <div class="option-item">
+                                                <label>
+                                                    <input type="checkbox" id="letter-watermark">
+                                                    Marca de agua sutil
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="a4-options" class="formato-options" style="display: none;">
+                                            <div class="option-item">
+                                                <label>
+                                                    <input type="checkbox" id="a4-header" checked>
+                                                    Encabezado corporativo
+                                                </label>
+                                            </div>
+                                            <div class="option-item">
+                                                <label>
+                                                    <input type="checkbox" id="a4-footer" checked>
+                                                    Pie de página extendido
+                                                </label>
+                                            </div>
+                                        </div>
                                     </div>
                                     
                                     <div class="form-field">
@@ -5195,6 +5302,7 @@
                         emisorRNC: document.getElementById('emisor-rnc').value,
                         emisorNombre: document.getElementById('emisor-nombre').value,
                         tipoComprobante: document.getElementById('tipo-comprobante').value,
+                        formatoFactura: document.getElementById('formato-factura').value,
                         serieFactura: document.getElementById('serie-factura').value,
                         secuenciaInicial: document.getElementById('secuencia-inicial').value,
                         infoAdicional: document.getElementById('info-adicional').value,
@@ -5202,7 +5310,20 @@
                         incluirLeyendas: document.getElementById('incluir-leyendas').checked,
                         incluirLogo: document.getElementById('incluir-logo').checked,
                         tamanoLogo: document.getElementById('tamano-logo').value,
-                        posicionLogo: document.getElementById('posicion-logo').value
+                        posicionLogo: document.getElementById('posicion-logo').value,
+                        // Opciones de formato
+                        includeWatermark: document.getElementById('include-watermark')?.checked || false,
+                        includeFooter: document.getElementById('include-footer')?.checked || false,
+                        simpleItems: document.getElementById('simple-items')?.checked || false,
+                        noTaxes: document.getElementById('no-taxes')?.checked || false,
+                        compactMode: document.getElementById('compact-mode')?.checked || false,
+                        cutLine: document.getElementById('cut-line')?.checked || false,
+                        includeImages: document.getElementById('include-images')?.checked || false,
+                        includeSpecs: document.getElementById('include-specs')?.checked || false,
+                        letterHeader: document.getElementById('letter-header')?.checked || false,
+                        letterWatermark: document.getElementById('letter-watermark')?.checked || false,
+                        a4Header: document.getElementById('a4-header')?.checked || false,
+                        a4Footer: document.getElementById('a4-footer')?.checked || false
                     };
                     
                     // Save to localStorage
@@ -5225,6 +5346,34 @@
                 
                 incluirLogoCheckbox.addEventListener('change', toggleLogoOptions);
                 toggleLogoOptions(); // Initialize state
+                
+                // Toggle formato options
+                var formatoSelect = document.getElementById('formato-factura');
+                var formatoOptions = {
+                    'standard': document.getElementById('standard-options'),
+                    'simplified': document.getElementById('simplified-options'),
+                    'thermal': document.getElementById('thermal-options'),
+                    'detailed': document.getElementById('detailed-options'),
+                    'letter': document.getElementById('letter-options'),
+                    'a4': document.getElementById('a4-options')
+                };
+                
+                function toggleFormatoOptions() {
+                    var selectedFormato = formatoSelect.value;
+                    
+                    // Hide all options
+                    Object.values(formatoOptions).forEach(function(options) {
+                        if (options) options.style.display = 'none';
+                    });
+                    
+                    // Show selected options
+                    if (formatoOptions[selectedFormato]) {
+                        formatoOptions[selectedFormato].style.display = 'block';
+                    }
+                }
+                
+                formatoSelect.addEventListener('change', toggleFormatoOptions);
+                toggleFormatoOptions(); // Initialize state
                 
                 // Preview
                 modal.querySelector('[data-preview-factura]').addEventListener('click', function() {
