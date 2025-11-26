@@ -151,7 +151,7 @@ class TipoProductoAdmin(admin.ModelAdmin):
     list_filter = ("activo", "icono")
     search_fields = ("nombre", "slug")
     list_editable = ("activo",)
-    readonly_fields = ("slug",)
+    readonly_fields = ("created_at", "updated_at")
     prepopulated_fields = {"slug": ("nombre",)}
     fieldsets = (
         (None, {
