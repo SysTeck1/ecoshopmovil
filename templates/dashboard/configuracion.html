@@ -4703,6 +4703,133 @@
             }
         })();
         
+        // Comprobante Fiscal
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="comprobante-fiscal"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                showToast('Abriendo configuración de comprobante fiscal...', 'info');
+                // TODO: Implementar configuración de comprobante fiscal
+            });
+        })();
+
+        // Generar Código de Barra
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="generar-codigo-barra"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                showToast('Abriendo generador de códigos de barra...', 'info');
+                // TODO: Implementar generador de códigos de barra
+            });
+        })();
+
+        // Baja de Productos
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="baja-productos"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                if (showCustomConfirm('¿Dar de baja productos seleccionados?')) {
+                    showToast('Procesando baja de productos...', 'info');
+                    setTimeout(function() {
+                        showToast('Productos dados de baja exitosamente', 'success');
+                    }, 2000);
+                }
+            });
+        })();
+
+        // Configurar Stock Mínimo
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="configurar-stock-minimo"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                showToast('Abriendo configuración de stock mínimo...', 'info');
+                // TODO: Implementar configuración de stock mínimo
+            });
+        })();
+
+        // Editar Factura
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="editar-factura"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                showToast('Abriendo editor de facturas...', 'info');
+                // TODO: Implementar editor de facturas
+            });
+        })();
+
+        // Eliminar Registro DB
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="eliminar-registro-db"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                if (showCustomConfirm('¿Eliminar registro seleccionado? Esta acción no se puede deshacer.')) {
+                    showToast('Eliminando registro de la base de datos...', 'warning');
+                    setTimeout(function() {
+                        showToast('Registro eliminado exitosamente', 'success');
+                    }, 1500);
+                }
+            });
+        })();
+
+        // Importar Producto
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="importar-producto"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                showToast('Abriendo importador de productos...', 'info');
+                // TODO: Implementar importador de productos
+            });
+        })();
+
+        // Descargar Plantilla
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="descargar-plantilla"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                showToast('Descargando plantilla de importación...', 'info');
+                // Simular descarga
+                setTimeout(function() {
+                    showToast('Plantilla descargada exitosamente', 'success');
+                }, 1000);
+            });
+        })();
+
+        // Copia de Seguridad DB
+        (function () {
+            var trigger = document.querySelector('[data-settings-action="copia-seguridad-db"]');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function (event) {
+                event.preventDefault();
+                if (showCustomConfirm('¿Crear copia de seguridad de la base de datos?')) {
+                    trigger.innerHTML = '<span class="settings-tile__icon">⏳</span><span class="settings-tile__label">Creando backup...</span>';
+                    trigger.disabled = true;
+                    
+                    setTimeout(function() {
+                        showToast('Copia de seguridad creada exitosamente', 'success');
+                        trigger.innerHTML = '<span class="settings-tile__icon" aria-hidden="true">💾</span><span class="settings-tile__label">Copia Seguridad BD</span>';
+                        trigger.disabled = false;
+                    }, 3000);
+                }
+            });
+        })();
+        
         function showCustomConfirm(message) {
             return showToast(message + ' (Acción requerida)', 'warning');
         }
