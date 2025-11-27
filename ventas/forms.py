@@ -165,6 +165,13 @@ class ProductoForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        # Establecer valor por defecto de stock_minimo desde la configuración del sitio
+        if not self.instance.pk and not self.initial.get('stock_minimo'):
+            from dashboard.models import SiteConfiguration
+            site_config = SiteConfiguration.get_solo()
+            self.initial['stock_minimo'] = site_config.stock_minimo_default
+        
         for campo in ["precio_compra", "precio_venta", "stock", "stock_minimo"]:
             if campo in self.fields:
                 self.fields[campo].required = False
@@ -351,6 +358,21 @@ class CategoriaForm(forms.ModelForm):
             "class": "modal-field__input",
         })
 
+    def clean_nombre(self):
+        nombre = self.cleaned_data.get("nombre", "").strip()
+        if not nombre:
+            raise forms.ValidationError("El nombre de la categoría es requerido.")
+        
+        # Verificar unicidad excluyendo la instancia actual (edición)
+        queryset = Categoria.objects.filter(nombre__iexact=nombre)
+        if self.instance and self.instance.pk:
+            queryset = queryset.exclude(pk=self.instance.pk)
+        
+        if queryset.exists():
+            raise forms.ValidationError("Ya existe una categoría con este nombre.")
+        
+        return nombre
+
     def save(self, commit=True):
         instance = super().save(commit=False)
         tipo_producto = self.cleaned_data.get("tipo_producto") or None
@@ -358,9 +380,6 @@ class CategoriaForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
-
-    def clean_nombre(self):
-        return self.cleaned_data.get("nombre", "").strip()
 
 
 class FiscalVoucherConfigForm(forms.ModelForm):

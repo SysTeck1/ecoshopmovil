@@ -9,17 +9,7 @@ from django.db import models, transaction
 from django.db.models import F, Sum, Max
 from django.utils import timezone
 from django.utils.text import slugify
-
-
-class TimeStampedModel(models.Model):
-    """Modelo base con marcas de tiempo."""
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        abstract = True
-        ordering = ("-created_at",)
+from SistemaPOS.base_models import TimeStampedModel
 
 
 # Choices globales para tipos de producto
@@ -411,8 +401,8 @@ class Producto(TimeStampedModel):
     descripcion = models.TextField(blank=True)
     colores_disponibles = models.CharField(max_length=150, blank=True)
     imagen = models.ImageField(upload_to="productos/", blank=True, null=True)
-    precio_compra = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
-    precio_venta = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+    precio_compra = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)], null=True, blank=True, help_text="Precio de compra del producto")
+    precio_venta = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)], null=True, blank=True, help_text="Precio de venta del producto")
     stock = models.PositiveIntegerField(default=0)
     stock_minimo = models.PositiveIntegerField(default=0)
     activo = models.BooleanField(default=True)
@@ -1210,3 +1200,8 @@ class DetalleVenta(TimeStampedModel):
     @property
     def subtotal(self):
         return (self.precio_unitario * self.cantidad) - self.descuento
+
+    @property
+    def itbis(self):
+        """Calcular ITBIS del detalle (18%)"""
+        return self.subtotal * Decimal("0.18")

@@ -30,6 +30,32 @@ class SiteConfiguration(models.Model):
         default=Decimal("18.00"),
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
+    
+    # Configuración de facturas
+    empresa_nombre = models.CharField(max_length=200, default="Sistema POS")
+    empresa_rnc = models.CharField(max_length=15, default="123456789")
+    empresa_telefono = models.CharField(max_length=20, default="809-555-1234")
+    empresa_direccion = models.TextField(default="Dirección por defecto")
+    factura_resolucion = models.CharField(max_length=50, default="RES-123456789")
+    factura_tipo_comprobante = models.CharField(max_length=2, default="01")
+    factura_formato = models.CharField(max_length=20, default="standard")
+    factura_serie = models.CharField(max_length=10, default="A0101")
+    factura_secuencia_inicial = models.IntegerField(default=1)
+    factura_info_adicional = models.TextField(blank=True, default="")
+    
+    # Opciones de formato
+    factura_incluir_itbis = models.BooleanField(default=True)
+    factura_incluir_leyendas = models.BooleanField(default=True)
+    factura_incluir_logo = models.BooleanField(default=False)
+    factura_tamano_logo = models.CharField(max_length=10, default="medium")
+    factura_posicion_logo = models.CharField(max_length=10, default="left")
+    factura_incluir_pie = models.BooleanField(default=True)
+    
+    # Configuración de stock mínimo
+    stock_minimo_default = models.PositiveIntegerField(default=5, help_text="Stock mínimo por defecto para nuevos productos")
+    bloquear_venta_sin_stock = models.BooleanField(default=False, help_text="Bloquear ventas cuando no hay stock disponible")
+    alerta_stock_bajo_porcentaje = models.PositiveIntegerField(default=20, help_text="Porcentaje para alerta de stock bajo")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

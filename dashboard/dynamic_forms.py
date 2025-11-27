@@ -24,6 +24,19 @@ class ProductTypeSelectionForm(forms.Form):
 class BaseProductForm(forms.ModelForm):
     """Formulario base para productos"""
     
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Establecer valor por defecto de stock_minimo desde la configuración del sitio
+        if not self.instance.pk and not self.initial.get('stock_minimo'):
+            from .models import SiteConfiguration
+            try:
+                site_config = SiteConfiguration.get_solo()
+                self.initial['stock_minimo'] = site_config.stock_minimo_default
+            except Exception:
+                # Si hay error, usar valor por defecto
+                self.initial['stock_minimo'] = 5
+    
     class Meta:
         model = Producto
         fields = [
@@ -84,7 +97,37 @@ def get_product_form_fields(product_type):
     if not config:
         return []
     
-    # Campos base que siempre se muestran
+    # Campos base que siempre se muestran (excepto precios en creación)
+    base_fields = ['tipo_producto', 'nombre', 'marca', 'modelo', 'categoria', 'proveedor', 'descripcion', 'stock', 'stock_minimo', 'activo']
+    
+    # Agregar precios solo si no es modo creación (se determina en la vista)
+    base_fields_with_prices = base_fields + ['precio_compra', 'precio_venta']
+    
+    # Campos específicos según el tipo (sin IMEI ni colores para creación)
+    specific_fields = []
+    
+    if product_type == 'phone':
+        specific_fields = ['almacenamiento', 'memoria_ram', 'usar_impuesto_global', 'impuesto']  # Sin imei ni colores
+    elif product_type == 'accessory':
+        specific_fields = ['usar_impuesto_global', 'impuesto']
+    elif product_type == 'laptop':
+        specific_fields = ['almacenamiento', 'memoria_ram', 'usar_impuesto_global', 'impuesto']
+    elif product_type == 'tablet':
+        specific_fields = ['almacenamiento', 'memoria_ram', 'usar_impuesto_global', 'impuesto']  # Sin colores
+    elif product_type == 'gaming':
+        specific_fields = ['almacenamiento', 'usar_impuesto_global', 'impuesto']
+    
+    return base_fields + specific_fields
+
+
+def get_product_form_fields_with_prices(product_type):
+    """Obtiene los campos que deben mostrarse para un tipo de producto específico (incluyendo precios)"""
+    
+    config = product_registry.get_type(product_type)
+    if not config:
+        return []
+    
+    # Campos base con precios para modo edición
     base_fields = ['tipo_producto', 'nombre', 'marca', 'modelo', 'categoria', 'proveedor', 'descripcion', 'precio_compra', 'precio_venta', 'stock', 'stock_minimo', 'activo']
     
     # Campos específicos según el tipo
@@ -123,10 +166,14 @@ class DynamicProductForm(BaseProductForm):
     
     def __init__(self, *args, **kwargs):
         self.product_type = kwargs.pop('product_type', 'phone')
+        self.is_creation_mode = kwargs.pop('is_creation_mode', True)
         super().__init__(*args, **kwargs)
         
         # Obtener campos permitidos para este tipo de producto
-        allowed_fields = get_product_form_fields(self.product_type)
+        if self.is_creation_mode:
+            allowed_fields = get_product_form_fields(self.product_type)  # Sin precios
+        else:
+            allowed_fields = get_product_form_fields_with_prices(self.product_type)  # Con precios
         
         # Remover campos no permitidos
         fields_to_remove = []
@@ -153,6 +200,13 @@ class DynamicProductForm(BaseProductForm):
             # Para gaming, algunos campos son opcionales
             optional_fields = ['memoria_ram', 'imei']
             for field in optional_fields:
+                if field in self.fields:
+                    self.fields[field].required = False
+        
+        # En modo creación, si los precios están presentes, hacerlos opcionales
+        if self.is_creation_mode:
+            price_fields = ['precio_compra', 'precio_venta']
+            for field in price_fields:
                 if field in self.fields:
                     self.fields[field].required = False
 

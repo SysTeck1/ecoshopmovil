@@ -4624,15 +4624,23 @@
                     return;
                 }
                 var option = optionButton.getAttribute('data-invoice-option');
+                var saleId = lastRegisteredSale ? lastRegisteredSale.id : null;
+                
+                console.log('Opción seleccionada:', option, 'saleId:', saleId, 'lastRegisteredSale:', lastRegisteredSale); // DEBUG
+                
+                if (!saleId) {
+                    showToast('No hay venta seleccionada para generar documento.', 'error');
+                    return;
+                }
+                
                 if (option === 'skip') {
                     showToast('Venta registrada sin generar documento.', 'info');
-                } else if (option === 'a4') {
-                    showToast('Generando factura A4...', 'info');
-                } else if (option === 'ticket80') {
-                    showToast('Generando ticket 80 mm...', 'info');
-                } else if (option === 'ticket50') {
-                    showToast('Generando ticket 50 mm...', 'info');
+                    closeInvoiceModal();
+                    return;
                 }
+                
+                // Abrir modal de impresión según el formato seleccionado
+                openPrintModal(saleId, option);
                 closeInvoiceModal();
             });
         }
@@ -5272,6 +5280,7 @@
 
             submitSale(payload)
                 .then(function (responseData) {
+                    console.log('Respuesta del servidor:', responseData); // DEBUG
                     var saleSummary = {
                         id: responseData && responseData.id ? responseData.id : null,
                         factura: responseData && responseData.factura ? responseData.factura : null,
@@ -5279,6 +5288,7 @@
                         paymentReceived: paymentReceived,
                         change: changeAmount,
                     };
+                    console.log('SaleSummary creado:', saleSummary); // DEBUG
                     applyCashTotals(cashSnapshot);
                     serializeCashState();
                     closeModalElement(paymentModal);
@@ -6718,18 +6728,18 @@
 
         // Funciones para descargar documentos de ventas
         function bindDownloadButtons() {
-            // Botones de descarga en la tabla
+            // Botones de descarga en la tabla ahora abren modales de impresión
             document.querySelectorAll('[data-download-invoice]').forEach(function(button) {
                 button.addEventListener('click', function() {
                     var saleId = this.getAttribute('data-sale-id');
-                    downloadInvoice(saleId);
+                    openPrintModal(saleId, 'a4');
                 });
             });
 
             document.querySelectorAll('[data-download-ticket]').forEach(function(button) {
                 button.addEventListener('click', function() {
                     var saleId = this.getAttribute('data-sale-id');
-                    downloadTicket(saleId);
+                    openPrintModal(saleId, 'ticket80');
                 });
             });
         }
@@ -6742,6 +6752,124 @@
         function downloadTicket(saleId) {
             var url = '/app/ventas/' + saleId + '/ticket/';
             window.open(url, '_blank');
+        }
+
+        function openPrintModal(saleId, format) {
+            console.log('openPrintModal llamado con saleId:', saleId, 'format:', format); // DEBUG
+            
+            // Determinar URL y título según formato
+            var url, title, modalTitle;
+            
+            if (format === 'a4') {
+                url = '/app/ventas/' + saleId + '/factura/';
+                title = 'Factura A4';
+                modalTitle = 'Vista previa de Factura A4';
+            } else if (format === 'ticket80') {
+                url = '/app/ventas/' + saleId + '/ticket/?formato=80';
+                title = 'Ticket 80mm';
+                modalTitle = 'Vista previa de Ticket 80mm';
+            } else if (format === 'ticket50') {
+                url = '/app/ventas/' + saleId + '/ticket/?formato=50';
+                title = 'Ticket 50mm';
+                modalTitle = 'Vista previa de Ticket 50mm';
+            } else {
+                showToast('Formato no válido', 'error');
+                return;
+            }
+            
+            console.log('URL generada:', url); // DEBUG
+            
+            // Crear modal dinámicamente
+            var modalHtml = `
+                <div class="modal" id="print-modal-${saleId}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog--large" role="dialog" aria-modal="true" aria-labelledby="print-modal-title-${saleId}">
+                        <div class="modal-header">
+                            <h2 id="print-modal-title-${saleId}">${modalTitle}</h2>
+                            <button type="button" class="modal-close" aria-label="Cerrar" onclick="closePrintModal(${saleId})">&times;</button>
+                        </div>
+                        <div class="modal-form modal-form--static">
+                            <div class="print-preview" id="print-preview-${saleId}">
+                                <div class="print-loading">
+                                    <p>Cargando vista previa...</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closePrintModal(${saleId})">Cerrar</button>
+                            <button type="button" class="btn btn-primary" onclick="printDocument(${saleId})">Imprimir</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Agregar modal al DOM
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Cargar contenido en el modal
+            fetch(url)
+                .then(response => {
+                    // Verificar si es un PDF
+                    if (response.headers.get('Content-Type')?.includes('application/pdf')) {
+                        // Es un PDF, crear un blob y mostrar en un iframe
+                        return response.blob().then(blob => {
+                            var pdfUrl = URL.createObjectURL(blob);
+                            var preview = document.getElementById('print-preview-' + saleId);
+                            if (preview) {
+                                preview.innerHTML = `
+                                    <iframe src="${pdfUrl}" style="width: 100%; height: 600px; border: none;" 
+                                            onload="URL.revokeObjectURL('${pdfUrl}')">
+                                        Su navegador no soporta PDFs incrustados.
+                                    </iframe>
+                                `;
+                            }
+                        });
+                    } else {
+                        // Es HTML, manejar como antes
+                        return response.text().then(html => {
+                            var preview = document.getElementById('print-preview-' + saleId);
+                            if (preview) {
+                                preview.innerHTML = html;
+                            }
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error cargando vista previa:', error);
+                    var preview = document.getElementById('print-preview-' + saleId);
+                    if (preview) {
+                        preview.innerHTML = '<p class="error">Error al cargar la vista previa</p>';
+                    }
+                });
+            
+            // Abrir modal
+            var modal = document.getElementById('print-modal-' + saleId);
+            if (modal) {
+                modal.classList.add('is-visible');
+                modal.setAttribute('aria-hidden', 'false');
+            }
+        }
+
+        function closePrintModal(saleId) {
+            var modal = document.getElementById('print-modal-' + saleId);
+            if (modal) {
+                modal.classList.remove('is-visible');
+                modal.setAttribute('aria-hidden', 'true');
+                setTimeout(function() {
+                    modal.remove();
+                }, 300);
+            }
+        }
+
+        function printDocument(saleId) {
+            var preview = document.getElementById('print-preview-' + saleId);
+            if (preview) {
+                // Crear una nueva ventana para imprimir
+                var printWindow = window.open('', '_blank');
+                printWindow.document.write(preview.innerHTML);
+                printWindow.document.close();
+                printWindow.print();
+                printWindow.close();
+            }
         }
 
         // Llamar a bindDownloadButtons después de renderizar las ventas

@@ -48,7 +48,6 @@ INSTALLED_APPS = [
     # Local apps
     'public',
     'ventas.apps.VentasConfig',
-    'reparaciones.apps.ReparacionesConfig',
     'dashboard.apps.DashboardConfig',
 ]
 

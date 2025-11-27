@@ -33,6 +33,16 @@ urlpatterns = [
         name="factura_preview",
     ),
     path(
+        "ventas/<int:venta_id>/factura/",
+        views.venta_factura_view,
+        name="venta_factura",
+    ),
+    path(
+        "ventas/<int:venta_id>/ticket/",
+        views.venta_ticket_view,
+        name="venta_ticket",
+    ),
+    path(
         "inventario/crear-dinamico/",
         views.dynamic_inventory_create_view,
         name="dynamic_inventory_create",
@@ -232,4 +242,20 @@ urlpatterns = [
     path("otros/gastos/", views.GastosView.as_view(), name="gastos"),
     path("otros/usuarios/", views.UsuariosView.as_view(), name="usuarios"),
     path("otros/configuracion/", views.ConfiguracionView.as_view(), name="configuracion"),
+    path("api/factura-config/", views.obtener_factura_config, name="obtener_factura_config"),
+    path(
+        "api/factura-config/guardar/",
+        views.guardar_factura_config,
+        name="guardar_factura_config",
+    ),
+    path(
+        "api/stock-config/",
+        views.obtener_stock_config,
+        name="obtener_stock_config",
+    ),
+    path(
+        "api/stock-config/guardar/",
+        views.guardar_stock_config,
+        name="guardar_stock_config",
+    ),
 ]

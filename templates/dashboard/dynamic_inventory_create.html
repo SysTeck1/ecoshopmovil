@@ -3,6 +3,46 @@
 
 {% block title %}Crear Producto - {{ type_config.name }}{% endblock %}
 
+{% block extra_css %}
+<style>
+.form-section__notice {
+    margin: 1rem 0;
+}
+
+.notice {
+    display: flex;
+    align-items: flex-start;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid;
+    background: var(--color-surface);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.notice--info {
+    border-left-color: #3b82f6;
+    background: #eff6ff;
+    color: #1e40af;
+}
+
+.notice__icon {
+    margin-right: 0.75rem;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.notice__content {
+    flex: 1;
+}
+
+.notice__content p {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="dashboard-content">
     <div class="dashboard-header">
@@ -139,12 +179,12 @@
             <!-- Precios e inventario -->
             <div class="form-section">
                 <div class="form-section__header">
-                    <h3 class="form-section__title">Precios e inventario</h3>
-                    <p class="form-section__subtitle">Información comercial y stock</p>
+                    <h3 class="form-section__title">Inventario</h3>
+                    <p class="form-section__subtitle">Stock y estado del producto</p>
                 </div>
                 <div class="form-section__grid">
                     {% for field in form %}
-                        {% if field.name in 'precio_compra,precio_venta,stock,stock_minimo,activo' %}
+                        {% if field.name in 'stock,stock_minimo,activo' %}
                             <div class="form-field">
                                 <label class="form-field__label">
                                     {{ field.label }}
@@ -161,6 +201,43 @@
                         {% endif %}
                     {% endfor %}
                 </div>
+                
+                {% if not is_creation_mode %}
+                <!-- Precios (solo en modo edición) -->
+                <div class="form-section__header" style="margin-top: 2rem;">
+                    <h3 class="form-section__title">Precios</h3>
+                    <p class="form-section__subtitle">Información comercial del producto</p>
+                </div>
+                <div class="form-section__grid">
+                    {% for field in form %}
+                        {% if field.name in 'precio_compra,precio_venta' %}
+                            <div class="form-field">
+                                <label class="form-field__label">
+                                    {{ field.label }}
+                                    {% if field.field.required %}<span class="form-field__required">*</span>{% endif %}
+                                </label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-field__help">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="form-field__error">{{ field.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <!-- Nota sobre precios en modo creación -->
+                <div class="form-section__notice" style="margin-top: 1rem;">
+                    <div class="notice notice--info">
+                        <div class="notice__icon">ℹ️</div>
+                        <div class="notice__content">
+                            <p>Los campos de precio compra, precio venta, IMEI y colores disponibles se pueden configurar después de crear el producto, en la vista de edición.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Especificaciones técnicas (campos base) -->
@@ -172,7 +249,33 @@
                 </div>
                 <div class="form-section__grid">
                     {% for field in form %}
-                        {% if field.name in 'almacenamiento,memoria_ram,imei,colores_disponibles' %}
+                        {% if field.name in 'almacenamiento,memoria_ram' %}
+                            <div class="form-field">
+                                <label class="form-field__label">
+                                    {{ field.label }}
+                                    {% if field.field.required %}<span class="form-field__required">*</span>{% endif %}
+                                </label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <div class="form-field__help">{{ field.help_text }}</div>
+                                {% endif %}
+                                {% if field.errors %}
+                                    <div class="form-field__error">{{ field.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                
+                {% if not is_creation_mode %}
+                <!-- IMEI y Colores (solo en modo edición) -->
+                <div class="form-section__header" style="margin-top: 2rem;">
+                    <h3 class="form-section__title">Identificación y Apariencia</h3>
+                    <p class="form-section__subtitle">Información específica del dispositivo</p>
+                </div>
+                <div class="form-section__grid">
+                    {% for field in form %}
+                        {% if field.name in 'imei,colores_disponibles' %}
                             <div class="form-field {% if field.name == 'imei' or field.name == 'colores_disponibles' %}form-field--full{% endif %}">
                                 <label class="form-field__label">
                                     {{ field.label }}
@@ -189,6 +292,17 @@
                         {% endif %}
                     {% endfor %}
                 </div>
+                {% else %}
+                <!-- Nota sobre IMEI y colores en modo creación -->
+                <div class="form-section__notice" style="margin-top: 1rem;">
+                    <div class="notice notice--info">
+                        <div class="notice__icon">ℹ️</div>
+                        <div class="notice__content">
+                            <p>Los campos de IMEI y colores disponibles se pueden configurar después de crear el producto, en la vista de edición.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
             {% endif %}
 

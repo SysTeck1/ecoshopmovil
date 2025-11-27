@@ -28,7 +28,7 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils import dateparse
 from django.utils.dateparse import parse_date
@@ -38,6 +38,19 @@ from django.views.generic import TemplateView
 from django.urls import reverse, reverse_lazy
 
 from django.templatetags.static import static
+
+# Importar vistas de stock
+try:
+    from .stock_views import obtener_stock_config, guardar_stock_config
+except ImportError:
+    # Si el archivo no existe, crear funciones vacías para evitar errores
+    def obtener_stock_config(request):
+        from django.http import JsonResponse
+        return JsonResponse({'success': False, 'error': 'Módulo de stock no disponible'}, status=501)
+    
+    def guardar_stock_config(request):
+        from django.http import JsonResponse
+        return JsonResponse({'success': False, 'error': 'Módulo de stock no disponible'}, status=501)
 
 from ventas.forms import (
     CategoriaForm,
@@ -86,6 +99,7 @@ from ventas.models import (
 from .forms import SiteConfigurationLogoForm, SiteConfigurationGeneralForm
 from .context_processors import _resolve_logo_url
 from .models import SiteConfiguration
+from SistemaPOS.constants import get_demo_invoice_data
 
 
 logger = logging.getLogger(__name__)
@@ -2272,7 +2286,7 @@ def dynamic_inventory_create_view(request):
         product_type_id = None
     
     if request.method == 'POST':
-        form = DynamicProductForm(request.POST, request.FILES, product_type=product_type_slug)
+        form = DynamicProductForm(request.POST, request.FILES, product_type=product_type_slug, is_creation_mode=True)
         specific_form = DynamicSpecificFieldsForm(request.POST, product_type=product_type_slug)
         
         if form.is_valid() and specific_form.is_valid():
@@ -2291,7 +2305,7 @@ def dynamic_inventory_create_view(request):
             except Exception as e:
                 messages.error(request, f'Error al crear el producto: {str(e)}')
     else:
-        form = DynamicProductForm(product_type=product_type_slug)
+        form = DynamicProductForm(product_type=product_type_slug, is_creation_mode=True)
         specific_form = DynamicSpecificFieldsForm(product_type=product_type_slug)
     
     # Obtener configuración del tipo de producto
@@ -2309,11 +2323,12 @@ def dynamic_inventory_create_view(request):
         'proveedores': Proveedor.objects.all(),
         'impuestos': Impuesto.objects.filter(activo=True),
         'tipos_producto': TipoProducto.objects.filter(activo=True),
-        'allowed_fields': get_product_form_fields(product_type_slug),
+        'allowed_fields': get_product_form_fields(product_type_slug),  # Sin precios para creación
         'specific_fields': get_specific_form_fields(product_type_slug),
         # Add admin catalog data for modals
         'marcas_admin_catalogo': Marca.objects.all().only("id", "nombre", "activo"),
         'modelos_admin_catalogo': Modelo.objects.select_related("marca").order_by("nombre"),
+        'is_creation_mode': True,  # Indicador para el template
     }
     
     return render(request, 'dashboard/dynamic_inventory_create.html', context)
@@ -5482,6 +5497,9 @@ def registrar_venta_api(request):
         site_config = SiteConfiguration.get_solo()
         global_tax_rate = _resolve_global_tax_rate(site_config)
 
+        # Verificar configuración de bloqueo de ventas sin stock
+        site_config = SiteConfiguration.get_solo()
+        
         for item in productos:
             producto_id = item.get("producto_id")
             try:
@@ -5495,6 +5513,15 @@ def registrar_venta_api(request):
 
             producto = get_object_or_404(Producto, pk=producto_id)
 
+            # Verificar stock disponible
+            stock_disponible = producto.stock
+            if site_config.bloquear_venta_sin_stock and stock_disponible < cantidad:
+                transaction.set_rollback(True)
+                return JsonResponse(
+                    {"error": f"El producto {producto.nombre} no tiene stock suficiente. Stock disponible: {stock_disponible}, solicitado: {cantidad}"},
+                    status=400,
+                )
+
             unidad_index_raw = item.get("unidad_index")
             try:
                 unidad_index_int = int(unidad_index_raw)
@@ -5503,33 +5530,35 @@ def registrar_venta_api(request):
             if unidad_index_int is not None and unidad_index_int <= 0:
                 unidad_index_int = None
 
-            # Si se especifica unidad_index, marcar unidades específicas como vendidas
+            # Si se especifica unidad_index, marcar la unidad específica como vendida
             if unidad_index_int:
-                # Buscar unidades específicas por título, almacenamiento y RAM
-                unidades_especificas = ProductoUnitDetail.objects.filter(
+                # Buscar la unidad específica exacta
+                unidad_especifica = ProductoUnitDetail.objects.filter(
                     producto=producto,
-                    unidad_index__gt=0
-                ).filter(
-                    Q(almacenamiento__isnull=False) & ~Q(almacenamiento__exact='') |
-                    Q(memoria_ram__isnull=False) & ~Q(memoria_ram__exact='')
-                ).order_by('unidad_index')[:cantidad]
+                    unidad_index=unidad_index_int
+                ).first()
                 
-                if len(unidades_especificas) < cantidad:
+                if not unidad_especifica:
                     transaction.set_rollback(True)
                     return JsonResponse(
-                        {"error": f"No hay suficientes unidades específicas para el producto {producto.nombre}. Se requieren {cantidad}, disponibles: {len(unidades_especificas)}."},
+                        {"error": f"No se encontró la unidad {unidad_index_int} para el producto {producto.nombre}."},
                         status=400,
                     )
                 
-                # Marcar las unidades específicas como vendidas
-                from django.utils import timezone
-                for unidad in unidades_especificas:
-                    unidad.vendido = True
-                    unidad.fecha_venta = timezone.now()
-                    unidad.save()
+                if unidad_especifica.vendido:
+                    transaction.set_rollback(True)
+                    return JsonResponse(
+                        {"error": f"La unidad {unidad_index_int} de {producto.nombre} ya está vendida."},
+                        status=400,
+                    )
                 
-                # Reducir stock general para unidades específicas vendidas
-                # Mantener consistencia entre stock general y unidades vendidas
+                # Marcar la unidad específica como vendida
+                from django.utils import timezone
+                unidad_especifica.vendido = True
+                unidad_especifica.fecha_venta = timezone.now()
+                unidad_especifica.save()
+                
+                # Reducir stock general
                 updated = Producto.objects.filter(pk=producto.pk, stock__gte=cantidad).update(
                     stock=F("stock") - cantidad
                 )
@@ -5876,53 +5905,15 @@ def factura_preview_view(request):
     posicion_logo = request.GET.get('posicion_logo', 'top-left')
     
     # Datos de ejemplo para la vista previa
+    demo_data = get_demo_invoice_data()
+    demo_data['fecha'] = timezone.now().strftime('%d/%m/%Y')
+    
     context = {
+        **demo_data,
         'tipo_comprobante': tipo,
         'formato_factura': formato,
         'serie_factura': serie,
         'emisor_nombre': emisor,
-        'emisor_rnc': rnc,
-        'resolucion_dgii': resolucion,
-        'incluir_itbis': incluir_itbis,
-        'incluir_leyendas': incluir_leyendas,
-        'incluir_logo': incluir_logo,
-        'tamano_logo': tamano_logo,
-        'posicion_logo': posicion_logo,
-        'numero_factura': f'{serie}-000001',
-        'fecha': timezone.now().strftime('%d/%m/%Y'),
-        'cliente': {
-            'nombre': 'CLIENTE DEMO',
-            'rnc': '12345678901',
-            'direccion': 'Calle Principal #123, Santo Domingo',
-            'telefono': '809-555-1234'
-        },
-        'items': [
-            {
-                'descripcion': 'iPhone 13 Pro - 128GB - Azul',
-                'cantidad': 1,
-                'precio_unitario': 29999.00,
-                'itbis': 3900.00,
-                'total': 33899.00
-            },
-            {
-                'descripcion': 'Funda de Silicone - Rosa',
-                'cantidad': 2,
-                'precio_unitario': 500.00,
-                'itbis': 65.00,
-                'total': 1130.00
-            },
-            {
-                'descripcion': 'Protector de Pantalla - Templado',
-                'cantidad': 1,
-                'precio_unitario': 800.00,
-                'itbis': 104.00,
-                'total': 904.00
-            }
-        ],
-        'subtotal': 31300.00,
-        'total_itbis': 4069.00,
-        'total_general': 35369.00,
-        'forma_pago': 'Efectivo',
         'logo_url': f"{settings.STATIC_URL}img/logo/logo.png" if settings.DEBUG else "/static/img/logo/logo.png",
         # Variables para opciones de formato
         'include_watermark': request.GET.get('include_watermark', 'true').lower() == 'true',
@@ -5953,37 +5944,612 @@ def factura_preview_view(request):
     else:
         template_name = 'dashboard/facturas/standard_preview.html'
     
-    # Para desarrollo, devolver HTML simple
-    if settings.DEBUG:
-        html_content = render_to_string(template_name, context, request)
-        return HttpResponse(html_content)
-    
-    # En producción, generar PDF (requiere instalación de weasyprint)
+    # Generar PDF con ReportLab siempre (incluso en desarrollo)
     try:
-        from weasyprint import HTML, CSS
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.lib.units import mm
+        from reportlab.platypus import Image
+        from io import BytesIO
         from django.templatetags.static import static
+        import os
         
-        html_content = render_to_string(template_name, context, request)
+        # Crear buffer para PDF
+        buffer = BytesIO()
         
-        # Configurar CSS según formato
-        css_files = []
+        # Determinar tamaño de página según formato
         if formato == 'thermal':
-            css_files.append(CSS(string='@page { size: 80mm 297mm; margin: 5mm; }'))
-        elif formato == 'letter':
-            css_files.append(CSS(string='@page { size: letter; margin: 15mm; }'))
+            page_size = (80*mm, 297*mm)  # 80mm x 297mm
         elif formato == 'a4':
-            css_files.append(CSS(string='@page { size: A4; margin: 15mm; }'))
+            page_size = A4
         else:
-            css_files.append(CSS(string='@page { size: letter; margin: 15mm; }'))
+            page_size = letter
+            
+        # Crear canvas
+        p = canvas.Canvas(buffer, pagesize=page_size)
         
-        # Generar PDF
-        pdf = HTML(string=html_content).write_pdf(stylesheets=css_files)
+        # Configurar fuentes
+        p.setFont("Helvetica", 10)
         
-        response = HttpResponse(pdf, content_type='application/pdf')
+        # Agregar logo si está habilitado
+        if incluir_logo:
+            try:
+                # Intentar obtener el logo del proyecto
+                logo_path = None
+                
+                # Buscar logo en directorio estático
+                static_root = getattr(settings, 'STATIC_ROOT', None)
+                if static_root:
+                    logo_candidates = [
+                        os.path.join(static_root, 'img', 'logo.png'),
+                        os.path.join(static_root, 'img', 'logo.jpg'),
+                        os.path.join(static_root, 'images', 'logo.png'),
+                        os.path.join(static_root, 'images', 'logo.jpg'),
+                    ]
+                    for candidate in logo_candidates:
+                        if os.path.exists(candidate):
+                            logo_path = candidate
+                            break
+                
+                # Si no encuentra en STATIC_ROOT, intentar en base del proyecto
+                if not logo_path:
+                    base_dir = getattr(settings, 'BASE_DIR', '')
+                    logo_candidates = [
+                        os.path.join(base_dir, 'static', 'img', 'logo.png'),
+                        os.path.join(base_dir, 'static', 'img', 'logo.jpg'),
+                        os.path.join(base_dir, 'static', 'images', 'logo.png'),
+                        os.path.join(base_dir, 'static', 'images', 'logo.jpg'),
+                    ]
+                    for candidate in logo_candidates:
+                        if os.path.exists(candidate):
+                            logo_path = candidate
+                            break
+                
+                # Dibujar logo si se encontró
+                if logo_path:
+                    y_position = page_size[1] - 25*mm
+                    
+                    # Determinar tamaño del logo según parámetro
+                    if tamano_logo == 'small':
+                        logo_width, logo_height = 20*mm, 20*mm
+                    elif tamano_logo == 'large':
+                        logo_width, logo_height = 40*mm, 40*mm
+                    else:  # medium
+                        logo_width, logo_height = 30*mm, 30*mm
+                    
+                    # Posición del logo según parámetro
+                    if posicion_logo == 'right':
+                        x_position = page_size[0] - logo_width - 20*mm
+                    elif posicion_logo == 'center':
+                        x_position = (page_size[0] - logo_width) / 2
+                    else:  # left
+                        x_position = 20*mm
+                    
+                    # Dibujar logo
+                    p.drawImage(logo_path, x_position, y_position - logo_height, 
+                               width=logo_width, height=logo_height, preserveAspectRatio=True)
+                    
+                    # Ajustar posición del texto según posición del logo
+                    if posicion_logo == 'left':
+                        y_start = y_position - logo_height - 10*mm
+                    else:
+                        y_start = y_position - 10*mm
+                else:
+                    y_start = page_size[1] - 20*mm
+                    
+            except Exception as e:
+                # Si hay error con el logo, continuar sin él
+                y_start = page_size[1] - 20*mm
+        else:
+            y_start = page_size[1] - 20*mm
+        
+        # Obtener datos del contexto
+        empresa = demo_data['empresa']
+        cliente = demo_data['cliente']
+        items = demo_data['items']
+        
+        # Dibujar encabezado
+        y_position = y_start
+        
+        # Logo y empresa (usar el parámetro 'emisor' de la URL)
+        p.setFont("Helvetica-Bold", 16)
+        p.drawString(20*mm, y_position, emisor)  # Usar 'emisor' en lugar de empresa['nombre']
+        y_position -= 10*mm
+        
+        p.setFont("Helvetica", 9)
+        p.drawString(20*mm, y_position, f"RNC: {rnc}")  # Usar 'rnc' de la URL
+        y_position -= 5*mm
+        p.drawString(20*mm, y_position, f"Tel: {empresa['telefono']}")
+        y_position -= 5*mm
+        p.drawString(20*mm, y_position, f"Dir: {empresa['direccion']}")
+        y_position -= 10*mm
+        
+        # Línea separadora
+        p.line(20*mm, y_position, page_size[0] - 20*mm, y_position)
+        y_position -= 10*mm
+        
+        # Datos de factura
+        p.setFont("Helvetica-Bold", 11)
+        p.drawString(20*mm, y_position, "FACTURA")
+        p.setFont("Helvetica", 9)
+        p.drawString(100*mm, y_position, f"NCF: {serie}-{demo_data['numero_factura']}")
+        y_position -= 7*mm
+        p.drawString(20*mm, y_position, f"Fecha: {demo_data['fecha']}")
+        y_position -= 7*mm
+        p.drawString(20*mm, y_position, f"Cliente: {cliente['nombre']}")
+        y_position -= 7*mm
+        p.drawString(20*mm, y_position, f"RNC: {cliente['rnc']}")
+        y_position -= 10*mm
+        
+        # Línea separadora
+        p.line(20*mm, y_position, page_size[0] - 20*mm, y_position)
+        y_position -= 10*mm
+        
+        # Encabezados de items
+        p.setFont("Helvetica-Bold", 9)
+        p.drawString(20*mm, y_position, "Descripción")
+        p.drawString(80*mm, y_position, "Cant")
+        p.drawString(100*mm, y_position, "Precio")
+        p.drawString(130*mm, y_position, "ITBIS")
+        p.drawString(160*mm, y_position, "Total")
+        y_position -= 7*mm
+        
+        # Items
+        p.setFont("Helvetica", 8)
+        for item in items:
+            # Descripción (ajustar si es muy larga)
+            desc = item['descripcion'][:30] + "..." if len(item['descripcion']) > 30 else item['descripcion']
+            p.drawString(20*mm, y_position, desc)
+            p.drawString(80*mm, y_position, str(item['cantidad']))
+            p.drawString(100*mm, y_position, f"${item['precio_unitario']:.2f}")
+            p.drawString(130*mm, y_position, f"${item['itbis']:.2f}")
+            p.drawString(160*mm, y_position, f"${item['total']:.2f}")
+            y_position -= 6*mm
+        
+        y_position -= 10*mm
+        
+        # Línea separadora
+        p.line(20*mm, y_position, page_size[0] - 20*mm, y_position)
+        y_position -= 10*mm
+        
+        # Totales
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(120*mm, y_position, f"Subtotal: ${demo_data['subtotal']:.2f}")
+        y_position -= 7*mm
+        p.drawString(120*mm, y_position, f"ITBIS (18%): ${demo_data['total_itbis']:.2f}")
+        y_position -= 7*mm
+        p.drawString(120*mm, y_position, f"Total: ${demo_data['total_general']:.2f}")
+        
+        # Guardar PDF
+        p.save()
+        
+        # Obtener valor del buffer
+        pdf_value = buffer.getvalue()
+        buffer.close()
+        
+        response = HttpResponse(pdf_value, content_type='application/pdf')
         response['Content-Disposition'] = 'inline; filename="factura_preview.pdf"'
         return response
         
     except ImportError:
-        # Si weasyprint no está instalado, devolver HTML
+        # Si reportlab no está instalado, devolver HTML con mensaje de error
         html_content = render_to_string(template_name, context, request)
         return HttpResponse(html_content)
+    except Exception as e:
+        # Si hay algún error, devolver HTML con mensaje de error
+        context['error'] = f"Error generando PDF: {str(e)}"
+        html_content = render_to_string(template_name, context, request)
+        return HttpResponse(html_content)
+
+
+def get_factura_config(request):
+    """
+    Obtener configuración de factura desde SiteConfiguration
+    """
+    site_config = SiteConfiguration.get_solo()
+    
+    return {
+        'emisorNombre': site_config.empresa_nombre,
+        'emisorRNC': site_config.empresa_rnc,
+        'emisorTelefono': site_config.empresa_telefono,
+        'emisorDireccion': site_config.empresa_direccion,
+        'resolucionDGII': site_config.factura_resolucion,
+        'tipoComprobante': site_config.factura_tipo_comprobante,
+        'formatoFactura': site_config.factura_formato,
+        'serieFactura': site_config.factura_serie,
+        'secuenciaInicial': site_config.factura_secuencia_inicial,
+        'infoAdicional': site_config.factura_info_adicional,
+        'incluirITBIS': site_config.factura_incluir_itbis,
+        'incluirLeyendas': site_config.factura_incluir_leyendas,
+        'incluirLogo': site_config.factura_incluir_logo,
+        'tamanoLogo': site_config.factura_tamano_logo,
+        'posicionLogo': site_config.factura_posicion_logo,
+        'includeFooter': site_config.factura_incluir_pie,
+        # Valores adicionales para compatibilidad
+        'includeWatermark': False,
+        'simpleItems': False,
+        'noTaxes': False,
+        'compactMode': True,
+        'cutLine': False,
+        'includeImages': False,
+        'includeSpecs': False,
+        'letterHeader': True,
+        'letterWatermark': False,
+        'a4Header': True,
+        'a4Footer': True
+    }
+
+
+@csrf_exempt
+@require_POST
+def guardar_factura_config(request):
+    """
+    Guardar configuración de factura desde el frontend
+    """
+    try:
+        import json
+        data = json.loads(request.body)
+        
+        site_config = SiteConfiguration.get_solo()
+        
+        # Actualizar campos de configuración
+        site_config.empresa_nombre = data.get('emisorNombre', site_config.empresa_nombre)
+        site_config.empresa_rnc = data.get('emisorRNC', site_config.empresa_rnc)
+        site_config.empresa_telefono = data.get('emisorTelefono', site_config.empresa_telefono)
+        site_config.empresa_direccion = data.get('emisorDireccion', site_config.empresa_direccion)
+        site_config.factura_resolucion = data.get('resolucionDGII', site_config.factura_resolucion)
+        site_config.factura_tipo_comprobante = data.get('tipoComprobante', site_config.factura_tipo_comprobante)
+        site_config.factura_formato = data.get('formatoFactura', site_config.factura_formato)
+        site_config.factura_serie = data.get('serieFactura', site_config.factura_serie)
+        site_config.factura_secuencia_inicial = int(data.get('secuenciaInicial', site_config.factura_secuencia_inicial))
+        site_config.factura_info_adicional = data.get('infoAdicional', site_config.factura_info_adicional)
+        site_config.factura_incluir_itbis = data.get('incluirITBIS', site_config.factura_incluir_itbis)
+        site_config.factura_incluir_leyendas = data.get('incluirLeyendas', site_config.factura_incluir_leyendas)
+        site_config.factura_incluir_logo = data.get('incluirLogo', site_config.factura_incluir_logo)
+        site_config.factura_tamano_logo = data.get('tamanoLogo', site_config.factura_tamano_logo)
+        site_config.factura_posicion_logo = data.get('posicionLogo', site_config.factura_posicion_logo)
+        site_config.factura_incluir_pie = data.get('includeFooter', site_config.factura_incluir_pie)
+        
+        site_config.save()
+        
+        return JsonResponse({'success': True, 'message': 'Configuración guardada exitosamente'})
+        
+    except Exception as e:
+        logger.error(f"Error guardando configuración de factura: {str(e)}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+@csrf_exempt
+@require_GET
+def obtener_factura_config(request):
+    """
+    Obtener configuración de factura actual
+    """
+    try:
+        site_config = SiteConfiguration.get_solo()
+        
+        config_data = {
+            'emisorNombre': site_config.empresa_nombre,
+            'emisorRNC': site_config.empresa_rnc,
+            'emisorTelefono': site_config.empresa_telefono,
+            'emisorDireccion': site_config.empresa_direccion,
+            'resolucionDGII': site_config.factura_resolucion,
+            'tipoComprobante': site_config.factura_tipo_comprobante,
+            'formatoFactura': site_config.factura_formato,
+            'serieFactura': site_config.factura_serie,
+            'secuenciaInicial': site_config.factura_secuencia_inicial,
+            'infoAdicional': site_config.factura_info_adicional,
+            'incluirITBIS': site_config.factura_incluir_itbis,
+            'incluirLeyendas': site_config.factura_incluir_leyendas,
+            'incluirLogo': site_config.factura_incluir_logo,
+            'tamanoLogo': site_config.factura_tamano_logo,
+            'posicionLogo': site_config.factura_posicion_logo,
+            'includeFooter': site_config.factura_incluir_pie
+        }
+        
+        return JsonResponse({'success': True, 'config': config_data})
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo configuración de factura: {str(e)}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+def venta_factura_view(request, venta_id):
+    """
+    Generar y mostrar factura PDF para una venta específica
+    """
+    try:
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.lib.units import mm
+        from io import BytesIO
+        
+        venta = get_object_or_404(Venta, pk=venta_id)
+        site_config = SiteConfiguration.get_solo()
+        factura_config = get_factura_config(request)
+        
+        # Calcular totales
+        subtotal = Decimal('0')
+        itbis_total = Decimal('0')
+        
+        for detalle in venta.detalles.all():
+            subtotal += detalle.subtotal
+            itbis_total += detalle.itbis
+        
+        # Crear buffer para PDF
+        buffer = BytesIO()
+        
+        # Determinar tamaño de página según formato
+        if factura_config['formatoFactura'] == 'a4':
+            page_size = A4
+        else:
+            page_size = letter
+            
+        # Crear canvas
+        p = canvas.Canvas(buffer, pagesize=page_size)
+        
+        # Configurar fuentes
+        p.setFont("Helvetica", 10)
+        
+        # Dibujar encabezado
+        y_position = page_size[1] - 20*mm
+        
+        # Empresa (usar configuración)
+        p.setFont("Helvetica-Bold", 16)
+        p.drawString(20*mm, y_position, factura_config['emisorNombre'])
+        y_position -= 10*mm
+        
+        p.setFont("Helvetica", 9)
+        p.drawString(20*mm, y_position, f"RNC: {factura_config['emisorRNC']}")
+        y_position -= 5*mm
+        p.drawString(20*mm, y_position, f"Tel: {factura_config['emisorTelefono']}")
+        y_position -= 5*mm
+        p.drawString(20*mm, y_position, f"Dir: {factura_config['emisorDireccion']}")
+        y_position -= 10*mm
+        
+        # Línea separadora
+        p.line(20*mm, y_position, page_size[0] - 20*mm, y_position)
+        y_position -= 10*mm
+        
+        # Datos de factura (usar configuración)
+        p.setFont("Helvetica-Bold", 11)
+        p.drawString(20*mm, y_position, "FACTURA")
+        p.setFont("Helvetica", 9)
+        p.drawString(100*mm, y_position, f"NCF: {factura_config['tipoComprobante']}{factura_config['serieFactura']}0000001")
+        y_position -= 7*mm
+        p.drawString(20*mm, y_position, f"No: FAC-{venta.pk:06d}")
+        y_position -= 7*mm
+        p.drawString(20*mm, y_position, f"Fecha: {venta.fecha.strftime('%d/%m/%Y %H:%M')}")
+        y_position -= 7*mm
+        p.drawString(20*mm, y_position, f"Cliente: {venta.cliente.nombre}")
+        if venta.cliente.documento:
+            y_position -= 7*mm
+            p.drawString(20*mm, y_position, f"RNC/Céd: {venta.cliente.documento}")
+        y_position -= 10*mm
+        
+        # Información adicional si está configurada
+        if factura_config['infoAdicional']:
+            p.setFont("Helvetica", 8)
+            p.drawString(20*mm, y_position, f"Nota: {factura_config['infoAdicional']}")
+            y_position -= 10*mm
+        
+        # Línea separadora
+        p.line(20*mm, y_position, page_size[0] - 20*mm, y_position)
+        y_position -= 10*mm
+        
+        # Encabezados de items
+        p.setFont("Helvetica-Bold", 9)
+        p.drawString(20*mm, y_position, "Descripción")
+        p.drawString(80*mm, y_position, "Cant")
+        p.drawString(100*mm, y_position, "Precio")
+        p.drawString(130*mm, y_position, "ITBIS")
+        p.drawString(160*mm, y_position, "Total")
+        y_position -= 7*mm
+        
+        # Items
+        p.setFont("Helvetica", 8)
+        for detalle in venta.detalles.all():
+            # Descripción (ajustar si es muy larga)
+            desc = detalle.producto.nombre[:40] + "..." if len(detalle.producto.nombre) > 40 else detalle.producto.nombre
+            if detalle.unidad_index:
+                desc += f" (Unidad #{detalle.unidad_index})"
+            p.drawString(20*mm, y_position, desc)
+            p.drawString(80*mm, y_position, str(detalle.cantidad))
+            p.drawString(100*mm, y_position, f"${detalle.precio_unitario:.2f}")
+            p.drawString(130*mm, y_position, f"${detalle.itbis:.2f}")
+            # Calcular total como subtotal + itbis
+            total_detalle = detalle.subtotal + detalle.itbis
+            p.drawString(160*mm, y_position, f"${total_detalle:.2f}")
+            y_position -= 6*mm
+        
+        y_position -= 10*mm
+        
+        # Línea separadora
+        p.line(20*mm, y_position, page_size[0] - 20*mm, y_position)
+        y_position -= 10*mm
+        
+        # Totales
+        p.setFont("Helvetica-Bold", 10)
+        p.drawString(120*mm, y_position, f"Subtotal: ${subtotal:.2f}")
+        y_position -= 7*mm
+        p.drawString(120*mm, y_position, f"ITBIS: ${itbis_total:.2f}")
+        if venta.descuento_total > 0:
+            y_position -= 7*mm
+            p.drawString(120*mm, y_position, f"Descuento: ${venta.descuento_total:.2f}")
+        y_position -= 7*mm
+        p.drawString(120*mm, y_position, f"Total: ${venta.total:.2f}")
+        y_position -= 7*mm
+        p.drawString(120*mm, y_position, f"Pago: {venta.get_metodo_pago_display()}")
+        
+        # Pie de página con resolución DGII
+        if factura_config['resolucionDGII'] and factura_config['includeFooter']:
+            y_position -= 15*mm
+            p.setFont("Helvetica", 7)
+            p.drawString(20*mm, y_position, f"Resolución DGII: {factura_config['resolucionDGII']}")
+            y_position -= 5*mm
+            p.drawString(20*mm, y_position, "Válida para efectos fiscales")
+            y_position -= 5*mm
+            p.drawString(20*mm, y_position, "Original: Cliente | Copia: Vendedor")
+        
+        # Guardar PDF
+        p.save()
+        
+        # Obtener valor del buffer
+        pdf_value = buffer.getvalue()
+        buffer.close()
+        
+        response = HttpResponse(pdf_value, content_type='application/pdf')
+        response['Content-Disposition'] = 'inline; filename=factura.pdf'
+        return response
+            
+    except Exception as e:
+        logger.error(f"Error generando factura para venta {venta_id}: {str(e)}")
+        return JsonResponse({'error': f'No se pudo generar la factura: {str(e)}'}, status=500)
+
+
+def venta_ticket_view(request, venta_id):
+    """
+    Generar y mostrar ticket PDF para una venta específica
+    """
+    try:
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.units import mm
+        from io import BytesIO
+        
+        venta = get_object_or_404(Venta, pk=venta_id)
+        formato = request.GET.get('formato', '80')
+        
+        # Calcular totales
+        subtotal = Decimal('0')
+        itbis_total = Decimal('0')
+        
+        for detalle in venta.detalles.all():
+            subtotal += detalle.subtotal
+            itbis_total += detalle.itbis
+        
+        # Crear buffer para PDF
+        buffer = BytesIO()
+        
+        # Determinar tamaño de página según formato
+        if formato == '50':
+            page_width = 50*mm  # 50mm
+        else:
+            page_width = 80*mm  # 80mm
+            
+        page_height = 297*mm  # Longitud térmica estándar
+        
+        # Crear canvas
+        p = canvas.Canvas(buffer, pagesize=(page_width, page_height))
+        
+        # Configurar fuentes
+        p.setFont("Helvetica", 8)
+        
+        # Dibujar encabezado
+        y_position = page_height - 10*mm
+        site_config = SiteConfiguration.get_solo()
+        
+        # Empresa
+        p.setFont("Helvetica-Bold", 12)
+        p.drawString(5*mm, y_position, "Sistema POS")  # Valor por defecto
+        y_position -= 7*mm
+        
+        p.setFont("Helvetica", 7)
+        p.drawString(5*mm, y_position, "RNC: 123456789")  # Valor por defecto
+        y_position -= 5*mm
+        p.drawString(5*mm, y_position, "Tel: 809-555-1234")  # Valor por defecto
+        y_position -= 5*mm
+        p.drawString(5*mm, y_position, "Dir: Dirección por defecto")  # Valor por defecto
+        y_position -= 5*mm
+        
+        y_position -= 5*mm
+        
+        # Línea separadora
+        p.line(2*mm, y_position, page_width - 2*mm, y_position)
+        y_position -= 7*mm
+        
+        # Datos de ticket
+        p.setFont("Helvetica-Bold", 9)
+        p.drawString(5*mm, y_position, "TICKET")
+        y_position -= 5*mm
+        
+        p.setFont("Helvetica", 7)
+        p.drawString(5*mm, y_position, f"No: TCK-{venta.pk:06d}")
+        y_position -= 5*mm
+        p.drawString(5*mm, y_position, f"Fecha: {venta.fecha.strftime('%d/%m/%Y %H:%M')}")
+        y_position -= 5*mm
+        p.drawString(5*mm, y_position, f"Cliente: {venta.cliente.nombre[:25]}")
+        y_position -= 7*mm
+        
+        # Línea separadora
+        p.line(2*mm, y_position, page_width - 2*mm, y_position)
+        y_position -= 7*mm
+        
+        # Encabezados de items
+        p.setFont("Helvetica-Bold", 7)
+        p.drawString(2*mm, y_position, "Producto")
+        p.drawString(page_width - 25*mm, y_position, "Total")
+        y_position -= 5*mm
+        
+        # Items
+        p.setFont("Helvetica", 6)
+        for detalle in venta.detalles.all():
+            # Descripción (ajustar al ancho)
+            desc = detalle.producto.nombre[:20] + "..." if len(detalle.producto.nombre) > 20 else detalle.producto.nombre
+            if detalle.unidad_index:
+                desc += f" #{detalle.unidad_index}"
+            
+            # Producto y cantidad
+            p.drawString(2*mm, y_position, f"{detalle.cantidad}x {desc}")
+            y_position -= 4*mm
+            
+            # Precio unitario y total
+            p.drawString(5*mm, y_position, f"${detalle.precio_unitario:.2f} c/u")
+            # Calcular total como subtotal + itbis
+            total_detalle = detalle.subtotal + detalle.itbis
+            p.drawString(page_width - 25*mm, y_position, f"${total_detalle:.2f}")
+            y_position -= 6*mm
+        
+        y_position -= 5*mm
+        
+        # Línea separadora
+        p.line(2*mm, y_position, page_width - 2*mm, y_position)
+        y_position -= 7*mm
+        
+        # Totales
+        p.setFont("Helvetica-Bold", 8)
+        p.drawString(page_width - 35*mm, y_position, f"Subtotal: ${subtotal:.2f}")
+        y_position -= 5*mm
+        p.drawString(page_width - 35*mm, y_position, f"ITBIS: ${itbis_total:.2f}")
+        if venta.descuento_total > 0:
+            y_position -= 5*mm
+            p.drawString(page_width - 35*mm, y_position, f"Desc: ${venta.descuento_total:.2f}")
+        y_position -= 5*mm
+        p.drawString(page_width - 35*mm, y_position, f"Total: ${venta.total:.2f}")
+        y_position -= 5*mm
+        p.setFont("Helvetica", 7)
+        p.drawString(2*mm, y_position, f"Pago: {venta.get_metodo_pago_display()}")
+        y_position -= 10*mm
+        
+        # Pie
+        p.line(2*mm, y_position, page_width - 2*mm, y_position)
+        y_position -= 7*mm
+        p.setFont("Helvetica", 6)
+        p.drawString(2*mm, y_position, "Gracias por su compra")
+        y_position -= 5*mm
+        p.drawString(2*mm, y_position, "---")
+        
+        # Guardar PDF
+        p.save()
+        
+        # Obtener valor del buffer
+        pdf_value = buffer.getvalue()
+        buffer.close()
+        
+        response = HttpResponse(pdf_value, content_type='application/pdf')
+        response['Content-Disposition'] = 'inline; filename=ticket.pdf'
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error generando ticket para venta {venta_id}: {str(e)}")
+        return JsonResponse({'error': f'No se pudo generar el ticket: {str(e)}'}, status=500)

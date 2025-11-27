@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket {{ ticket_numero }}</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 10px;
+            background: #fff;
+            font-size: 10px;
+            width: 200px;
+        }
+        .ticket-container {
+            max-width: 200px;
+            margin: 0 auto;
+            background: white;
+        }
+        .ticket-header {
+            text-align: center;
+            margin-bottom: 15px;
+            border-bottom: 1px dashed #333;
+            padding-bottom: 8px;
+        }
+        .ticket-logo {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+        .ticket-info {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .ticket-numero {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+        .ticket-fecha {
+            font-size: 8px;
+            color: #666;
+        }
+        .ticket-cliente {
+            margin-bottom: 12px;
+            font-size: 9px;
+        }
+        .ticket-items {
+            margin-bottom: 12px;
+        }
+        .ticket-item {
+            margin-bottom: 6px;
+            font-size: 8px;
+        }
+        .ticket-item-name {
+            font-weight: bold;
+        }
+        .ticket-item-details {
+            font-size: 7px;
+            color: #666;
+        }
+        .ticket-totals {
+            border-top: 1px dashed #333;
+            padding-top: 8px;
+            margin-bottom: 12px;
+        }
+        .ticket-total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+            font-size: 8px;
+        }
+        .ticket-total-final {
+            font-weight: bold;
+            font-size: 10px;
+            border-top: 1px solid #333;
+            padding-top: 3px;
+            margin-top: 3px;
+        }
+        .ticket-payment {
+            margin-bottom: 12px;
+            font-size: 8px;
+        }
+        .ticket-footer {
+            text-align: center;
+            margin-top: 15px;
+            border-top: 1px dashed #333;
+            padding-top: 8px;
+            font-size: 7px;
+            color: #666;
+        }
+        @media print {
+            body { 
+                margin: 0;
+                padding: 3px;
+                font-size: 8px;
+            }
+            .ticket-container { 
+                width: 100%;
+                max-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ticket-container">
+        <div class="ticket-header">
+            <div class="ticket-logo">
+                {% if site_config.nombre_empresa %}
+                    {{ site_config.nombre_empresa|truncatechars:20 }}
+                {% else %}
+                    POS
+                {% endif %}
+            </div>
+            {% if site_config.rnc %}
+            <div style="font-size: 7px;">RNC: {{ site_config.rnc }}</div>
+            {% endif %}
+        </div>
+
+        <div class="ticket-info">
+            <div class="ticket-numero">{{ ticket_numero }}</div>
+            <div class="ticket-fecha">{{ fecha }}</div>
+        </div>
+
+        <div class="ticket-cliente">
+            <strong>Cliente:</strong><br>
+            {{ cliente.nombre|truncatechars:25 }}<br>
+            {% if cliente.documento %}{{ cliente.documento|truncatechars:15 }}<br>{% endif %}
+        </div>
+
+        <div class="ticket-items">
+            {% for detalle in detalles %}
+            <div class="ticket-item">
+                <div class="ticket-item-name">
+                    {{ detalle.cantidad }}x {{ detalle.producto.nombre|truncatechars:20 }}
+                </div>
+                {% if detalle.unidad_index %}
+                <div class="ticket-item-details">U:#{{ detalle.unidad_index }}</div>
+                {% endif %}
+                <div class="ticket-item-details">
+                    ${{ detalle.precio_unitario|floatformat:0 }} = ${{ detalle.subtotal|floatformat:0 }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="ticket-totals">
+            <div class="ticket-total-row">
+                <span>Subtotal:</span>
+                <span>${{ subtotal|floatformat:0 }}</span>
+            </div>
+            {% if descuento %}
+            <div class="ticket-total-row">
+                <span>Desc:</span>
+                <span>-${{ descuento|floatformat:0 }}</span>
+            </div>
+            {% endif %}
+            {% if itbis %}
+            <div class="ticket-total-row">
+                <span>ITBIS:</span>
+                <span>${{ itbis|floatformat:0 }}</span>
+            </div>
+            {% endif %}
+            <div class="ticket-total-row ticket-total-final">
+                <span>TOTAL:</span>
+                <span>${{ total|floatformat:0 }}</span>
+            </div>
+        </div>
+
+        <div class="ticket-payment">
+            <strong>{{ metodo_pago|truncatechars:15 }}</strong><br>
+            {% if venta.pagado %}
+            <strong>Pag:</strong> ${{ venta.pagado|floatformat:0 }}<br>
+            {% if venta.cambio %}
+            <strong>Camb:</strong> ${{ venta.cambio|floatformat:0 }}
+            {% endif %}
+            {% endif %}
+        </div>
+
+        <div class="ticket-footer">
+            <p>¡Gracias!</p>
+            <p>{% now "d/m/y H:i" %}</p>
+        </div>
+    </div>
+</body>
+</html>

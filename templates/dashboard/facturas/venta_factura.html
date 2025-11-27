@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factura {{ factura_numero }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #fff;
+        }
+        .factura-container {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid #ddd;
+            padding: 30px;
+            background: white;
+        }
+        .factura-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+        }
+        .factura-logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .factura-info {
+            text-align: right;
+        }
+        .factura-numero {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .factura-fecha {
+            color: #666;
+            font-size: 14px;
+        }
+        .factura-cliente {
+            margin-bottom: 30px;
+        }
+        .factura-cliente h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .factura-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .factura-table th,
+        .factura-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .factura-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+        .factura-table .text-right {
+            text-align: right;
+        }
+        .factura-totals {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        .factura-totals-table {
+            width: 300px;
+            border-collapse: collapse;
+        }
+        .factura-totals-table td {
+            padding: 8px;
+            border: none;
+        }
+        .factura-totals-table .total-row {
+            font-weight: bold;
+            font-size: 18px;
+            border-top: 2px solid #333;
+        }
+        .factura-footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+        @media print {
+            body { padding: 0; }
+            .factura-container { 
+                border: none; 
+                box-shadow: none;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="factura-container">
+        <div class="factura-header">
+            <div class="factura-logo">
+                {% if site_config.logo %}
+                    <img src="{{ site_config.logo.url }}" alt="Logo" style="max-height: 60px;">
+                {% else %}
+                    <strong>{{ site_config.nombre_empresa|default:"Sistema POS" }}</strong>
+                {% endif %}
+            </div>
+            <div class="factura-info">
+                <div class="factura-numero">{{ factura_numero }}</div>
+                <div class="factura-fecha">Fecha: {{ fecha }}</div>
+            </div>
+        </div>
+
+        <div class="factura-cliente">
+            <h3>Cliente</h3>
+            <strong>{{ cliente.nombre }}</strong><br>
+            {% if cliente.documento %}RNC/Céd: {{ cliente.documento }}<br>{% endif %}
+            {% if cliente.telefono %}Tel: {{ cliente.telefono }}<br>{% endif %}
+            {% if cliente.direccion %}Dirección: {{ cliente.direccion }}{% endif %}
+        </div>
+
+        <table class="factura-table">
+            <thead>
+                <tr>
+                    <th>Cantidad</th>
+                    <th>Producto</th>
+                    <th>Precio Unit.</th>
+                    <th class="text-right">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for detalle in detalles %}
+                <tr>
+                    <td>{{ detalle.cantidad }}</td>
+                    <td>
+                        {{ detalle.producto.nombre }}
+                        {% if detalle.unidad_index %} (Unidad #{{ detalle.unidad_index }}){% endif %}
+                        {% if detalle.producto.almacenamiento %} - {{ detalle.producto.almacenamiento }}{% endif %}
+                        {% if detalle.producto.memoria_ram %} - {{ detalle.producto.memoria_ram }} RAM{% endif %}
+                    </td>
+                    <td>{{ detalle.precio_unitario|floatformat:2 }}</td>
+                    <td class="text-right">{{ detalle.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="factura-totals">
+            <table class="factura-totals-table">
+                <tr>
+                    <td>Subtotal:</td>
+                    <td class="text-right">{{ subtotal|floatformat:2 }}</td>
+                </tr>
+                {% if descuento %}
+                <tr>
+                    <td>Descuento:</td>
+                    <td class="text-right">-{{ descuento|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                {% if itbis %}
+                <tr>
+                    <td>ITBIS (18%):</td>
+                    <td class="text-right">{{ itbis|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                <tr class="total-row">
+                    <td>Total:</td>
+                    <td class="text-right">{{ total|floatformat:2 }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="margin-top: 30px;">
+            <strong>Método de pago:</strong> {{ metodo_pago }}
+        </div>
+
+        {% if venta.notas %}
+        <div style="margin-top: 20px;">
+            <strong>Notas:</strong><br>
+            {{ venta.notas|linebreaks }}
+        </div>
+        {% endif %}
+
+        <div class="factura-footer">
+            <p>Gracias por su compra</p>
+            <p>Generado el {% now "d/m/Y H:i" %}</p>
+        </div>
+    </div>
+
+    <script>
+        // Eliminar auto-print para evitar bloqueos
+        // window.onload = function() {
+        //     window.print();
+        // }
+    </script>
+</body>
+</html>

@@ -3696,443 +3696,16 @@
     </style>
     
     <script>
-        // Stock Mínimo Configuration
+        // Comprobante Fiscal
         (function () {
-            var trigger = document.querySelector('[data-settings-action="configurar-stock-minimo"]');
+            var trigger = document.querySelector('[data-settings-action="comprobante-fiscal"]');
             if (!trigger) return;
 
             trigger.addEventListener('click', function (event) {
                 event.preventDefault();
-                openStockMinimumModal();
+                showToast('Abriendo comprobante fiscal...', 'info');
+                // TODO: Implement comprobante fiscal modal
             });
-
-            function openStockMinimumModal() {
-                var modalHtml = `
-                    <div class="modal" id="stock-minimum-modal" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-header">
-                                <h2>Configurar Stock Mínimo</h2>
-                                <button type="button" class="modal-close" data-close-stock-minimum>&times;</button>
-                            </div>
-                            <div class="modal-content">
-                                <p>Configure los niveles mínimos de stock para recibir alertas automáticas.</p>
-                                <div class="stock-minimum-form">
-                                    <div class="form-field">
-                                        <label>Porcentaje de stock mínimo (%)</label>
-                                        <input type="number" id="stock-minimum-percentage" min="1" max="50" value="20" step="1">
-                                        <small>Alerta cuando el stock sea menor al % del stock inicial</small>
-                                    </div>
-                                    <div class="form-field">
-                                        <label>
-                                            <input type="checkbox" id="enable-stock-alerts" checked>
-                                            Activar alertas automáticas
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="modal-actions">
-                                    <button type="button" class="btn btn-secondary" data-close-stock-minimum>Cancelar</button>
-                                    <button type="button" class="btn btn-primary" data-save-stock-minimum>Guardar configuración</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                document.body.insertAdjacentHTML('beforeend', modalHtml);
-                var modal = document.getElementById('stock-minimum-modal');
-                modal.setAttribute('aria-hidden', 'false');
-                modal.classList.add('is-visible');
-                
-                // Close handlers
-                modal.querySelectorAll('[data-close-stock-minimum]').forEach(function(btn) {
-                    btn.addEventListener('click', function() {
-                        modal.remove();
-                    });
-                });
-                
-                // Save handler
-                modal.querySelector('[data-save-stock-minimum]').addEventListener('click', function() {
-                    var percentage = document.getElementById('stock-minimum-percentage').value;
-                    var enabled = document.getElementById('enable-stock-alerts').checked;
-                    
-                    localStorage.setItem('stock_minimum_percentage', percentage);
-                    localStorage.setItem('stock_alerts_enabled', enabled);
-                    
-                    showToast('Configuración de stock mínimo guardada', 'success');
-                    modal.remove();
-                });
-            }
-        })();
-
-        // Generador de Código de Barra
-        (function () {
-            var trigger = document.querySelector('[data-settings-action="generar-codigo-barra"]');
-            if (!trigger) return;
-
-            trigger.addEventListener('click', function (event) {
-                event.preventDefault();
-                openBarcodeGenerator();
-            });
-
-            function openBarcodeGenerator() {
-                var modalHtml = `
-                    <div class="modal" id="barcode-generator-modal" aria-hidden="true">
-                        <div class="modal-dialog" style="max-width: 800px;">
-                            <div class="modal-header">
-                                <h2>Generar Código de Barra</h2>
-                                <button type="button" class="modal-close" data-close-barcode>&times;</button>
-                            </div>
-                            <div class="modal-content">
-                                <div class="barcode-form">
-                                    <div class="form-field">
-                                        <label>Buscar Producto</label>
-                                        <div class="search-container">
-                                            <input type="text" id="barcode-product-search" placeholder="Escriba para buscar producto...">
-                                            <div class="search-results" id="product-search-results" style="display: none;">
-                                                <div class="search-loading" id="search-loading">Buscando...</div>
-                                                <div class="search-list" id="search-list"></div>
-                                            </div>
-                                        </div>
-                                        <small>Busque por nombre, código, marca o modelo</small>
-                                    </div>
-                                    
-                                    <div class="selected-product" id="selected-product-info" style="display: none;">
-                                        <h4>Producto Seleccionado</h4>
-                                        <div class="product-details">
-                                            <div class="product-info">
-                                                <span class="product-name" id="selected-name"></span>
-                                                <span class="product-stock" id="selected-stock"></span>
-                                                <span class="product-price" id="selected-price"></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="barcode-options" id="barcode-options" style="display: none;">
-                                        <div class="form-field">
-                                            <label>Tipo de Generación</label>
-                                            <select id="barcode-generation-type">
-                                                <option value="individual">Códigos individuales por unidad</option>
-                                                <option value="quantity">Múltiples etiquetas iguales</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div class="form-field" id="quantity-field">
-                                            <label>Cantidad de etiquetas</label>
-                                            <input type="number" id="barcode-quantity" min="1" max="100" value="10">
-                                        </div>
-                                        
-                                        <div class="form-field" id="unit-selection" style="display: none;">
-                                            <label>Seleccionar Unidades</label>
-                                            <div class="units-grid" id="units-grid">
-                                                <!-- Units will be dynamically loaded -->
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="form-field">
-                                            <label>
-                                                <input type="checkbox" id="barcode-include-price" checked>
-                                                Incluir precio en etiqueta
-                                            </label>
-                                        </div>
-                                        
-                                        <div class="form-field">
-                                            <label>
-                                                <input type="checkbox" id="barcode-include-serial" checked>
-                                                Incluir número de serie
-                                            </label>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="barcode-preview" id="barcode-preview" style="display: none;">
-                                        <h4>Vista Previa de Etiquetas</h4>
-                                        <div class="barcode-samples" id="barcode-samples">
-                                            <!-- Barcode samples will be generated here -->
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="modal-actions">
-                                    <button type="button" class="btn btn-secondary" data-close-barcode>Cancelar</button>
-                                    <button type="button" class="btn btn-primary" data-generate-barcode disabled>Generar Códigos</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                document.body.insertAdjacentHTML('beforeend', modalHtml);
-                var modal = document.getElementById('barcode-generator-modal');
-                modal.setAttribute('aria-hidden', 'false');
-                modal.classList.add('is-visible');
-                
-                // Initialize functionality
-                initializeBarcodeGenerator(modal);
-                
-                // Close handlers
-                modal.querySelectorAll('[data-close-barcode]').forEach(function(btn) {
-                    btn.addEventListener('click', function() {
-                        modal.remove();
-                    });
-                });
-                
-                // Generate handler
-                modal.querySelector('[data-generate-barcode]').addEventListener('click', function() {
-                    generateBarcodes(modal);
-                });
-            }
-
-            function initializeBarcodeGenerator(modal) {
-                var searchInput = modal.querySelector('#barcode-product-search');
-                var searchResults = modal.querySelector('#product-search-results');
-                var searchList = modal.querySelector('#search-list');
-                var generationType = modal.querySelector('#barcode-generation-type');
-                var quantityField = modal.querySelector('#quantity-field');
-                var unitSelection = modal.querySelector('#unit-selection');
-                var generateBtn = modal.querySelector('[data-generate-barcode]');
-                
-                // Mock product data (in real app, fetch from API)
-                var mockProducts = [
-                    { id: 1, name: 'iPhone 15 Pro', code: 'PHONE001', stock: 25, price: 1250, brand: 'Apple', model: 'iPhone 15 Pro' },
-                    { id: 2, name: 'Samsung Galaxy S24', code: 'PHONE002', stock: 18, price: 899, brand: 'Samsung', model: 'Galaxy S24' },
-                    { id: 3, name: 'AirPods Pro', code: 'ACC001', stock: 50, price: 250, brand: 'Apple', model: 'AirPods Pro' },
-                    { id: 4, name: 'MacBook Pro M3', code: 'LAP001', stock: 10, price: 2500, brand: 'Apple', model: 'MacBook Pro' },
-                    { id: 5, name: 'iPad Air', code: 'TAB001', stock: 15, price: 599, brand: 'Apple', model: 'iPad Air' },
-                    { id: 6, name: 'Sony PlayStation 5', code: 'GAME001', stock: 8, price: 499, brand: 'Sony', model: 'PlayStation 5' },
-                    { id: 7, name: 'Xbox Series X', code: 'GAME002', stock: 12, price: 499, brand: 'Microsoft', model: 'Xbox Series X' },
-                    { id: 8, name: 'Nintendo Switch', code: 'GAME003', stock: 20, price: 299, brand: 'Nintendo', model: 'Switch' }
-                ];
-                
-                var selectedProduct = null;
-                var searchTimeout;
-                
-                // Search functionality
-                searchInput.addEventListener('input', function() {
-                    clearTimeout(searchTimeout);
-                    var query = this.value.toLowerCase().trim();
-                    
-                    if (query.length < 2) {
-                        searchResults.style.display = 'none';
-                        return;
-                    }
-                    
-                    // Show loading
-                    searchResults.style.display = 'block';
-                    modal.querySelector('#search-loading').style.display = 'block';
-                    searchList.innerHTML = '';
-                    
-                    // Simulate API delay
-                    searchTimeout = setTimeout(function() {
-                        var filtered = mockProducts.filter(function(product) {
-                            return product.name.toLowerCase().includes(query) ||
-                                   product.code.toLowerCase().includes(query) ||
-                                   product.brand.toLowerCase().includes(query) ||
-                                   product.model.toLowerCase().includes(query);
-                        });
-                        
-                        modal.querySelector('#search-loading').style.display = 'none';
-                        
-                        if (filtered.length === 0) {
-                            searchList.innerHTML = '<div class="no-results">No se encontraron productos</div>';
-                        } else {
-                            searchList.innerHTML = filtered.map(function(product) {
-                                return `
-                                    <div class="search-item" data-product-id="${product.id}">
-                                        <div class="item-main">
-                                            <span class="item-name">${product.name}</span>
-                                            <span class="item-code">${product.code}</span>
-                                        </div>
-                                        <div class="item-details">
-                                            <span class="item-brand">${product.brand}</span>
-                                            <span class="item-stock">Stock: ${product.stock}</span>
-                                            <span class="item-price">$${product.price}</span>
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('');
-                            
-                            // Add click handlers
-                            searchList.querySelectorAll('.search-item').forEach(function(item) {
-                                item.addEventListener('click', function() {
-                                    var productId = parseInt(this.dataset.productId);
-                                    selectedProduct = mockProducts.find(p => p.id === productId);
-                                    selectProduct(selectedProduct, modal);
-                                });
-                            });
-                        }
-                    }, 300);
-                });
-                
-                // Generation type change
-                generationType.addEventListener('change', function() {
-                    if (this.value === 'individual') {
-                        quantityField.style.display = 'none';
-                        unitSelection.style.display = 'block';
-                        loadUnits(selectedProduct, modal);
-                    } else {
-                        quantityField.style.display = 'block';
-                        unitSelection.style.display = 'none';
-                    }
-                    updatePreview(selectedProduct, modal);
-                });
-                
-                // Other inputs change
-                modal.querySelectorAll('#barcode-include-price, #barcode-include-serial, #barcode-quantity').forEach(function(input) {
-                    input.addEventListener('change', function() {
-                        updatePreview(selectedProduct, modal);
-                    });
-                });
-            }
-
-            function selectProduct(product, modal) {
-                var searchResults = modal.querySelector('#product-search-results');
-                var selectedInfo = modal.querySelector('#selected-product-info');
-                var barcodeOptions = modal.querySelector('#barcode-options');
-                var generateBtn = modal.querySelector('[data-generate-barcode]');
-                
-                // Update selected product display
-                modal.querySelector('#selected-name').textContent = product.name;
-                modal.querySelector('#selected-stock').textContent = `Stock: ${product.stock} unidades`;
-                modal.querySelector('#selected-price').textContent = `$${product.price}`;
-                
-                // Show sections
-                searchResults.style.display = 'none';
-                selectedInfo.style.display = 'block';
-                barcodeOptions.style.display = 'block';
-                
-                // Enable generate button
-                generateBtn.disabled = false;
-                
-                // Load units if individual generation
-                var generationType = modal.querySelector('#barcode-generation-type').value;
-                if (generationType === 'individual') {
-                    loadUnits(product, modal);
-                }
-                
-                // Update preview
-                updatePreview(product, modal);
-            }
-
-            function loadUnits(product, modal) {
-                var unitsGrid = modal.querySelector('#units-grid');
-                var units = [];
-                
-                // Generate mock units with serial numbers
-                for (var i = 1; i <= product.stock; i++) {
-                    units.push({
-                        id: i,
-                        serial: product.code + '-' + String(i).padStart(3, '0'),
-                        selected: false
-                    });
-                }
-                
-                unitsGrid.innerHTML = units.map(function(unit) {
-                    return `
-                        <div class="unit-item" data-unit-id="${unit.id}">
-                            <label class="unit-checkbox">
-                                <input type="checkbox" value="${unit.id}" data-serial="${unit.serial}">
-                                <span class="unit-info">
-                                    <span class="unit-number">Unidad ${unit.id}</span>
-                                    <span class="unit-serial">${unit.serial}</span>
-                                </span>
-                            </label>
-                        </div>
-                    `;
-                }).join('');
-                
-                // Add change handlers
-                unitsGrid.querySelectorAll('input[type="checkbox"]').forEach(function(checkbox) {
-                    checkbox.addEventListener('change', function() {
-                        updatePreview(product, modal);
-                    });
-                });
-            }
-
-            function updatePreview(product, modal) {
-                var preview = modal.querySelector('#barcode-preview');
-                var samples = modal.querySelector('#barcode-samples');
-                var generationType = modal.querySelector('#barcode-generation-type').value;
-                var includePrice = modal.querySelector('#barcode-include-price').checked;
-                var includeSerial = modal.querySelector('#barcode-include-serial').checked;
-                
-                if (!product) {
-                    preview.style.display = 'none';
-                    return;
-                }
-                
-                preview.style.display = 'block';
-                var barcodes = [];
-                
-                if (generationType === 'individual') {
-                    // Get selected units
-                    var selectedUnits = modal.querySelectorAll('#units-grid input[type="checkbox"]:checked');
-                    barcodes = Array.from(selectedUnits).map(function(checkbox) {
-                        return {
-                            serial: checkbox.dataset.serial,
-                            text: product.name,
-                            price: product.price
-                        };
-                    });
-                } else {
-                    // Multiple identical labels
-                    var quantity = parseInt(modal.querySelector('#barcode-quantity').value) || 1;
-                    for (var i = 0; i < Math.min(quantity, 5); i++) { // Limit preview to 5
-                        barcodes.push({
-                            serial: product.code + '-' + String(i + 1).padStart(3, '0'),
-                            text: product.name,
-                            price: product.price
-                        });
-                    }
-                }
-                
-                if (barcodes.length === 0) {
-                    samples.innerHTML = '<p class="no-preview">Seleccione unidades o cantidad para generar vista previa</p>';
-                    return;
-                }
-                
-                samples.innerHTML = barcodes.map(function(barcode) {
-                    return `
-                        <div class="barcode-sample">
-                            <div class="barcode-image">||| ||| ||| ||| |||</div>
-                            <div class="barcode-text">${barcode.text}</div>
-                            ${includeSerial ? `<div class="barcode-serial">${barcode.serial}</div>` : ''}
-                            ${includePrice ? `<div class="barcode-price">$${barcode.price.toFixed(2)}</div>` : ''}
-                        </div>
-                    `;
-                }).join('');
-            }
-
-            function generateBarcodes(modal) {
-                var product = modal.querySelector('#selected-name').textContent;
-                var generationType = modal.querySelector('#barcode-generation-type').value;
-                var quantity = modal.querySelector('#barcode-quantity').value;
-                var selectedUnits = modal.querySelectorAll('#units-grid input[type="checkbox"]:checked');
-                
-                if (generationType === 'individual' && selectedUnits.length === 0) {
-                    showToast('Seleccione al menos una unidad para generar códigos', 'warning');
-                    return;
-                }
-                
-                if (generationType === 'quantity' && (!quantity || quantity < 1)) {
-                    showToast('Ingrese una cantidad válida', 'warning');
-                    return;
-                }
-                
-                var totalBarcodes = generationType === 'individual' ? selectedUnits.length : quantity;
-                
-                if (showCustomConfirm(`¿Generar ${totalBarcodes} código(s) de barra para ${product}?`)) {
-                    // Show generating state
-                    var generateBtn = modal.querySelector('[data-generate-barcode]');
-                    generateBtn.innerHTML = '⏳ Generando...';
-                    generateBtn.disabled = true;
-                    
-                    setTimeout(function() {
-                        showToast(`${totalBarcodes} códigos de barra generados exitosamente\n\nLos códigos están listos para imprimir.`, 'success');
-                        window.print();
-                        
-                        generateBtn.innerHTML = 'Generar Códigos';
-                        generateBtn.disabled = false;
-                    }, 1500);
-                }
-            }
         })();
 
         // Importar Productos
@@ -4823,10 +4396,25 @@
                 modal.setAttribute('aria-hidden', 'false');
                 modal.classList.add('is-visible');
                 
+                // Guardar el elemento con focus antes de abrir el modal
+                var focusedElementBeforeModal = document.activeElement;
+                
+                // Enfocar el primer elemento del modal
+                var firstFocusableElement = modal.querySelector('input, button, select, textarea');
+                if (firstFocusableElement) {
+                    setTimeout(() => firstFocusableElement.focus(), 100);
+                }
+                
                 // Close handlers
                 modal.querySelectorAll('[data-close-codigo-barra]').forEach(function(btn) {
                     btn.addEventListener('click', function() {
-                        modal.remove();
+                        modal.setAttribute('aria-hidden', 'true');
+                        modal.classList.remove('is-visible');
+                        // Restaurar el focus al elemento original
+                        if (focusedElementBeforeModal) {
+                            focusedElementBeforeModal.focus();
+                        }
+                        setTimeout(() => modal.remove(), 300);
                     });
                 });
                 
@@ -4859,14 +4447,26 @@
                 // Click outside to close
                 modal.addEventListener('click', function(event) {
                     if (event.target === modal) {
-                        modal.remove();
+                        modal.setAttribute('aria-hidden', 'true');
+                        modal.classList.remove('is-visible');
+                        // Restaurar el focus al elemento original
+                        if (focusedElementBeforeModal) {
+                            focusedElementBeforeModal.focus();
+                        }
+                        setTimeout(() => modal.remove(), 300);
                     }
                 });
                 
                 // Escape key to close
                 document.addEventListener('keydown', function(event) {
                     if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
-                        modal.remove();
+                        modal.setAttribute('aria-hidden', 'true');
+                        modal.classList.remove('is-visible');
+                        // Restaurar el focus al elemento original
+                        if (focusedElementBeforeModal) {
+                            focusedElementBeforeModal.focus();
+                        }
+                        setTimeout(() => modal.remove(), 300);
                     }
                 });
             }
@@ -4899,168 +4499,189 @@
             });
 
             function openStockMinimoModal() {
-                var modalHtml = `
-                    <div class="modal" id="stock-minimo-modal" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-header">
-                                <h2>Configurar Stock Mínimo</h2>
-                                <button type="button" class="modal-close" data-close-stock-minimo>&times;</button>
-                            </div>
-                            <div class="modal-content">
-                                <div class="stock-config-form">
-                                    <div class="config-section">
-                                        <h3>Configuración Global</h3>
-                                        <div class="form-field">
-                                            <label>Stock Mínimo por Defecto</label>
-                                            <input type="number" id="stock-default" value="5" min="0" placeholder="Unidades">
+                // Cargar configuración desde la API
+                fetch('/app/api/stock-config/')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            var config = data.config;
+                            var modalHtml = `
+                                <div class="modal" id="stock-minimo-modal" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-header">
+                                            <h2>Configurar Stock Mínimo</h2>
+                                            <button type="button" class="modal-close" data-close-stock-minimo>&times;</button>
                                         </div>
-                                        
-                                        <div class="form-field">
-                                            <label>Alerta de Stock Bajo</label>
-                                            <input type="number" id="alerta-stock" value="10" min="0" placeholder="Unidades">
-                                        </div>
-                                        
-                                        <div class="form-field">
-                                            <label>
-                                                <input type="checkbox" id="alertas-automaticas" checked>
-                                                Activar alertas automáticas
-                                            </label>
-                                        </div>
-                                        
-                                        <div class="form-field">
-                                            <label>
-                                                <input type="checkbox" id="bloquear-venta" checked>
-                                                Bloquear venta sin stock
-                                            </label>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="config-section">
-                                        <h3>Configuración por Categoría</h3>
-                                        <div class="category-stock-list">
-                                            <div class="category-item">
-                                                <label>Smartphones</label>
-                                                <input type="number" value="3" min="0" class="stock-input">
-                                                <input type="number" value="5" min="0" class="alerta-input">
+                                        <div class="modal-content">
+                                            <div class="stock-config-form">
+                                                <div class="config-section">
+                                                    <h3>Configuración Global</h3>
+                                                    <div class="form-field">
+                                                        <label>Stock Mínimo por Defecto</label>
+                                                        <input type="number" id="stock-default" value="${config.stock_minimo_default}" min="0" placeholder="Unidades">
+                                                        <small>Stock mínimo para nuevos productos</small>
+                                                    </div>
+                                                    
+                                                    <div class="form-field">
+                                                        <label>Alerta de Stock Bajo (%)</label>
+                                                        <input type="number" id="alerta-stock" value="${config.alerta_stock_bajo_porcentaje}" min="1" max="100" placeholder="Porcentaje">
+                                                        <small>Porcentaje para alertas automáticas</small>
+                                                    </div>
+                                                    
+                                                    <div class="form-field">
+                                                        <label>
+                                                            <input type="checkbox" id="bloquear-venta" ${config.bloquear_venta_sin_stock ? 'checked' : ''}>
+                                                            Bloquear venta sin stock disponible
+                                                        </label>
+                                                        <small>Impide vender productos cuando no hay stock suficiente</small>
+                                                    </div>
+                                                    
+                                                    <div class="form-field">
+                                                        <label>
+                                                            <input type="checkbox" id="alertas-automaticas" checked>
+                                                            Activar alertas automáticas
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="config-section">
+                                                    <h3>Productos con Stock Bajo Actual</h3>
+                                                    <div class="low-stock-list">
+                                                        <div class="low-stock-item">
+                                                            <span class="product-name">iPhone 13 Pro</span>
+                                                            <span class="current-stock">1 unidad</span>
+                                                            <span class="status critical">Crítico</span>
+                                                        </div>
+                                                        <div class="low-stock-item">
+                                                            <span class="product-name">Samsung Galaxy A54</span>
+                                                            <span class="current-stock">1 unidad</span>
+                                                            <span class="status critical">Crítico</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="category-item">
-                                                <label>Accesorios</label>
-                                                <input type="number" value="10" min="0" class="stock-input">
-                                                <input type="number" value="15" min="0" class="alerta-input">
-                                            </div>
-                                            <div class="category-item">
-                                                <label>Repuestos</label>
-                                                <input type="number" value="5" min="0" class="stock-input">
-                                                <input type="number" value="8" min="0" class="alerta-input">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="config-section">
-                                        <h3>Notificaciones</h3>
-                                        <div class="form-field">
-                                            <label>Email para Alertas</label>
-                                            <input type="email" id="email-alertas" value="admin@negocio.com" placeholder="email@ejemplo.com">
-                                        </div>
-                                        
-                                        <div class="form-field">
-                                            <label>Frecuencia de Alertas</label>
-                                            <select id="frecuencia-alertas">
-                                                <option value="diario">Diario</option>
-                                                <option value="semanal" selected>Semanal</option>
-                                                <option value="mensual">Mensual</option>
-                                                <option value="inmediato">Inmediato</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div class="form-field">
-                                            <label>
-                                                <input type="checkbox" id="alertas-dashboard" checked>
-                                                Mostrar alertas en dashboard
-                                            </label>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="products-low-stock">
-                                        <h4>Productos con Stock Bajo Actual</h4>
-                                        <div class="low-stock-list">
-                                            <div class="low-stock-item">
-                                                <span class="product-name">iPhone 13 Pro - 128GB</span>
-                                                <span class="current-stock">2 unidades</span>
-                                                <span class="status critical">Crítico</span>
-                                            </div>
-                                            <div class="low-stock-item">
-                                                <span class="product-name">Samsung Galaxy S21</span>
-                                                <span class="current-stock">4 unidades</span>
-                                                <span class="status warning">Bajo</span>
+                                            <div class="modal-actions">
+                                                <button type="button" class="btn btn-secondary" data-close-stock-minimo>Cancelar</button>
+                                                <button type="button" class="btn btn-primary" data-save-stock-minimo>Guardar Configuración</button>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="modal-actions">
-                                    <button type="button" class="btn btn-secondary" data-close-stock-minimo>Cancelar</button>
-                                    <button type="button" class="btn btn-primary" data-save-stock-minimo>Guardar Configuración</button>
-                                    <button type="button" class="btn btn-outline" data-aplicar-todos>Aplicar a Todos</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                document.body.insertAdjacentHTML('beforeend', modalHtml);
-                var modal = document.getElementById('stock-minimo-modal');
-                modal.setAttribute('aria-hidden', 'false');
-                modal.classList.add('is-visible');
-                
-                // Close handlers
-                modal.querySelectorAll('[data-close-stock-minimo]').forEach(function(btn) {
-                    btn.addEventListener('click', function() {
-                        modal.remove();
+                            `;
+                            
+                            document.body.insertAdjacentHTML('beforeend', modalHtml);
+                            var modal = document.getElementById('stock-minimo-modal');
+                            modal.setAttribute('aria-hidden', 'false');
+                            modal.classList.add('is-visible');
+                            
+                            // Guardar el elemento con focus antes de abrir el modal
+                            var focusedElementBeforeModal = document.activeElement;
+                            
+                            // Enfocar el primer elemento del modal
+                            var firstFocusableElement = modal.querySelector('input, button, select, textarea');
+                            if (firstFocusableElement) {
+                                setTimeout(() => firstFocusableElement.focus(), 100);
+                            }
+                            
+                            // Close handlers
+                            modal.querySelectorAll('[data-close-stock-minimo]').forEach(function(btn) {
+                                btn.addEventListener('click', function() {
+                                    modal.setAttribute('aria-hidden', 'true');
+                                    modal.classList.remove('is-visible');
+                                    // Restaurar el focus al elemento original
+                                    if (focusedElementBeforeModal) {
+                                        focusedElementBeforeModal.focus();
+                                    }
+                                    setTimeout(() => modal.remove(), 300);
+                                });
+                            });
+                            
+                            // Save configuration
+                            modal.querySelector('[data-save-stock-minimo]').addEventListener('click', function() {
+                                var config = {
+                                    stock_minimo_default: parseInt(document.getElementById('stock-default').value) || 5,
+                                    alerta_stock_bajo_porcentaje: parseInt(document.getElementById('alerta-stock').value) || 20,
+                                    bloquear_venta_sin_stock: document.getElementById('bloquear-venta').checked,
+                                    alertas_automaticas: document.getElementById('alertas-automaticas').checked
+                                };
+                                
+                                // Guardar en el backend
+                                fetch('/app/api/stock-config/guardar/', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': getCookie('csrftoken')
+                                    },
+                                    body: JSON.stringify(config)
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        showToast('Configuración de stock guardada exitosamente', 'success');
+                                        modal.setAttribute('aria-hidden', 'true');
+                                        modal.classList.remove('is-visible');
+                                        // Restaurar el focus al elemento original
+                                        if (focusedElementBeforeModal) {
+                                            focusedElementBeforeModal.focus();
+                                        }
+                                        setTimeout(() => modal.remove(), 300);
+                                    } else {
+                                        showToast('Error: ' + data.error, 'error');
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error:', error);
+                                    showToast('Error al guardar la configuración', 'error');
+                                });
+                            });
+                            
+                            // Click outside to close
+                            modal.addEventListener('click', function(event) {
+                                if (event.target === modal) {
+                                    modal.setAttribute('aria-hidden', 'true');
+                                    modal.classList.remove('is-visible');
+                                    // Restaurar el focus al elemento original
+                                    if (focusedElementBeforeModal) {
+                                        focusedElementBeforeModal.focus();
+                                    }
+                                    setTimeout(() => modal.remove(), 300);
+                                }
+                            });
+                            
+                            // Escape key to close
+                            document.addEventListener('keydown', function(event) {
+                                if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
+                                    modal.setAttribute('aria-hidden', 'true');
+                                    modal.classList.remove('is-visible');
+                                    // Restaurar el focus al elemento original
+                                    if (focusedElementBeforeModal) {
+                                        focusedElementBeforeModal.focus();
+                                    }
+                                    setTimeout(() => modal.remove(), 300);
+                                }
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('Error al cargar la configuración de stock', 'error');
                     });
-                });
-                
-                // Save configuration
-                modal.querySelector('[data-save-stock-minimo]').addEventListener('click', function() {
-                    var config = {
-                        stockDefault: document.getElementById('stock-default').value,
-                        alertaStock: document.getElementById('alerta-stock').value,
-                        alertasAutomaticas: document.getElementById('alertas-automaticas').checked,
-                        bloquearVenta: document.getElementById('bloquear-venta').checked,
-                        emailAlertas: document.getElementById('email-alertas').value,
-                        frecuenciaAlertas: document.getElementById('frecuencia-alertas').value,
-                        alertasDashboard: document.getElementById('alertas-dashboard').checked
-                    };
-                    
-                    // Save to localStorage
-                    localStorage.setItem('stock_config', JSON.stringify(config));
-                    
-                    showToast('Configuración de stock guardada exitosamente', 'success');
-                    modal.remove();
-                });
-                
-                // Apply to all
-                modal.querySelector('[data-aplicar-todos]').addEventListener('click', function() {
-                    if (showCustomConfirm('¿Aplicar configuración global a todos los productos?')) {
-                        showToast('Aplicando configuración a todos los productos...', 'info');
-                        setTimeout(function() {
-                            showToast('Configuración aplicada a todos los productos', 'success');
-                        }, 2000);
+            }
+
+            // Function to get CSRF token
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
                     }
-                });
-                
-                // Click outside to close
-                modal.addEventListener('click', function(event) {
-                    if (event.target === modal) {
-                        modal.remove();
-                    }
-                });
-                
-                // Escape key to close
-                document.addEventListener('keydown', function(event) {
-                    if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
-                        modal.remove();
-                    }
-                });
+                }
+                return cookieValue;
             }
         })();
 
@@ -5069,59 +4690,81 @@
             var trigger = document.querySelector('[data-settings-action="editar-factura"]');
             if (!trigger) return;
 
+            // Function to get CSRF token
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
             trigger.addEventListener('click', function (event) {
                 event.preventDefault();
                 openEditFacturaModal();
             });
 
             function openEditFacturaModal() {
-                var modalHtml = `
-                    <div class="modal" id="edit-factura-modal" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-header">
-                                <h2>Editar Configuración de Factura</h2>
-                                <button type="button" class="modal-close" data-close-edit-factura>&times;</button>
-                            </div>
-                            <div class="modal-content">
-                                <div class="factura-config-form">
-                                    <div class="form-field">
-                                        <label>Número de Resolución DGII</label>
-                                        <input type="text" id="resolucion-dgii" value="RES-123456789" placeholder="RES-XXXXXXXXX">
-                                    </div>
+                // Cargar configuración desde la base de datos
+                fetch('/app/api/factura-config/')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            var config = data.config;
+                            var modalHtml = `
+                                <div class="modal" id="edit-factura-modal" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-header">
+                                            <h2>Editar Configuración de Factura</h2>
+                                            <button type="button" class="modal-close" data-close-edit-factura>&times;</button>
+                                        </div>
+                                        <div class="modal-content">
+                                            <div class="factura-config-form">
+                                                <div class="form-field">
+                                                    <label>Número de Resolución DGII</label>
+                                                    <input type="text" id="resolucion-dgii" value="${config.resolucionDGII}" placeholder="RES-XXXXXXXXX">
+                                                </div>
+                                                
+                                                <div class="form-field">
+                                                    <label>RNC/Cédula del Emisor</label>
+                                                    <input type="text" id="emisor-rnc" value="${config.emisorRNC}" placeholder="XXXXXXXXX">
+                                                </div>
+                                                
+                                                <div class="form-field">
+                                                    <label>Nombre del Emisor</label>
+                                                    <input type="text" id="emisor-nombre" value="${config.emisorNombre}" placeholder="Nombre de la empresa">
+                                                </div>
                                     
                                     <div class="form-field">
-                                        <label>RNC/Cédula del Emisor</label>
-                                        <input type="text" id="emisor-rnc" value="131234567" placeholder="XXXXXXXXX">
-                                    </div>
-                                    
-                                    <div class="form-field">
-                                        <label>Nombre del Emisor</label>
-                                        <input type="text" id="emisor-nombre" value="Mi Empresa SRL" placeholder="Nombre de la empresa">
-                                    </div>
-                                    
-                                    <div class="form-field">
-                                        <label>Tipo de Comprobante</label>
-                                        <select id="tipo-comprobante">
-                                            <option value="01">Factura de Crédito Fiscal</option>
-                                            <option value="02">Factura de Consumo</option>
-                                            <option value="03">Nota de Débito</option>
-                                            <option value="04">Nota de Crédito</option>
-                                            <option value="11">Factura de Proveedor</option>
-                                            <option value="12">Comprobante de Gasto Menor</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="form-field">
-                                        <label>Formato de Factura</label>
-                                        <select id="formato-factura">
-                                            <option value="standard" selected>Estándar DGII</option>
-                                            <option value="simplified">Simplificado</option>
-                                            <option value="detailed">Detallado</option>
-                                            <option value="thermal">Térmico (80mm)</option>
-                                            <option value="letter">Carta (Letter)</option>
-                                            <option value="a4">A4</option>
-                                        </select>
-                                    </div>
+                                                    <label>Tipo de Comprobante</label>
+                                                    <select id="tipo-comprobante">
+                                                        <option value="01" ${config.tipoComprobante === '01' ? 'selected' : ''}>Factura de Crédito Fiscal</option>
+                                                        <option value="02" ${config.tipoComprobante === '02' ? 'selected' : ''}>Factura de Consumo</option>
+                                                        <option value="03" ${config.tipoComprobante === '03' ? 'selected' : ''}>Nota de Débito</option>
+                                                        <option value="04" ${config.tipoComprobante === '04' ? 'selected' : ''}>Nota de Crédito</option>
+                                                        <option value="11" ${config.tipoComprobante === '11' ? 'selected' : ''}>Factura de Proveedor</option>
+                                                        <option value="12" ${config.tipoComprobante === '12' ? 'selected' : ''}>Comprobante de Gasto Menor</option>
+                                                    </select>
+                                                </div>
+                                                
+                                                <div class="form-field">
+                                                    <label>Formato de Factura</label>
+                                                    <select id="formato-factura">
+                                                        <option value="standard" ${config.formatoFactura === 'standard' ? 'selected' : ''}>Estándar DGII</option>
+                                                        <option value="simplified" ${config.formatoFactura === 'simplified' ? 'selected' : ''}>Simplificado</option>
+                                                        <option value="detailed" ${config.formatoFactura === 'detailed' ? 'selected' : ''}>Detallado</option>
+                                                        <option value="thermal" ${config.formatoFactura === 'thermal' ? 'selected' : ''}>Térmico (80mm)</option>
+                                                        <option value="letter" ${config.formatoFactura === 'letter' ? 'selected' : ''}>Carta (Letter)</option>
+                                                        <option value="a4" ${config.formatoFactura === 'a4' ? 'selected' : ''}>A4</option>
+                                                    </select>
+                                                </div>
                                     
                                     <div class="form-field" id="formato-config">
                                         <label>Configuración Adicional</label>
@@ -5134,7 +4777,7 @@
                                             </div>
                                             <div class="option-item">
                                                 <label>
-                                                    <input type="checkbox" id="include-footer" checked>
+                                                    <input type="checkbox" id="include-footer" ${config.includeFooter ? 'checked' : ''}>
                                                     Pie de página completo
                                                 </label>
                                             </div>
@@ -5217,220 +4860,267 @@
                                     </div>
                                     
                                     <div class="form-field">
-                                        <label>Serie de Factura</label>
-                                        <input type="text" id="serie-factura" value="A0101" placeholder="Ej: A0101">
-                                    </div>
+                                                    <label>Serie de Factura</label>
+                                                    <input type="text" id="serie-factura" value="${config.serieFactura}" placeholder="Ej: A0101">
+                                                </div>
+                                                
+                                                <div class="form-field">
+                                                    <label>Secuencia Inicial</label>
+                                                    <input type="number" id="secuencia-inicial" value="${config.secuenciaInicial}" min="1" placeholder="1">
+                                                </div>
+                                                
+                                                <div class="form-field">
+                                                    <label>Información Adicional</label>
+                                                    <textarea id="info-adicional" rows="3" placeholder="Información adicional para la factura">${config.infoAdicional}</textarea>
+                                                </div>
+                                                
+                                                <div class="form-field">
+                                                    <label>
+                                                        <input type="checkbox" id="incluir-ITBIS" ${config.incluirITBIS ? 'checked' : ''}>
+                                                        Incluir desglose de ITBIS
+                                                    </label>
+                                                </div>
                                     
                                     <div class="form-field">
-                                        <label>Secuencia Inicial</label>
-                                        <input type="number" id="secuencia-inicial" value="1" min="1" placeholder="1">
-                                    </div>
-                                    
-                                    <div class="form-field">
-                                        <label>Información Adicional</label>
-                                        <textarea id="info-adicional" rows="3" placeholder="Información adicional para la factura">NCF válido hasta 31/12/2025</textarea>
-                                    </div>
-                                    
-                                    <div class="form-field">
-                                        <label>
-                                            <input type="checkbox" id="incluir-ITBIS" checked>
-                                            Incluir desglose de ITBIS
-                                        </label>
-                                    </div>
-                                    
-                                    <div class="form-field">
-                                        <label>
-                                            <input type="checkbox" id="incluir-leyendas" checked>
-                                            Incluir leyendas fiscales
-                                        </label>
-                                    </div>
-                                    
-                                    <div class="form-field">
-                                        <label>
-                                            <input type="checkbox" id="incluir-logo" checked>
-                                            Incluir logo de la empresa
-                                        </label>
-                                    </div>
-                                    
-                                    <div class="form-field" id="logo-config">
-                                        <label>Tamaño del Logo</label>
-                                        <select id="tamano-logo">
-                                            <option value="small">Pequeño (20mm)</option>
-                                            <option value="medium" selected>Mediano (30mm)</option>
-                                            <option value="large">Grande (40mm)</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="form-field" id="logo-position">
-                                        <label>Posición del Logo</label>
-                                        <select id="posicion-logo">
-                                            <option value="top-left" selected>Superior Izquierda</option>
-                                            <option value="top-center">Superior Centro</option>
-                                            <option value="top-right">Superior Derecha</option>
-                                            <option value="bottom-left">Inferior Izquierda</option>
-                                            <option value="bottom-center">Inferior Centro</option>
-                                            <option value="bottom-right">Inferior Derecha</option>
-                                        </select>
+                                                    <label>
+                                                        <input type="checkbox" id="incluir-leyendas" ${config.incluirLeyendas ? 'checked' : ''}>
+                                                        Incluir leyendas fiscales
+                                                    </label>
+                                                </div>
+                                                
+                                                <div class="form-field">
+                                                    <label>
+                                                        <input type="checkbox" id="incluir-logo" ${config.incluirLogo ? 'checked' : ''}>
+                                                        Incluir logo de la empresa
+                                                    </label>
+                                                </div>
+                                                
+                                                <div class="form-field" id="logo-config">
+                                                    <label>Tamaño del Logo</label>
+                                                    <select id="tamano-logo">
+                                                        <option value="small" ${config.tamanoLogo === 'small' ? 'selected' : ''}>Pequeño (20mm)</option>
+                                                        <option value="medium" ${config.tamanoLogo === 'medium' ? 'selected' : ''}>Mediano (30mm)</option>
+                                                        <option value="large" ${config.tamanoLogo === 'large' ? 'selected' : ''}>Grande (40mm)</option>
+                                                    </select>
+                                                </div>
+                                                
+                                                <div class="form-field" id="logo-position">
+                                                    <label>Posición del Logo</label>
+                                                    <select id="posicion-logo">
+                                                        <option value="top-left" ${config.posicionLogo === 'top-left' ? 'selected' : ''}>Superior Izquierda</option>
+                                                        <option value="top-center" ${config.posicionLogo === 'top-center' ? 'selected' : ''}>Superior Centro</option>
+                                                        <option value="top-right" ${config.posicionLogo === 'top-right' ? 'selected' : ''}>Superior Derecha</option>
+                                                        <option value="bottom-left" ${config.posicionLogo === 'bottom-left' ? 'selected' : ''}>Inferior Izquierda</option>
+                                                        <option value="bottom-center" ${config.posicionLogo === 'bottom-center' ? 'selected' : ''}>Inferior Centro</option>
+                                                        <option value="bottom-right" ${config.posicionLogo === 'bottom-right' ? 'selected' : ''}>Inferior Derecha</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="modal-actions">
+                                                <button type="button" class="btn btn-secondary" data-close-edit-factura>Cancelar</button>
+                                                <button type="button" class="btn btn-primary" data-save-edit-factura>Guardar Configuración</button>
+                                                <button type="button" class="btn btn-outline" data-preview-factura>Vista Previa</button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="modal-actions">
-                                    <button type="button" class="btn btn-secondary" data-close-edit-factura>Cancelar</button>
-                                    <button type="button" class="btn btn-primary" data-save-edit-factura>Guardar Configuración</button>
-                                    <button type="button" class="btn btn-outline" data-preview-factura>Vista Previa</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                document.body.insertAdjacentHTML('beforeend', modalHtml);
-                var modal = document.getElementById('edit-factura-modal');
-                modal.setAttribute('aria-hidden', 'false');
-                modal.classList.add('is-visible');
-                
-                // Close handlers
-                modal.querySelectorAll('[data-close-edit-factura]').forEach(function(btn) {
-                    btn.addEventListener('click', function() {
-                        modal.remove();
+                            `;
+                            
+                            document.body.insertAdjacentHTML('beforeend', modalHtml);
+                            var modal = document.getElementById('edit-factura-modal');
+                            modal.setAttribute('aria-hidden', 'false');
+                            modal.classList.add('is-visible');
+                            
+                            // Guardar el elemento con focus antes de abrir el modal
+                            var focusedElementBeforeModal = document.activeElement;
+                            
+                            // Enfocar el primer elemento del modal
+                            var firstFocusableElement = modal.querySelector('input, button, select, textarea');
+                            if (firstFocusableElement) {
+                                setTimeout(() => firstFocusableElement.focus(), 100);
+                            }
+                            
+                            // Close handlers
+                            modal.querySelectorAll('[data-close-edit-factura]').forEach(function(btn) {
+                                btn.addEventListener('click', function() {
+                                    modal.setAttribute('aria-hidden', 'true');
+                                    modal.classList.remove('is-visible');
+                                    // Restaurar el focus al elemento original
+                                    if (focusedElementBeforeModal) {
+                                        focusedElementBeforeModal.focus();
+                                    }
+                                    setTimeout(() => modal.remove(), 300);
+                                });
+                            });
+                            
+                            // Save configuration
+                            modal.querySelector('[data-save-edit-factura]').addEventListener('click', function() {
+                                var config = {
+                                    resolucionDGII: document.getElementById('resolucion-dgii').value,
+                                    emisorRNC: document.getElementById('emisor-rnc').value,
+                                    emisorNombre: document.getElementById('emisor-nombre').value,
+                                    emisorTelefono: '809-555-1234',  // Puedes agregar estos campos al formulario
+                                    emisorDireccion: 'Dirección por defecto',  // Puedes agregar estos campos al formulario
+                                    tipoComprobante: document.getElementById('tipo-comprobante').value,
+                                    formatoFactura: document.getElementById('formato-factura').value,
+                                    serieFactura: document.getElementById('serie-factura').value,
+                                    secuenciaInicial: document.getElementById('secuencia-inicial').value,
+                                    infoAdicional: document.getElementById('info-adicional').value,
+                                    incluirITBIS: document.getElementById('incluir-ITBIS').checked,
+                                    incluirLeyendas: document.getElementById('incluir-leyendas').checked,
+                                    incluirLogo: document.getElementById('incluir-logo').checked,
+                                    tamanoLogo: document.getElementById('tamano-logo').value,
+                                    posicionLogo: document.getElementById('posicion-logo').value,
+                                    // Opciones de formato
+                                    includeFooter: document.getElementById('include-footer')?.checked || false
+                                };
+                                
+                                // Save to database via API
+                                fetch('/app/api/factura-config/guardar/', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRFToken': getCookie('csrftoken')
+                                    },
+                                    body: JSON.stringify(config)
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        showToast('Configuración de factura guardada exitosamente', 'success');
+                                        modal.setAttribute('aria-hidden', 'true');
+                                        modal.classList.remove('is-visible');
+                                        // Restaurar el focus al elemento original
+                                        if (focusedElementBeforeModal) {
+                                            focusedElementBeforeModal.focus();
+                                        }
+                                        setTimeout(() => modal.remove(), 300);
+                                    } else {
+                                        showToast('Error: ' + data.error, 'error');
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error:', error);
+                                    showToast('Error al guardar la configuración', 'error');
+                                });
+                            });
+                            
+                            // Toggle logo options
+                            var incluirLogoCheckbox = document.getElementById('incluir-logo');
+                            var logoConfig = document.getElementById('logo-config');
+                            var logoPosition = document.getElementById('logo-position');
+                            
+                            function toggleLogoOptions() {
+                                var showLogo = incluirLogoCheckbox.checked;
+                                logoConfig.style.display = showLogo ? 'block' : 'none';
+                                logoPosition.style.display = showLogo ? 'block' : 'none';
+                            }
+                            
+                            incluirLogoCheckbox.addEventListener('change', toggleLogoOptions);
+                            toggleLogoOptions(); // Initialize state
+                            
+                            // Toggle formato options
+                            var formatoSelect = document.getElementById('formato-factura');
+                            var formatoOptions = {
+                                'standard': document.getElementById('standard-options'),
+                                'simplified': document.getElementById('simplified-options'),
+                                'thermal': document.getElementById('thermal-options'),
+                                'detailed': document.getElementById('detailed-options'),
+                                'letter': document.getElementById('letter-options'),
+                                'a4': document.getElementById('a4-options')
+                            };
+                            
+                            function toggleFormatoOptions() {
+                                var selectedFormato = formatoSelect.value;
+                                
+                                // Hide all options
+                                Object.values(formatoOptions).forEach(function(options) {
+                                    if (options) options.style.display = 'none';
+                                });
+                                
+                                // Show selected options
+                                if (formatoOptions[selectedFormato]) {
+                                    formatoOptions[selectedFormato].style.display = 'block';
+                                }
+                            }
+                            
+                            formatoSelect.addEventListener('change', toggleFormatoOptions);
+                            toggleFormatoOptions(); // Initialize state
+                            
+                            // Preview
+                            modal.querySelector('[data-preview-factura]').addEventListener('click', function() {
+                                var config = {
+                                    resolucionDGII: document.getElementById('resolucion-dgii').value,
+                                    emisorRNC: document.getElementById('emisor-rnc').value,
+                                    emisorNombre: document.getElementById('emisor-nombre').value,
+                                    tipoComprobante: document.getElementById('tipo-comprobante').value,
+                                    formatoFactura: document.getElementById('formato-factura').value,
+                                    serieFactura: document.getElementById('serie-factura').value,
+                                    secuenciaInicial: document.getElementById('secuencia-inicial').value,
+                                    infoAdicional: document.getElementById('info-adicional').value,
+                                    incluirITBIS: document.getElementById('incluir-ITBIS').checked,
+                                    incluirLeyendas: document.getElementById('incluir-leyendas').checked,
+                                    incluirLogo: document.getElementById('incluir-logo').checked,
+                                    tamanoLogo: document.getElementById('tamano-logo').value,
+                                    posicionLogo: document.getElementById('posicion-logo').value
+                                };
+                                
+                                showToast('Generando vista previa de factura...', 'info');
+                                
+                                // Abrir visor PDF en nueva ventana
+                                setTimeout(function() {
+                                    var pdfUrl = '/app/facturas/vista-previa/?' + new URLSearchParams({
+                                        tipo: config.tipoComprobante,
+                                        formato: config.formatoFactura,
+                                        serie: config.serieFactura,
+                                        emisor: config.emisorNombre,
+                                        rnc: config.emisorRNC,
+                                        resolucion: config.resolucionDGII,
+                                        incluir_itbis: config.incluirITBIS,
+                                        incluir_leyendas: config.incluirLeyendas,
+                                        incluir_logo: config.incluirLogo,
+                                        tamano_logo: config.tamanoLogo,
+                                        posicion_logo: config.posicionLogo,
+                                        preview: 'true'
+                                    }).toString();
+                                    
+                                    // Abrir en nueva ventana para vista previa e impresión
+                                    window.open(pdfUrl, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
+                                    showToast('Vista previa abierta en nueva ventana', 'success');
+                                }, 1000);
+                            });
+                            
+                            // Click outside to close
+                            modal.addEventListener('click', function(event) {
+                                if (event.target === modal) {
+                                    modal.setAttribute('aria-hidden', 'true');
+                                    modal.classList.remove('is-visible');
+                                    // Restaurar el focus al elemento original
+                                    if (focusedElementBeforeModal) {
+                                        focusedElementBeforeModal.focus();
+                                    }
+                                    setTimeout(() => modal.remove(), 300);
+                                }
+                            });
+                            
+                            // Escape key to close
+                            document.addEventListener('keydown', function(event) {
+                                if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
+                                    modal.setAttribute('aria-hidden', 'true');
+                                    modal.classList.remove('is-visible');
+                                    // Restaurar el focus al elemento original
+                                    if (focusedElementBeforeModal) {
+                                        focusedElementBeforeModal.focus();
+                                    }
+                                    setTimeout(() => modal.remove(), 300);
+                                }
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('Error al cargar la configuración de factura', 'error');
                     });
-                });
-                
-                // Save configuration
-                modal.querySelector('[data-save-edit-factura]').addEventListener('click', function() {
-                    var config = {
-                        resolucionDGII: document.getElementById('resolucion-dgii').value,
-                        emisorRNC: document.getElementById('emisor-rnc').value,
-                        emisorNombre: document.getElementById('emisor-nombre').value,
-                        tipoComprobante: document.getElementById('tipo-comprobante').value,
-                        formatoFactura: document.getElementById('formato-factura').value,
-                        serieFactura: document.getElementById('serie-factura').value,
-                        secuenciaInicial: document.getElementById('secuencia-inicial').value,
-                        infoAdicional: document.getElementById('info-adicional').value,
-                        incluirITBIS: document.getElementById('incluir-ITBIS').checked,
-                        incluirLeyendas: document.getElementById('incluir-leyendas').checked,
-                        incluirLogo: document.getElementById('incluir-logo').checked,
-                        tamanoLogo: document.getElementById('tamano-logo').value,
-                        posicionLogo: document.getElementById('posicion-logo').value,
-                        // Opciones de formato
-                        includeWatermark: document.getElementById('include-watermark')?.checked || false,
-                        includeFooter: document.getElementById('include-footer')?.checked || false,
-                        simpleItems: document.getElementById('simple-items')?.checked || false,
-                        noTaxes: document.getElementById('no-taxes')?.checked || false,
-                        compactMode: document.getElementById('compact-mode')?.checked || false,
-                        cutLine: document.getElementById('cut-line')?.checked || false,
-                        includeImages: document.getElementById('include-images')?.checked || false,
-                        includeSpecs: document.getElementById('include-specs')?.checked || false,
-                        letterHeader: document.getElementById('letter-header')?.checked || false,
-                        letterWatermark: document.getElementById('letter-watermark')?.checked || false,
-                        a4Header: document.getElementById('a4-header')?.checked || false,
-                        a4Footer: document.getElementById('a4-footer')?.checked || false
-                    };
-                    
-                    // Save to localStorage
-                    localStorage.setItem('factura_config', JSON.stringify(config));
-                    
-                    showToast('Configuración de factura guardada exitosamente', 'success');
-                    modal.remove();
-                });
-                
-                // Toggle logo options
-                var incluirLogoCheckbox = document.getElementById('incluir-logo');
-                var logoConfig = document.getElementById('logo-config');
-                var logoPosition = document.getElementById('logo-position');
-                
-                function toggleLogoOptions() {
-                    var showLogo = incluirLogoCheckbox.checked;
-                    logoConfig.style.display = showLogo ? 'block' : 'none';
-                    logoPosition.style.display = showLogo ? 'block' : 'none';
-                }
-                
-                incluirLogoCheckbox.addEventListener('change', toggleLogoOptions);
-                toggleLogoOptions(); // Initialize state
-                
-                // Toggle formato options
-                var formatoSelect = document.getElementById('formato-factura');
-                var formatoOptions = {
-                    'standard': document.getElementById('standard-options'),
-                    'simplified': document.getElementById('simplified-options'),
-                    'thermal': document.getElementById('thermal-options'),
-                    'detailed': document.getElementById('detailed-options'),
-                    'letter': document.getElementById('letter-options'),
-                    'a4': document.getElementById('a4-options')
-                };
-                
-                function toggleFormatoOptions() {
-                    var selectedFormato = formatoSelect.value;
-                    
-                    // Hide all options
-                    Object.values(formatoOptions).forEach(function(options) {
-                        if (options) options.style.display = 'none';
-                    });
-                    
-                    // Show selected options
-                    if (formatoOptions[selectedFormato]) {
-                        formatoOptions[selectedFormato].style.display = 'block';
-                    }
-                }
-                
-                formatoSelect.addEventListener('change', toggleFormatoOptions);
-                toggleFormatoOptions(); // Initialize state
-                
-                // Preview
-                modal.querySelector('[data-preview-factura]').addEventListener('click', function() {
-                    var config = {
-                        resolucionDGII: document.getElementById('resolucion-dgii').value,
-                        emisorRNC: document.getElementById('emisor-rnc').value,
-                        emisorNombre: document.getElementById('emisor-nombre').value,
-                        tipoComprobante: document.getElementById('tipo-comprobante').value,
-                        formatoFactura: document.getElementById('formato-factura').value,
-                        serieFactura: document.getElementById('serie-factura').value,
-                        secuenciaInicial: document.getElementById('secuencia-inicial').value,
-                        infoAdicional: document.getElementById('info-adicional').value,
-                        incluirITBIS: document.getElementById('incluir-ITBIS').checked,
-                        incluirLeyendas: document.getElementById('incluir-leyendas').checked,
-                        incluirLogo: document.getElementById('incluir-logo').checked,
-                        tamanoLogo: document.getElementById('tamano-logo').value,
-                        posicionLogo: document.getElementById('posicion-logo').value
-                    };
-                    
-                    showToast('Generando vista previa de factura...', 'info');
-                    
-                    // Abrir visor PDF en nueva ventana
-                    setTimeout(function() {
-                        var pdfUrl = '/app/facturas/vista-previa/?' + new URLSearchParams({
-                            tipo: config.tipoComprobante,
-                            formato: config.formatoFactura,
-                            serie: config.serieFactura,
-                            emisor: config.emisorNombre,
-                            rnc: config.emisorRNC,
-                            resolucion: config.resolucionDGII,
-                            incluir_itbis: config.incluirITBIS,
-                            incluir_leyendas: config.incluirLeyendas,
-                            incluir_logo: config.incluirLogo,
-                            tamano_logo: config.tamanoLogo,
-                            posicion_logo: config.posicionLogo,
-                            preview: 'true'
-                        }).toString();
-                        
-                        // Abrir en nueva ventana para vista previa e impresión
-                        window.open(pdfUrl, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
-                        showToast('Vista previa abierta en nueva ventana', 'success');
-                    }, 1000);
-                });
-                
-                // Click outside to close
-                modal.addEventListener('click', function(event) {
-                    if (event.target === modal) {
-                        modal.remove();
-                    }
-                });
-                
-                // Escape key to close
-                document.addEventListener('keydown', function(event) {
-                    if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
-                        modal.remove();
-                    }
-                });
             }
         })();
 

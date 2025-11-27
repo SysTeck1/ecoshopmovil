@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket {{ ticket_numero }}</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 10px;
+            background: #fff;
+            font-size: 12px;
+            width: 280px;
+        }
+        .ticket-container {
+            max-width: 280px;
+            margin: 0 auto;
+            background: white;
+        }
+        .ticket-header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px dashed #333;
+            padding-bottom: 10px;
+        }
+        .ticket-logo {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .ticket-info {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .ticket-numero {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .ticket-fecha {
+            font-size: 10px;
+            color: #666;
+        }
+        .ticket-cliente {
+            margin-bottom: 15px;
+            font-size: 11px;
+        }
+        .ticket-items {
+            margin-bottom: 15px;
+        }
+        .ticket-item {
+            margin-bottom: 8px;
+            font-size: 10px;
+        }
+        .ticket-item-name {
+            font-weight: bold;
+        }
+        .ticket-item-details {
+            font-size: 9px;
+            color: #666;
+        }
+        .ticket-totals {
+            border-top: 1px dashed #333;
+            padding-top: 10px;
+            margin-bottom: 15px;
+        }
+        .ticket-total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: 10px;
+        }
+        .ticket-total-final {
+            font-weight: bold;
+            font-size: 12px;
+            border-top: 1px solid #333;
+            padding-top: 5px;
+            margin-top: 5px;
+        }
+        .ticket-payment {
+            margin-bottom: 15px;
+            font-size: 10px;
+        }
+        .ticket-footer {
+            text-align: center;
+            margin-top: 20px;
+            border-top: 1px dashed #333;
+            padding-top: 10px;
+            font-size: 9px;
+            color: #666;
+        }
+        @media print {
+            body { 
+                margin: 0;
+                padding: 5px;
+                font-size: 10px;
+            }
+            .ticket-container { 
+                width: 100%;
+                max-width: 280px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ticket-container">
+        <div class="ticket-header">
+            <div class="ticket-logo">
+                {% if site_config.nombre_empresa %}
+                    {{ site_config.nombre_empresa }}
+                {% else %}
+                    SISTEMA POS
+                {% endif %}
+            </div>
+            {% if site_config.rnc %}
+            <div style="font-size: 9px;">RNC: {{ site_config.rnc }}</div>
+            {% endif %}
+            {% if site_config.direccion %}
+            <div style="font-size: 9px;">{{ site_config.direccion }}</div>
+            {% endif %}
+            {% if site_config.telefono %}
+            <div style="font-size: 9px;">Tel: {{ site_config.telefono }}</div>
+            {% endif %}
+        </div>
+
+        <div class="ticket-info">
+            <div class="ticket-numero">{{ ticket_numero }}</div>
+            <div class="ticket-fecha">{{ fecha }}</div>
+        </div>
+
+        <div class="ticket-cliente">
+            <strong>Cliente:</strong><br>
+            {{ cliente.nombre }}<br>
+            {% if cliente.documento %}{{ cliente.documento }}<br>{% endif %}
+        </div>
+
+        <div class="ticket-items">
+            {% for detalle in detalles %}
+            <div class="ticket-item">
+                <div class="ticket-item-name">
+                    {{ detalle.cantidad }}x {{ detalle.producto.nombre|truncatechars:30 }}
+                </div>
+                {% if detalle.unidad_index %}
+                <div class="ticket-item-details">Unidad: #{{ detalle.unidad_index }}</div>
+                {% endif %}
+                {% if detalle.producto.almacenamiento or detalle.producto.memoria_ram %}
+                <div class="ticket-item-details">
+                    {% if detalle.producto.almacenamiento %}{{ detalle.producto.almacenamiento }}{% endif %}
+                    {% if detalle.producto.memoria_ram %} / {{ detalle.producto.memoria_ram }}{% endif %}
+                </div>
+                {% endif %}
+                <div class="ticket-item-details">
+                    ${{ detalle.precio_unitario|floatformat:2 }} c/u = ${{ detalle.subtotal|floatformat:2 }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="ticket-totals">
+            <div class="ticket-total-row">
+                <span>Subtotal:</span>
+                <span>${{ subtotal|floatformat:2 }}</span>
+            </div>
+            {% if descuento %}
+            <div class="ticket-total-row">
+                <span>Descuento:</span>
+                <span>-${{ descuento|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+            {% if itbis %}
+            <div class="ticket-total-row">
+                <span>ITBIS:</span>
+                <span>${{ itbis|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+            <div class="ticket-total-row ticket-total-final">
+                <span>TOTAL:</span>
+                <span>${{ total|floatformat:2 }}</span>
+            </div>
+        </div>
+
+        <div class="ticket-payment">
+            <strong>Pago:</strong> {{ metodo_pago }}<br>
+            {% if venta.pagado %}
+            <strong>Pagado:</strong> ${{ venta.pagado|floatformat:2 }}<br>
+            {% if venta.cambio %}
+            <strong>Cambio:</strong> ${{ venta.cambio|floatformat:2 }}
+            {% endif %}
+            {% endif %}
+        </div>
+
+        {% if venta.notas %}
+        <div style="margin-bottom: 15px; font-size: 9px;">
+            <strong>Notas:</strong><br>
+            {{ venta.notas|linebreaks }}
+        </div>
+        {% endif %}
+
+        <div class="ticket-footer">
+            <p>¡Gracias por su compra!</p>
+            <p>Generado: {% now "d/m/Y H:i" %}</p>
+        </div>
+    </div>
+
+    <script>
+        // Eliminar auto-print para evitar bloqueos
+        // window.onload = function() {
+        //     window.print();
+        // }
+    </script>
+</body>
+</html>
