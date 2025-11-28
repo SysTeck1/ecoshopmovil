@@ -16,17 +16,61 @@ Usage: {% include 'dashboard/pagination.html' with page_obj=page_object querystr
                 </li>
             {% endif %}
 
-            {% for num in page_obj.paginator.page_range %}
-                {% if num == page_obj.number %}
-                    <li class="pagination__item pagination__item--active">
-                        <span class="pagination__link">{{ num }}</span>
-                    </li>
+            {% comment %}Paginación inteligente con elipsis{% endcomment %}
+            {% with current_page=page_obj.number total_pages=page_obj.paginator.num_pages %}
+                {% if total_pages <= 7 %}
+                    {% comment %}Mostrar todas las páginas si hay 7 o menos{% endcomment %}
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if num == current_page %}
+                            <li class="pagination__item pagination__item--active">
+                                <span class="pagination__link">{{ num }}</span>
+                            </li>
+                        {% else %}
+                            <li class="pagination__item">
+                                <a class="pagination__link" href="?page={{ num }}{% if querystring %}&{{ querystring }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
                 {% else %}
-                    <li class="pagination__item">
-                        <a class="pagination__link" href="?page={{ num }}{% if querystring %}&{{ querystring }}{% endif %}">{{ num }}</a>
-                    </li>
+                    {% comment %}Paginación con elipsis para muchas páginas{% endcomment %}
+                    {% comment %}Primera página{% endcomment %}
+                    {% if current_page > 3 %}
+                        <li class="pagination__item">
+                            <a class="pagination__link" href="?page=1{% if querystring %}&{{ querystring }}{% endif %}">1</a>
+                        </li>
+                        {% if current_page > 4 %}
+                            <li class="pagination__item pagination__item--ellipsis">
+                                <span class="pagination__link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endif %}
+
+                    {% comment %}Páginas alrededor de la actual{% endcomment %}
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if num == current_page %}
+                            <li class="pagination__item pagination__item--active">
+                                <span class="pagination__link">{{ num }}</span>
+                            </li>
+                        {% elif num > current_page|add:"-3" and num < current_page|add:"3" %}
+                            <li class="pagination__item">
+                                <a class="pagination__link" href="?page={{ num }}{% if querystring %}&{{ querystring }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% comment %}Última página{% endcomment %}
+                    {% if current_page < total_pages|add:"-2" %}
+                        {% if current_page < total_pages|add:"-3" %}
+                            <li class="pagination__item pagination__item--ellipsis">
+                                <span class="pagination__link">...</span>
+                            </li>
+                        {% endif %}
+                        <li class="pagination__item">
+                            <a class="pagination__link" href="?page={{ total_pages }}{% if querystring %}&{{ querystring }}{% endif %}">{{ total_pages }}</a>
+                        </li>
+                    {% endif %}
                 {% endif %}
-            {% endfor %}
+            {% endwith %}
 
             {% if page_obj.has_next %}
                 <li class="pagination__item">

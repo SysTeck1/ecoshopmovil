@@ -289,6 +289,27 @@
         display: none;
     }
 
+    .credit-summary {
+        background: var(--color-surface-card);
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 12px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     .credit-summary header {
         display: flex;
         justify-content: space-between;
@@ -575,6 +596,144 @@
             grid-template-columns: 1fr;
         }
     }
+
+    /* Estilos para la paginación - similares a inventario */
+    .pagination {
+        margin: 20px 0;
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .pagination__list {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        gap: 4px;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .pagination__item {
+        margin: 0;
+    }
+
+    .pagination__link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 40px;
+        height: 40px;
+        padding: 0 12px;
+        border: 1px solid #dcdde1;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #2f3640;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .pagination__link:hover {
+        background: #f5f6fa;
+        border-color: #0097e6;
+        color: #0097e6;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 151, 230, 0.1);
+    }
+
+    .pagination__item--active .pagination__link {
+        background: #0097e6;
+        border-color: #0097e6;
+        color: #ffffff;
+        font-weight: 600;
+    }
+
+    .pagination__item--disabled .pagination__link {
+        background: #f5f6fa;
+        border-color: #dcdde1;
+        color: #a4b0be;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .pagination__item--disabled .pagination__link:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    .pagination__item--ellipsis .pagination__link {
+        background: transparent;
+        border: none;
+        color: #a4b0be;
+        cursor: default;
+        min-width: 30px;
+        font-weight: 400;
+    }
+
+    .pagination__item--ellipsis .pagination__link:hover {
+        transform: none;
+        box-shadow: none;
+        background: transparent;
+    }
+
+    /* Responsive para pantallas pequeñas */
+    @media (max-width: 768px) {
+        .pagination {
+            margin: 15px 0;
+            gap: 2px;
+        }
+
+        .pagination__list {
+            gap: 2px;
+        }
+
+        .pagination__link {
+            min-width: 36px;
+            height: 36px;
+            padding: 0 8px;
+            font-size: 0.85rem;
+        }
+
+        .pagination__item--ellipsis .pagination__link {
+            min-width: 24px;
+            font-size: 0.8rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .pagination {
+            margin: 10px 0;
+        }
+
+        .pagination__link {
+            min-width: 32px;
+            height: 32px;
+            padding: 0 6px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+        }
+
+        .pagination__item--ellipsis .pagination__link {
+            min-width: 20px;
+            font-size: 0.75rem;
+        }
+    }
+
+    /* Asegurar que la paginación no se desborde del contenedor */
+    .credits {
+        overflow-x: auto;
+    }
+
+    .pagination {
+        max-width: 100%;
+    }
 </style>
 {% endblock %}
 
@@ -606,6 +765,35 @@
             <button type="button" class="btn btn-outline btn-outline--primary" data-credit-action="view-payments">Ver cuotas pendientes</button>
         </div>
     </header>
+
+    <aside class="credit-summary" data-credit-summary hidden>
+        <header>
+            <h3>Crédito seleccionado</h3>
+            <p data-summary-badge>Sin selección</p>
+        </header>
+        <div class="credit-summary__grid">
+            <div>
+                <span class="credit-summary__label">Cliente</span>
+                <span class="credit-summary__value" data-summary-cliente>—</span>
+            </div>
+            <div>
+                <span class="credit-summary__label">Saldo pendiente</span>
+                <span class="credit-summary__value" data-summary-saldo>—</span>
+            </div>
+            <div>
+                <span class="credit-summary__label">Total crédito</span>
+                <span class="credit-summary__value" data-summary-total>—</span>
+            </div>
+            <div>
+                <span class="credit-summary__label">Abonado</span>
+                <span class="credit-summary__value" data-summary-abonado>—</span>
+            </div>
+            <div>
+                <span class="credit-summary__label">Último pago</span>
+                <span class="credit-summary__value" data-summary-ultimo-pago>—</span>
+            </div>
+        </div>
+    </aside>
 
     <div class="credits-table" data-credit-table-container>
         <table class="credits-table__grid" data-credit-table>
@@ -679,15 +867,53 @@
                     <li class="pagination__item pagination__item--disabled"><span class="pagination__link" aria-hidden="true">&laquo;</span></li>
                 {% endif %}
 
-                {% for num in creditos_page.paginator.page_range %}
-                    {% if num == creditos_page.number %}
-                        <li class="pagination__item pagination__item--active"><span class="pagination__link">{{ num }}</span></li>
+                {% comment %}Paginación inteligente con elipsis{% endcomment %}
+                {% with current_page=creditos_page.number total_pages=creditos_page.paginator.num_pages %}
+                    {% if total_pages <= 7 %}
+                        {% comment %}Mostrar todas las páginas si hay 7 o menos{% endcomment %}
+                        {% for num in creditos_page.paginator.page_range %}
+                            {% if num == current_page %}
+                                <li class="pagination__item pagination__item--active"><span class="pagination__link">{{ num }}</span></li>
+                            {% else %}
+                                <li class="pagination__item">
+                                    <a class="pagination__link" href="?page={{ num }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
                     {% else %}
-                        <li class="pagination__item">
-                            <a class="pagination__link" href="?page={{ num }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}">{{ num }}</a>
-                        </li>
+                        {% comment %}Paginación con elipsis para muchas páginas{% endcomment %}
+                        {% comment %}Primera página{% endcomment %}
+                        {% if current_page > 3 %}
+                            <li class="pagination__item">
+                                <a class="pagination__link" href="?page=1{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}">1</a>
+                            </li>
+                            {% if current_page > 4 %}
+                                <li class="pagination__item pagination__item--ellipsis"><span class="pagination__link">...</span></li>
+                            {% endif %}
+                        {% endif %}
+
+                        {% comment %}Páginas alrededor de la actual{% endcomment %}
+                        {% for num in creditos_page.paginator.page_range %}
+                            {% if num == current_page %}
+                                <li class="pagination__item pagination__item--active"><span class="pagination__link">{{ num }}</span></li>
+                            {% elif num > current_page|add:"-3" and num < current_page|add:"3" %}
+                                <li class="pagination__item">
+                                    <a class="pagination__link" href="?page={{ num }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% comment %}Última página{% endcomment %}
+                        {% if current_page < total_pages|add:"-2" %}
+                            {% if current_page < total_pages|add:"-3" %}
+                                <li class="pagination__item pagination__item--ellipsis"><span class="pagination__link">...</span></li>
+                            {% endif %}
+                            <li class="pagination__item">
+                                <a class="pagination__link" href="?page={{ total_pages }}{% if pagination_querystring %}&{{ pagination_querystring }}{% endif %}">{{ total_pages }}</a>
+                            </li>
+                        {% endif %}
                     {% endif %}
-                {% endfor %}
+                {% endwith %}
 
                 {% if creditos_page.has_next %}
                     <li class="pagination__item">
@@ -699,35 +925,6 @@
             </ul>
         </nav>
     {% endif %}
-
-    <aside class="credit-summary" data-credit-summary hidden>
-        <header>
-            <h3>Crédito seleccionado</h3>
-            <p data-summary-badge>Sin selección</p>
-        </header>
-        <div class="credit-summary__grid">
-            <div>
-                <span class="credit-summary__label">Cliente</span>
-                <span class="credit-summary__value" data-summary-cliente>—</span>
-            </div>
-            <div>
-                <span class="credit-summary__label">Saldo pendiente</span>
-                <span class="credit-summary__value" data-summary-saldo>—</span>
-            </div>
-            <div>
-                <span class="credit-summary__label">Total crédito</span>
-                <span class="credit-summary__value" data-summary-total>—</span>
-            </div>
-            <div>
-                <span class="credit-summary__label">Abonado</span>
-                <span class="credit-summary__value" data-summary-abonado>—</span>
-            </div>
-            <div>
-                <span class="credit-summary__label">Último pago</span>
-                <span class="credit-summary__value" data-summary-ultimo-pago>—</span>
-            </div>
-        </div>
-    </aside>
 </section>
 
 {{ creditos|json_script:"credits-data" }}

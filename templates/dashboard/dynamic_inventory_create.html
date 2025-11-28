@@ -996,6 +996,78 @@
             updateCategories(typeSelector.value);
         }
 
+        // Brand-Model Relationship Functionality
+        function updateModelsByBrand(brandId) {
+            const modelSelect = document.querySelector('[name="modelo"]');
+            if (!modelSelect) return;
+            
+            const currentValue = modelSelect.value;
+            const brandMapping = modelSelect.getAttribute('data-brand-mapping');
+            
+            if (!brandMapping) {
+                console.warn('No se encontró data-brand-mapping en el campo modelo');
+                return;
+            }
+            
+            try {
+                const brandMap = JSON.parse(brandMapping.replace(/'/g, '"'));
+                const allOptions = modelSelect.querySelectorAll('option');
+                
+                // Reset all options to visible
+                allOptions.forEach(option => {
+                    if (option.value === '') return; // Keep placeholder visible
+                    option.style.display = 'none';
+                    option.disabled = true;
+                });
+                
+                if (!brandId) {
+                    // If no brand selected, show all models
+                    allOptions.forEach(option => {
+                        if (option.value !== '') {
+                            option.style.display = '';
+                            option.disabled = false;
+                        }
+                    });
+                } else {
+                    // Show only models that belong to selected brand
+                    allOptions.forEach(option => {
+                        if (option.value === '') return;
+                        
+                        const optionBrandId = brandMap[option.value];
+                        if (optionBrandId === brandId) {
+                            option.style.display = '';
+                            option.disabled = false;
+                        }
+                    });
+                }
+                
+                // Reset selection if current selection is no longer valid
+                if (currentValue && modelSelect.querySelector(`option[value="${currentValue}"]`)?.disabled) {
+                    modelSelect.value = '';
+                }
+                
+                console.log('🔄 Modelos filtrados por marca:', {
+                    brandId: brandId,
+                    totalModels: allOptions.length - 1, // Excluding placeholder
+                    visibleModels: Array.from(allOptions).filter(opt => opt.value !== '' && !opt.disabled).length
+                });
+                
+            } catch (error) {
+                console.error('Error al procesar data-brand-mapping:', error);
+            }
+        }
+
+        // Add event listener for brand change
+        const brandSelect = document.querySelector('[name="marca"]');
+        if (brandSelect) {
+            brandSelect.addEventListener('change', function() {
+                updateModelsByBrand(this.value);
+            });
+            
+            // Initial filtering
+            updateModelsByBrand(brandSelect.value);
+        }
+
         // Brand and Model Search Functionality
         const brandSearchBtns = document.querySelectorAll('[data-action="buscar-marca"]');
         const modelSearchBtns = document.querySelectorAll('[data-action="buscar-modelo"]');

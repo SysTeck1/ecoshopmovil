@@ -234,15 +234,53 @@
                     <li class="pagination__item pagination__item--disabled"><span class="pagination__link" aria-hidden="true">&laquo;</span></li>
                 {% endif %}
 
-                {% for num in productos_page.paginator.page_range %}
-                    {% if num == productos_page.number %}
-                        <li class="pagination__item pagination__item--active"><span class="pagination__link">{{ num }}</span></li>
+                {% comment %}Paginación inteligente con elipsis{% endcomment %}
+                {% with current_page=productos_page.number total_pages=productos_page.paginator.num_pages %}
+                    {% if total_pages <= 7 %}
+                        {% comment %}Mostrar todas las páginas si hay 7 o menos{% endcomment %}
+                        {% for num in productos_page.paginator.page_range %}
+                            {% if num == current_page %}
+                                <li class="pagination__item pagination__item--active"><span class="pagination__link">{{ num }}</span></li>
+                            {% else %}
+                                <li class="pagination__item">
+                                    <a class="pagination__link" href="?page={{ num }}{% if productos_pagination_querystring %}&{{ productos_pagination_querystring }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
                     {% else %}
-                        <li class="pagination__item">
-                            <a class="pagination__link" href="?page={{ num }}{% if productos_pagination_querystring %}&{{ productos_pagination_querystring }}{% endif %}">{{ num }}</a>
-                        </li>
+                        {% comment %}Paginación con elipsis para muchas páginas{% endcomment %}
+                        {% comment %}Primera página{% endcomment %}
+                        {% if current_page > 3 %}
+                            <li class="pagination__item">
+                                <a class="pagination__link" href="?page=1{% if productos_pagination_querystring %}&{{ productos_pagination_querystring }}{% endif %}">1</a>
+                            </li>
+                            {% if current_page > 4 %}
+                                <li class="pagination__item pagination__item--ellipsis"><span class="pagination__link">...</span></li>
+                            {% endif %}
+                        {% endif %}
+
+                        {% comment %}Páginas alrededor de la actual{% endcomment %}
+                        {% for num in productos_page.paginator.page_range %}
+                            {% if num == current_page %}
+                                <li class="pagination__item pagination__item--active"><span class="pagination__link">{{ num }}</span></li>
+                            {% elif num > current_page|add:"-3" and num < current_page|add:"3" %}
+                                <li class="pagination__item">
+                                    <a class="pagination__link" href="?page={{ num }}{% if productos_pagination_querystring %}&{{ productos_pagination_querystring }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% comment %}Última página{% endcomment %}
+                        {% if current_page < total_pages|add:"-2" %}
+                            {% if current_page < total_pages|add:"-3" %}
+                                <li class="pagination__item pagination__item--ellipsis"><span class="pagination__link">...</span></li>
+                            {% endif %}
+                            <li class="pagination__item">
+                                <a class="pagination__link" href="?page={{ total_pages }}{% if productos_pagination_querystring %}&{{ productos_pagination_querystring }}{% endif %}">{{ total_pages }}</a>
+                            </li>
+                        {% endif %}
                     {% endif %}
-                {% endfor %}
+                {% endwith %}
 
                 {% if productos_page.has_next %}
                     <li class="pagination__item">
@@ -806,10 +844,18 @@
                     <span class="form-label">Marca asociada</span>
                     <select name="marca" class="select-control" data-model-create-brand data-brand-select>
                         <option value="">Sin marca</option>
-                        {% for marca in marcas_catalogo %}
-                            <option value="{{ marca.id }}">{{ marca.nombre }}</option>
+                        {% for marca in marcas_admin_catalogo %}
+                            <option value="{{ marca.id }}">{{ marca.nombre }}{% if not marca.activo %} (Inactiva){% endif %}</option>
                         {% endfor %}
+                        {% if not marcas_admin_catalogo %}
+                            <option value="" disabled>No hay marcas disponibles. Primero crea una marca.</option>
+                        {% endif %}
                     </select>
+                    {% if not marcas_admin_catalogo %}
+                        <div class="form-field__hint" style="color: #e74c3c; font-size: 0.85rem; margin-top: 4px;">
+                            No hay marcas disponibles. Primero <a href="#" data-open-brand-create style="color: #0097e6; text-decoration: underline;">crea una marca</a> antes de agregar un modelo.
+                        </div>
+                    {% endif %}
                 </label>
                 <div class="form-field form-field--checkbox">
                     <span class="form-label">Estado</span>
@@ -1460,6 +1506,154 @@
         width: 180px;
     }
 
+    /* Estilos para la paginación principal */
+    .pagination {
+        margin: 20px 0;
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .pagination__list {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        gap: 4px;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .pagination__item {
+        margin: 0;
+    }
+
+    .pagination__link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 40px;
+        height: 40px;
+        padding: 0 12px;
+        border: 1px solid #dcdde1;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #2f3640;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .pagination__link:hover {
+        background: #f5f6fa;
+        border-color: #0097e6;
+        color: #0097e6;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 151, 230, 0.1);
+    }
+
+    .pagination__item--active .pagination__link {
+        background: #0097e6;
+        border-color: #0097e6;
+        color: #ffffff;
+        font-weight: 600;
+    }
+
+    .pagination__item--disabled .pagination__link {
+        background: #f5f6fa;
+        border-color: #dcdde1;
+        color: #a4b0be;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .pagination__item--disabled .pagination__link:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    .pagination__item--ellipsis .pagination__link {
+        background: transparent;
+        border: none;
+        color: #a4b0be;
+        cursor: default;
+        min-width: 30px;
+        font-weight: 400;
+    }
+
+    .pagination__item--ellipsis .pagination__link:hover {
+        transform: none;
+        box-shadow: none;
+        background: transparent;
+    }
+
+    /* Responsive para pantallas pequeñas */
+    @media (max-width: 768px) {
+        .pagination {
+            margin: 15px 0;
+            gap: 2px;
+        }
+
+        .pagination__list {
+            gap: 2px;
+        }
+
+        .pagination__link {
+            min-width: 36px;
+            height: 36px;
+            padding: 0 8px;
+            font-size: 0.85rem;
+        }
+
+        .pagination__item--ellipsis .pagination__link {
+            min-width: 24px;
+            font-size: 0.8rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .pagination {
+            margin: 10px 0;
+        }
+
+        .pagination__link {
+            min-width: 32px;
+            height: 32px;
+            padding: 0 6px;
+            font-size: 0.8rem;
+            border-radius: 4px;
+        }
+
+        .pagination__item--ellipsis .pagination__link {
+            min-width: 20px;
+            font-size: 0.75rem;
+        }
+    }
+
+    /* Asegurar que la paginación no se desborde del contenedor */
+    .inventory-section {
+        overflow-x: auto;
+    }
+
+    .pagination {
+        max-width: 100%;
+        overflow-x: auto;
+        justify-content: flex-start;
+        padding: 0 10px;
+    }
+
+    @media (min-width: 769px) {
+        .pagination {
+            justify-content: center;
+            padding: 0;
+        }
+    }
+
 </style>
 
 <script>
@@ -1938,17 +2132,19 @@
             row.dataset.brandRow = "";
             row.dataset.brandId = data.id;
             row.dataset.brandName = data.nombre;
-            row.dataset.brandActive = data.activo ? "true" : "false";
-
-            var toggleTemplate = brandSearchModal.dataset.toggleTemplate || "";
-            var toggleUrl = toggleTemplate ? toggleTemplate.replace(/0\/toggle\/$/, data.id + "/toggle/") : "";
-
+            row.dataset.brandActive = data.activo;
+            row.dataset.brandToggle = "";
+            row.dataset.brandSelectButton = "";
             row.innerHTML = [
                 '<td data-row-index></td>',
-                '<td><span class="lookup-name">' + data.nombre + "</span></td>",
-                '<td><span class="lookup-status ' + (data.activo ? "lookup-status--active" : "lookup-status--inactive") + '">' + data.estado_display + "</span></td>",
-                '<td><button type="button" class="btn btn-outline btn--compact" data-brand-select-button data-brand-id="' + data.id + '" data-brand-name="' + data.nombre + '">Seleccionar</button></td>',
-                '<td><button type="button" class="btn btn-outline lookup-toggle" data-brand-toggle data-toggle-url="' + toggleUrl + '">' + (data.activo ? "Inactivar" : "Activar") + "</button></td>",
+                '<td><span class="lookup-name">' + data.nombre + '</span></td>',
+                '<td>' + (data.activo ? 'Activo' : 'Inactivo') + '</td>',
+                '<td>',
+                '    <button type="button" class="btn btn-outline btn--compact" data-brand-toggle>Toggle</button>',
+                '</td>',
+                '<td>',
+                '    <button type="button" class="btn btn-primary btn--compact" data-brand-select-button>Seleccionar</button>',
+                '</td>'
             ].join("");
 
             tbody.appendChild(row);
@@ -1957,6 +2153,44 @@
             if (brandPagination) {
                 brandPagination.refresh(true);
             }
+
+            // Actualizar el select de marcas en el modal de crear modelo
+            updateModelBrandSelect();
+        }
+
+        function updateModelBrandSelect() {
+            if (!modelCreateBrandSelect) {
+                return;
+            }
+            
+            // Limpiar opciones excepto la primera
+            while (modelCreateBrandSelect.children.length > 1) {
+                modelCreateBrandSelect.removeChild(modelCreateBrandSelect.lastChild);
+            }
+            
+            // Obtener todas las marcas actualizadas
+            fetch('/api/marcas/', {
+                headers: {
+                    'Accept': 'application/json',
+                }
+            })
+            .then(function(response) {
+                if (response.ok) {
+                    return response.json();
+                }
+                throw new Error('Error al cargar marcas');
+            })
+            .then(function(marcas) {
+                marcas.forEach(function(marca) {
+                    var option = document.createElement('option');
+                    option.value = marca.id;
+                    option.textContent = marca.nombre + (marca.activo ? '' : ' (Inactiva)');
+                    modelCreateBrandSelect.appendChild(option);
+                });
+            })
+            .catch(function(error) {
+                console.error('Error updating brand select:', error);
+            });
         }
 
         function addModelRow(data) {
@@ -2149,6 +2383,21 @@
                 if (modelCreateActiveInput) {
                     modelCreateActiveInput.checked = true;
                 }
+            }
+
+            // Manejar el enlace para crear marca desde el modal de modelo
+            var createBrandLink = modelCreateModal.querySelector('[data-open-brand-create]');
+            if (createBrandLink) {
+                createBrandLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    closeModal(modelCreateModal);
+                    // Abrir modal de búsqueda de marcas
+                    if (brandSearchModal && openBrandCreateButton) {
+                        setTimeout(function() {
+                            openModal(brandSearchModal, openBrandCreateButton);
+                        }, 150);
+                    }
+                });
             }
 
             if (openModelCreateButton) {

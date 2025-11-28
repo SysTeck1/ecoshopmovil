@@ -1,0 +1,251 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Otros{% endblock %}
+{% block page_title %}Otros{% endblock %}
+
+{% block content %}
+<section class="otros">
+    <header class="otros__header">
+        <div>
+            <h2 class="otros__title">Otras herramientas</h2>
+            <p class="otros__subtitle">Acceso a herramientas adicionales del sistema.</p>
+        </div>
+    </header>
+
+    <div class="otros__content">
+        <div class="otros__grid">
+            <!-- Gastos -->
+            <div class="otros__card">
+                <div class="otros__card-icon">
+                    <i class="ri-money-dollar-circle-line" aria-hidden="true"></i>
+                </div>
+                <div class="otros__card-content">
+                    <h3 class="otros__card-title">Gastos</h3>
+                    <p class="otros__card-description">
+                        Administra los gastos y operaciones financieras del negocio.
+                    </p>
+                    <a href="{% url 'dashboard:gastos' %}" class="btn btn-outline btn-outline--primary">
+                        <i class="ri-arrow-right-line" aria-hidden="true"></i>
+                        Ir a gastos
+                    </a>
+                </div>
+            </div>
+
+            <!-- Usuarios -->
+            <div class="otros__card">
+                <div class="otros__card-icon">
+                    <i class="ri-user-3-line" aria-hidden="true"></i>
+                </div>
+                <div class="otros__card-content">
+                    <h3 class="otros__card-title">Usuarios</h3>
+                    <p class="otros__card-description">
+                        Gestiona los usuarios, roles y permisos del sistema.
+                    </p>
+                    <a href="{% url 'dashboard:usuarios' %}" class="btn btn-outline btn-outline--primary">
+                        <i class="ri-arrow-right-line" aria-hidden="true"></i>
+                        Ir a usuarios
+                    </a>
+                </div>
+            </div>
+
+            <!-- Reportes -->
+            <div class="otros__card">
+                <div class="otros__card-icon">
+                    <i class="ri-bar-chart-2-line" aria-hidden="true"></i>
+                </div>
+                <div class="otros__card-content">
+                    <h3 class="otros__card-title">Reportes</h3>
+                    <p class="otros__card-description">
+                        Genera y visualiza reportes de ventas, inventario y más.
+                    </p>
+                    <a href="{% url 'dashboard:reportes' %}" class="btn btn-outline btn-outline--primary">
+                        <i class="ri-arrow-right-line" aria-hidden="true"></i>
+                        Ir a reportes
+                    </a>
+                </div>
+            </div>
+
+            <!-- Configuración -->
+            <div class="otros__card">
+                <div class="otros__card-icon">
+                    <i class="ri-settings-3-line" aria-hidden="true"></i>
+                </div>
+                <div class="otros__card-content">
+                    <h3 class="otros__card-title">Configuración</h3>
+                    <p class="otros__card-description">
+                        Configura las preferencias y parámetros del sistema.
+                    </p>
+                    <a href="{% url 'dashboard:configuracion' %}" class="btn btn-outline btn-outline--primary">
+                        <i class="ri-arrow-right-line" aria-hidden="true"></i>
+                        Ir a configuración
+                    </a>
+                </div>
+            </div>
+
+            <!-- DGII -->
+            <div class="otros__card">
+                <div class="otros__card-icon">
+                    <i class="ri-file-text-line" aria-hidden="true"></i>
+                </div>
+                <div class="otros__card-content">
+                    <h3 class="otros__card-title">DGII</h3>
+                    <p class="otros__card-description">
+                        Gestión de comprobantes fiscales y configuración DGII.
+                    </p>
+                    <a href="{% url 'dashboard:configuracion' %}" class="btn btn-outline btn-outline--primary">
+                        <i class="ri-arrow-right-line" aria-hidden="true"></i>
+                        Ir a configuración
+                    </a>
+                </div>
+            </div>
+
+            <!-- Herramientas -->
+            <div class="otros__card">
+                <div class="otros__card-icon">
+                    <i class="ri-tools-line" aria-hidden="true"></i>
+                </div>
+                <div class="otros__card-content">
+                    <h3 class="otros__card-title">Herramientas</h3>
+                    <p class="otros__card-description">
+                        Utilidades y herramientas adicionales del sistema.
+                    </p>
+                    <button type="button" class="btn btn-outline btn-outline--primary" disabled>
+                        <i class="ri-arrow-right-line" aria-hidden="true"></i>
+                        Próximamente
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_styles %}
+{{ block.super }}
+<style>
+    .otros {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .otros__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .otros__title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--color-text-main);
+        margin: 0;
+    }
+
+    .otros__subtitle {
+        color: var(--color-text-subtle);
+        margin: 4px 0 0 0;
+    }
+
+    .otros__content {
+        background: var(--color-surface-card);
+        border-radius: 12px;
+        padding: 32px;
+    }
+
+    .otros__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 24px;
+    }
+
+    .otros__card {
+        background: var(--color-surface-contrast);
+        border: 1px solid var(--color-border-subtle);
+        border-radius: 12px;
+        padding: 24px;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .otros__card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border-color: var(--color-info);
+    }
+
+    .otros__card-icon {
+        width: 48px;
+        height: 48px;
+        background: var(--color-info);
+        color: white;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .otros__card-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .otros__card-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--color-text-main);
+        margin: 0;
+    }
+
+    .otros__card-description {
+        color: var(--color-text-subtle);
+        line-height: 1.5;
+        margin: 0;
+        flex: 1;
+    }
+
+    .btn--compact {
+        padding: 8px 16px;
+        font-size: 0.875rem;
+        align-self: flex-start;
+    }
+
+    @media (max-width: 768px) {
+        .otros__header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .otros__content {
+            padding: 20px;
+        }
+
+        .otros__grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .otros__card {
+            padding: 20px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .otros__card {
+            padding: 16px;
+        }
+
+        .otros__card-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.25rem;
+        }
+    }
+</style>
+{% endblock %}

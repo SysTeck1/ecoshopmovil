@@ -18,6 +18,16 @@ urlpatterns = [
         name="sales_product_unit_search_api",
     ),
     path(
+        "ventas/productos/<int:producto_id>/unidades/",
+        views.get_product_units_api,
+        name="get_product_units_api",
+    ),
+    path(
+        "ventas/productos/pagina/",
+        views.get_products_page_api,
+        name="get_products_page_api",
+    ),
+    path(
         "ventas/productos/scan/",
         views.scan_unit_barcode_api,
         name="scan_unit_barcode_api",
@@ -31,6 +41,11 @@ urlpatterns = [
         "facturas/vista-previa/",
         views.factura_preview_view,
         name="factura_preview",
+    ),
+    path(
+        "facturas/robusta_preview/",
+        views.factura_robusta_preview_view,
+        name="factura_robusta_preview",
     ),
     path(
         "ventas/<int:venta_id>/factura/",
@@ -257,5 +272,21 @@ urlpatterns = [
         "api/stock-config/guardar/",
         views.guardar_stock_config,
         name="guardar_stock_config",
+    ),
+    # APIs para filtrado por marca
+    path(
+        "api/productos/colores-por-marca/",
+        views.get_colores_por_marca_api,
+        name="get_colores_por_marca_api",
+    ),
+    path(
+        "api/productos/almacenamiento-por-marca/",
+        views.get_almacenamiento_por_marca_api,
+        name="get_almacenamiento_por_marca_api",
+    ),
+    path(
+        "api/productos/ram-por-marca/",
+        views.get_ram_por_marca_api,
+        name="get_ram_por_marca_api",
     ),
 ]

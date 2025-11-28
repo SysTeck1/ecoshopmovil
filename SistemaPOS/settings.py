@@ -146,6 +146,38 @@ STATICFILES_DIRS = [
 MEDIA_URL = '/media/'
 MEDIA_ROOT = MEDIA_DIR
 
+# Cache Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'sistema-pos-cache',
+        'TIMEOUT': 300,  # 5 minutos por defecto
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000,
+            'CULL_FREQUENCY': 3,
+        }
+    }
+}
+
+# Redis Cache (opcional, si Redis está disponible)
+try:
+    import redis
+    redis.Redis(host='localhost', port=6379).ping()
+    CACHES['redis'] = {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://localhost:6379/1',
+        'TIMEOUT': 600,  # 10 minutos
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+except:
+    pass
+
+# Performance Settings
+DATABASE_CONNECTION_POOLING = True
+CONN_MAX_AGE = 60  # Mantener conexiones por 60 segundos
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

@@ -1,5 +1,7 @@
 import json
 import logging
+import pandas as pd
+import io
 from datetime import timedelta
 from django.http import HttpResponse
 from django.template.loader import render_to_string
@@ -28,6 +30,24 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+# Importaciones opcionales con manejo de errores
+try:
+    from cache_config import cache_manager
+    CACHE_MANAGER_AVAILABLE = True
+except ImportError:
+    CACHE_MANAGER_AVAILABLE = False
+    cache_manager = None
+
+try:
+    from performance_utils import CompressedJsonResponse, optimize_query_response, get_cache_ttl
+    PERFORMANCE_UTILS_AVAILABLE = True
+except ImportError:
+    PERFORMANCE_UTILS_AVAILABLE = False
+    CompressedJsonResponse = JsonResponse
+    optimize_query_response = lambda data, path: data
+    get_cache_ttl = lambda path: 300
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils import dateparse
@@ -1606,6 +1626,16 @@ class VentasView(DashboardTemplateView):
         }
         context["credit_collection_rows"] = collection_rows
 
+        # SOLUCIÓN 1: Paginación inteligente para grandes volúmenes de datos
+        # Cargar productos en lotes pequeños según necesidad del usuario
+        page_size = 20  # Productos por página
+        page = int(self.request.GET.get('product_page', 1))
+        
+        # Paginación de productos
+        from django.core.paginator import Paginator
+        paginator = Paginator(productos_qs, page_size)
+        productos_page = paginator.get_page(page)
+        
         unit_options: list[dict[str, object]] = []
         almacenamiento_map = dict(Producto.ALMACENAMIENTO_CHOICES)
         ram_map = dict(Producto.RAM_CHOICES)
@@ -1616,37 +1646,52 @@ class VentasView(DashboardTemplateView):
         ram_options: dict[str, str] = {}
         min_price: Decimal | None = None
         max_price: Decimal | None = None
+        
+        # Procesar TODOS los productos para cargar marcas y modelos completos
+        # (no solo la página actual)
+        all_productos = productos_qs  # Usar el queryset completo
+        
+        # Primero: Cargar marcas y modelos de TODOS los productos
+        for producto in all_productos:
+            if producto.marca_id and producto.marca and producto.marca.nombre:
+                brand_options[producto.marca_id] = producto.marca.nombre
 
-        for producto in productos_qs:
+            if producto.modelo_id and producto.modelo:
+                model_options[producto.modelo_id] = {
+                    "id": producto.modelo_id,
+                    "name": producto.modelo.nombre,
+                    "brand_id": str(producto.modelo.marca_id) if producto.modelo.marca_id else "",
+                }
+
+            if producto.precio_venta is not None:
+                if min_price is None or producto.precio_venta < min_price:
+                    min_price = producto.precio_venta
+                if max_price is None or producto.precio_venta > max_price:
+                    max_price = producto.precio_venta
+        
+        # Segundo: Procesar unidades solo de la página actual (para eficiencia)
+        for producto in productos_page:
             detalles = list(producto.unidades_detalle.all())
             detalles_map = {detalle.unidad_index: detalle for detalle in detalles}
 
-            # Calculate available stock (exclude sold units)
+            # Calculate total units
             stock_total = max(producto.stock or 0, 0)
             if detalles_map:
                 stock_total = max(stock_total, max(detalles_map.keys()))
             
-            # Count available (not sold) units
-            unidades_disponibles = 0
-            for idx in range(stock_total):
-                unidad_index = idx + 1
-                detalle_unit = detalles_map.get(unidad_index)
-                
-                # Check if unit is sold
-                if detalle_unit and detalle_unit.vendido:
-                    continue
-                unidades_disponibles += 1
-
-            if unidades_disponibles <= 0:
+            # Solo procesar si tiene unidades disponibles
+            if stock_total <= 0:
                 continue
 
-            for idx in range(stock_total):
+            # Paginación de unidades: primeras 5 por producto inicialmente
+            unidades_a_procesar = min(stock_total, 5)
+            
+            for idx in range(unidades_a_procesar):
                 unidad_index = idx + 1
                 unit_data = _resolve_unit_defaults(producto, unidad_index)
-
-                # Skip sold units
-                if unit_data.get("vendido", False):
-                    continue
+                
+                # Obtener detalle específico de la unidad
+                detalle_unit = detalles_map.get(unidad_index)
 
                 if producto.marca_id and producto.marca and producto.marca.nombre:
                     brand_options[producto.marca_id] = producto.marca.nombre
@@ -1675,7 +1720,6 @@ class VentasView(DashboardTemplateView):
                     ram_code,
                     "No especificada",
                 )
-                imei_value = unit_data.get("imei") or "Sin IMEI"
 
                 if color_label and color_label.lower() != "sin color":
                     color_options.add(color_label)
@@ -1684,31 +1728,39 @@ class VentasView(DashboardTemplateView):
                 if ram_code:
                     ram_options[ram_code] = ram_label or ram_code
 
-                label_parts: list[str] = []
-                label_parts.append(f"Unidad {unidad_index}")
-                if color_label:
-                    label_parts.append(color_label)
-                if almacenamiento_label:
-                    label_parts.append(almacenamiento_label)
-                if ram_label:
-                    label_parts.append(ram_label)
-
-                unit_label = f"{producto.nombre} · " + " | ".join(label_parts)
-
-                tax_percentage = unit_data.get("impuesto_porcentaje") or "0"
-                tax_active = bool(unit_data.get("impuesto_activo"))
-                usar_global = unit_data.get("usar_impuesto_global", True)
-                impuesto_id = unit_data.get("impuesto_id") or ""
-                impuesto_label = unit_data.get("impuesto_label") or "Impuesto global"
-                unidad_label = f"Unidad {unidad_index}"
+                # Usar el nombre descriptivo de la unidad
+                if detalle_unit:
+                    unidad_label = detalle_unit.get_nombre_descriptivo()
+                else:
+                    # Fallback mejorado con información del producto
+                    label_parts: list[str] = []
+                    label_parts.append(f"Unidad {unidad_index}")
+                    
+                    # Agregar características del producto si están disponibles
+                    if color_label and color_label.lower() != "sin color":
+                        label_parts.append(color_label)
+                    if almacenamiento_label and almacenamiento_label.lower() != "no especificado":
+                        label_parts.append(almacenamiento_label)
+                    if ram_label and ram_label.lower() != "no especificada":
+                        label_parts.append(ram_label)
+                    
+                    # Si no hay características adicionales, mostrar el nombre del producto
+                    if len(label_parts) == 1:
+                        unidad_label = f"{producto.nombre} - Unidad {unidad_index}"
+                    else:
+                        unidad_label = f"{producto.nombre} · " + " | ".join(label_parts)
+                
+                # Agregar estado de vendido para mostrar en frontend
+                esta_vendido = unit_data.get("vendido", False)
+                if esta_vendido:
+                    unidad_label += " (VENDIDA)"
                 
                 unit_options.append(
                     {
                         "key": f"{producto.id}:{unidad_index}",
                         "producto_id": producto.id,
                         "unidad_index": unidad_index,
-                        "etiqueta": unit_label,
-                        # Usar precio específico de la unidad si existe, sino el del producto
+                        "etiqueta": unidad_label,
                         "precio": str(unit_data.get("precio_venta") or producto.precio_venta) if unit_data.get("precio_venta") or producto.precio_venta else "",
                         "stock": "1",
                         "impuesto_porcentaje": unit_data.get("impuesto_porcentaje") or "0",
@@ -1722,6 +1774,8 @@ class VentasView(DashboardTemplateView):
                         "memoria_ram": unit_data.get("memoria_ram_label") or "No especificada",
                         "vida_bateria": unit_data.get("vida_bateria") or "",
                         "codigo_barras": unit_data.get("codigo_barras") or "",
+                        "vendido": esta_vendido,
+                        "fecha_venta": unit_data.get("fecha_venta") or "",
                         "units_json": json.dumps(
                             [
                                 {
@@ -1760,7 +1814,7 @@ class VentasView(DashboardTemplateView):
             key=lambda item: item["name"].lower(),
         )
 
-        color_list = sorted(color_options, key=lambda value: value.lower())
+        color_list = sorted(list(color_options), key=lambda value: value.lower())
 
         storage_list = sorted(
             (
@@ -1794,11 +1848,209 @@ class VentasView(DashboardTemplateView):
             "price": price_bounds,
         }
 
+        # Mantener compatibilidad con el frontend existente
         context["producto_unit_options"] = unit_options
         context["producto_filter_options"] = filter_payload
         context["producto_filter_options_json"] = json.dumps(filter_payload, ensure_ascii=False)
+        
+        # Información de paginación para el frontend
+        context["pagination_info"] = {
+            "current_page": productos_page.number,
+            "num_pages": paginator.num_pages,
+            "has_next": productos_page.has_next(),
+            "has_previous": productos_page.has_previous(),
+            "total_products": paginator.count,
+            "products_per_page": page_size
+        }
 
         return context
+
+
+@login_required
+@require_GET
+def get_products_page_api(request):
+    """API para cargar páginas de productos bajo demanda con cache y compresión"""
+    try:
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 20))
+        
+        # Intentar obtener del cache primero
+        cached_data = cache_manager.get_product_options(page, page_size)
+        if cached_data:
+            return CompressedJsonResponse(cached_data)
+        
+        productos_qs = (
+            Producto.objects.filter(activo=True)
+            .select_related("marca", "modelo", "impuesto")
+            .prefetch_related("unidades_detalle")
+            .order_by("nombre")
+        )
+        
+        from django.core.paginator import Paginator
+        paginator = Paginator(productos_qs, page_size)
+        productos_page = paginator.get_page(page)
+        
+        unit_options = []
+        
+        for producto in productos_page:
+            stock_total = max(producto.stock or 0, 0)
+            if stock_total <= 0:
+                continue
+            
+            # Solo primeras 3 unidades por producto para paginación
+            unidades_a_procesar = min(stock_total, 3)
+            
+            for idx in range(unidades_a_procesar):
+                unidad_index = idx + 1
+                unit_data = _resolve_unit_defaults(producto, unidad_index)
+                
+                # Obtener detalle específico de la unidad para usar nombre descriptivo
+                detalle_unit = producto.unidades_detalle.filter(unidad_index=unidad_index).first()
+                
+                esta_vendido = unit_data.get("vendido", False)
+                
+                if detalle_unit:
+                    unidad_label = detalle_unit.get_nombre_descriptivo()
+                else:
+                    # Fallback al formato anterior
+                    unidad_label = f"Unidad {unidad_index}"
+                
+                if esta_vendido:
+                    unidad_label += " (VENDIDA)"
+                
+                unit_options.append({
+                    "key": f"{producto.id}:{unidad_index}",
+                    "producto_id": producto.id,
+                    "unidad_index": unidad_index,
+                    "etiqueta": unidad_label,
+                    "precio": str(unit_data.get("precio_venta") or producto.precio_venta) if (unit_data.get("precio_venta") or producto.precio_venta) else "",
+                    "stock": "1",
+                    "impuesto_porcentaje": unit_data.get("impuesto_porcentaje") or "0",
+                    "impuesto_activo": bool(unit_data.get("impuesto_activo")),
+                    "usar_impuesto_global": unit_data.get("usar_impuesto_global", True),
+                    "impuesto_id": unit_data.get("impuesto_id") or "",
+                    "impuesto_label": unit_data.get("impuesto_label") or "Impuesto global",
+                    "imei": unit_data.get("imei") or "",
+                    "color": unit_data.get("color") or "",
+                    "almacenamiento": unit_data.get("almacenamiento_label") or "No especificado",
+                    "memoria_ram": unit_data.get("memoria_ram_label") or "No especificada",
+                    "vida_bateria": unit_data.get("vida_bateria") or "",
+                    "codigo_barras": unit_data.get("codigo_barras") or "",
+                    "vendido": esta_vendido,
+                    "fecha_venta": unit_data.get("fecha_venta") or "",
+                })
+        
+        response_data = {
+            "success": True,
+            "units": unit_options,
+            "pagination": {
+                "current_page": productos_page.number,
+                "num_pages": paginator.num_pages,
+                "has_next": productos_page.has_next(),
+                "has_previous": productos_page.has_previous(),
+                "total_products": paginator.count,
+                "products_per_page": page_size
+            }
+        }
+        
+        # Optimizar respuesta
+        response_data = optimize_query_response(response_data, request.path)
+        
+        # Guardar en cache
+        cache_manager.set_product_options(page, page_size, response_data, ttl=300)
+        
+        return CompressedJsonResponse(response_data)
+        
+    except Exception as e:
+        return JsonResponse({"success": False, "message": str(e)})
+
+
+@login_required
+@require_GET
+def get_product_units_api(request):
+    """API para cargar unidades de un producto específico bajo demanda"""
+    try:
+        producto_id = request.GET.get("producto_id")
+        if not producto_id:
+            return JsonResponse({"success": False, "message": "producto_id requerido"})
+        
+        producto = get_object_or_404(Producto.objects.select_related("marca", "modelo", "impuesto").prefetch_related("unidades_detalle"), id=producto_id)
+        
+        # Obtener detalles de unidades
+        detalles = list(producto.unidades_detalle.all())
+        detalles_map = {detalle.unidad_index: detalle for detalle in detalles}
+        
+        # Calcular stock total
+        stock_total = max(producto.stock or 0, 0)
+        if detalles_map:
+            stock_total = max(stock_total, max(detalles_map.keys()))
+        
+        # Generar opciones de unidades
+        unit_options = []
+        for idx in range(stock_total):
+            unidad_index = idx + 1
+            unit_data = _resolve_unit_defaults(producto, unidad_index)
+            
+            # Obtener detalle específico de la unidad para usar nombre descriptivo
+            detalle_unit = detalles_map.get(unidad_index)
+            
+            if detalle_unit:
+                unit_label = detalle_unit.get_nombre_descriptivo()
+            else:
+                # Etiqueta de la unidad (fallback al formato anterior)
+                label_parts = [f"Unidad {unidad_index}"]
+                
+                color_label = (unit_data.get("color") or "").strip() or "Sin color"
+                if color_label.lower() != "sin color":
+                    label_parts.append(color_label)
+                
+                almacenamiento_label = unit_data.get("almacenamiento_label") or "No especificado"
+                if almacenamiento_label.lower() != "no especificado":
+                    label_parts.append(almacenamiento_label)
+                
+                ram_label = unit_data.get("memoria_ram_label") or "No especificada"
+                if ram_label.lower() != "no especificada":
+                    label_parts.append(ram_label)
+                
+                unit_label = f"{producto.nombre} · " + " | ".join(label_parts)
+            
+            # Estado de vendido
+            esta_vendido = unit_data.get("vendido", False)
+            if esta_vendido:
+                unit_label += " (VENDIDA)"
+            
+            unit_options.append({
+                "key": f"{producto.id}:{unidad_index}",
+                "producto_id": producto.id,
+                "unidad_index": unidad_index,
+                "etiqueta": unit_label,
+                "precio": str(unit_data.get("precio_venta") or producto.precio_venta) if (unit_data.get("precio_venta") or producto.precio_venta) else "",
+                "stock": "1",
+                "impuesto_porcentaje": unit_data.get("impuesto_porcentaje") or "0",
+                "impuesto_activo": bool(unit_data.get("impuesto_activo")),
+                "usar_impuesto_global": unit_data.get("usar_impuesto_global", True),
+                "impuesto_id": unit_data.get("impuesto_id") or "",
+                "impuesto_label": unit_data.get("impuesto_label") or "Impuesto global",
+                "imei": unit_data.get("imei") or "",
+                "color": unit_data.get("color") or "",
+                "almacenamiento": unit_data.get("almacenamiento_label") or "No especificado",
+                "memoria_ram": unit_data.get("memoria_ram_label") or "No especificada",
+                "vida_bateria": unit_data.get("vida_bateria") or "",
+                "codigo_barras": unit_data.get("codigo_barras") or "",
+                "vendido": esta_vendido,
+                "fecha_venta": unit_data.get("fecha_venta") or "",
+            })
+        
+        return JsonResponse({
+            "success": True,
+            "units": unit_options,
+            "product_name": producto.nombre,
+            "total_units": len(unit_options),
+            "available_units": len([u for u in unit_options if not u["vendido"]])
+        })
+        
+    except Exception as e:
+        return JsonResponse({"success": False, "message": str(e)})
 
 
 @login_required
@@ -1829,13 +2081,62 @@ def sales_product_unit_search_api(request):
         if not query and not has_additional_filters:
             return JsonResponse({"success": True, "results": []})
 
+        def is_likely_client_name(nombre):
+            """Detectar si un nombre parece ser de cliente en lugar de producto"""
+            if not nombre or not nombre.strip():
+                return True  # Excluir nombres vacíos
+            
+            nombre = nombre.strip().lower()
+            
+            # Patrones comunes de nombres de personas
+            client_patterns = [
+                # Nombres comunes en español/inglés
+                r'\b(juan|carlos|luis|pedro|maria|ana|laura|sandra|rosa|carmen)\b',
+                r'\b(john|james|robert|michael|william|david|richard|charles|joseph|thomas)\b',
+                r'\b(mary|patricia|jennifer|linda|elizabeth|barbara|susan|jessica|sarah)\b',
+                
+                # Apellidos comunes
+                r'\b(garcia|rodriguez|lopez|martinez|gonzalez|perez|sanchez|ramirez)\b',
+                r'\b(smith|johnson|williams|brown|jones|garcia|miller|davis|rodriguez)\b',
+                
+                # Patrones de nombres completos (nombre + apellido)
+                r'^[a-z]+\s+[a-z]+$',  # Dos palabras
+                r'^[a-z]+\s+[a-z]+\s+[a-z]+$',  # Tres palabras
+                
+                # Nombres con iniciales
+                r'^[a-z]+\s+[a-z]\.?$',  # Nombre + inicial
+            ]
+            
+            import re
+            for pattern in client_patterns:
+                if re.search(pattern, nombre, re.IGNORECASE):
+                    return True
+                    
+            # Si es una sola palabra corta (probablemente nombre)
+            if len(nombre.split()) == 1 and len(nombre) <= 8:
+                return True
+                
+            return False
+
         productos_qs = (
             Producto.objects.filter(activo=True, stock__gt=0)
+            .exclude(nombre__isnull=True)
+            .exclude(nombre='')
             .select_related("marca", "modelo", "impuesto")
             .prefetch_related("unidades_detalle")
         )
+        
+        # Filtrar productos que parecen nombres de clientes
+        productos_filtrados = []
+        for producto in productos_qs:
+            if is_likely_client_name(producto.nombre):
+                print(f"⚠️ Excluyendo producto que parece nombre de cliente: {producto.nombre}")
+                continue
+            productos_filtrados.append(producto)
+        
+        productos_qs = productos_filtrados
     
-    # Filter out products where all units are sold
+        # Filter out products where all units are sold
         productos_con_stock_disponible = []
         for producto in productos_qs:
             tiene_unidades_disponibles = False
@@ -1991,6 +2292,7 @@ def sales_product_unit_search_api(request):
                         "impuesto_label": impuesto_label_unit,
                         "impuesto_porcentaje": str(impuesto_porcentaje_unit),
                         "impuesto_activo": impuesto_activo_unit,
+                        "precio_venta": str(detalle_unit.precio_venta) if detalle_unit and detalle_unit.precio_venta is not None else "0",
                     }
                 )
 
@@ -2017,7 +2319,7 @@ def sales_product_unit_search_api(request):
                 }
             )
 
-            return JsonResponse({"success": True, "results": results})
+        return JsonResponse({"success": True, "results": results})
     
     except Exception as e:
         import logging
@@ -2069,7 +2371,7 @@ def scan_unit_barcode_api(request):
             "key": f"{producto.id}:{detalle_unit.unidad_index}",
             "producto_id": producto.id,
             "unidad_index": detalle_unit.unidad_index,
-            "etiqueta": f"{producto.nombre} - Unidad {detalle_unit.unidad_index}",
+            "etiqueta": detalle_unit.get_nombre_descriptivo(),
             # Usar precio específico de la unidad si existe, sino el del producto
             "precio": str(unit_data.get("precio_venta") or producto.precio_venta) if unit_data.get("precio_venta") or producto.precio_venta else "",
             "stock": "1",
@@ -2327,6 +2629,7 @@ def dynamic_inventory_create_view(request):
         'specific_fields': get_specific_form_fields(product_type_slug),
         # Add admin catalog data for modals
         'marcas_admin_catalogo': Marca.objects.all().only("id", "nombre", "activo"),
+        'marcas_catalogo': Marca.objects.all().only("id", "nombre", "activo"),  # Para modal de agregar modelo
         'modelos_admin_catalogo': Modelo.objects.select_related("marca").order_by("nombre"),
         'is_creation_mode': True,  # Indicador para el template
     }
@@ -2416,7 +2719,7 @@ def generate_barcode_labels_api(request):
             labels_data.append({
                 "codigo": unit.codigo_barras,
                 "producto": unit.producto.nombre,
-                "unidad": f"Unidad {unit.unidad_index}",
+                "unidad": unit.get_nombre_descriptivo(),
                 "precio": str(unit_precio) if unit_precio else "—",
                 "imei": unit.imei or "—",
                 "color": unit.color or "—",
@@ -2622,15 +2925,14 @@ class ProductoDetailView(DashboardTemplateView):
         detalles_qs = producto.unidades_detalle.select_related("condicion").all()
         detalles_map = {detalle.unidad_index: detalle for detalle in detalles_qs}
 
-        # Usar el stock real del producto, no el máximo índice de detalles
-        stock_total = max(producto.stock or 0, 0)
-        
-        # Si no hay stock definido pero hay detalles, usar el máximo índice + 1
-        if stock_total == 0 and detalles_map:
-            stock_total = max(detalles_map.keys())
-        
-        # Asegurar que se muestren todas las unidades hasta el máximo entre stock y detalles
-        max_unidades = max(stock_total, max(detalles_map.keys()) if detalles_map else 0)
+        # IMPORTANTE: Mostrar SIEMPRE todas las unidades originales
+        # Usar el máximo entre: stock_original (si existe) o máximo índice de detalles
+        # El stock actual NO debe limitar la visibilidad de unidades
+        stock_original = getattr(producto, '_stock_original', None) or producto.stock or 0
+        max_unidades_detalle = max(detalles_map.keys()) if detalles_map else 0
+
+        # Siempre mostrar el máximo número de unidades que alguna vez existieron
+        max_unidades = max(stock_original, max_unidades_detalle, 6)  # Mínimo 6 si hay detalles
 
         raw_imeis = (producto.imei or "").replace("\r", "\n")
         imeis = [valor.strip() for valor in raw_imeis.replace(",", "\n").split("\n") if valor.strip()]
@@ -4607,7 +4909,165 @@ class ConfiguracionView(DashboardTemplateView):
             url = f"{reverse('dashboard:configuracion')}?open=taxes"
             return redirect(url)
 
+        if resource == "productos" and action == "importar":
+            return self._importar_productos(request)
+
         return self.get(request, *args, **kwargs)
+
+    def _importar_productos(self, request):
+        """Importar productos desde archivo CSV/Excel"""
+        try:
+            if 'file' not in request.FILES:
+                return JsonResponse({'success': False, 'message': 'No se seleccionó ningún archivo'})
+            
+            file = request.FILES['file']
+            
+            # Leer archivo según extensión
+            if file.name.endswith('.csv'):
+                df = pd.read_csv(file)
+            elif file.name.endswith(('.xlsx', '.xls')):
+                df = pd.read_excel(file)
+            else:
+                return JsonResponse({'success': False, 'message': 'Formato de archivo no soportado. Use CSV o Excel'})
+            
+            # Validar columnas requeridas
+            columnas_requeridas = ['nombre', 'precio_venta', 'stock', 'categoria']
+            columnas_faltantes = [col for col in columnas_requeridas if col not in df.columns]
+            
+            if columnas_faltantes:
+                return JsonResponse({
+                    'success': False, 
+                    'message': f'Faltan columnas requeridas: {", ".join(columnas_faltantes)}'
+                })
+            
+            # Procesar importación
+            productos_creados = 0
+            productos_actualizados = 0
+            errores = []
+            
+            for index, row in df.iterrows():
+                try:
+                    with transaction.atomic():
+                        # Obtener o crear categoría
+                        categoria_nombre = str(row['categoria']).strip()
+                        categoria, _ = Categoria.objects.get_or_create(
+                            nombre=categoria_nombre,
+                            defaults={'activo': True}
+                        )
+                        
+                        # Obtener o crear marca si existe
+                        marca = None
+                        if 'marca' in df.columns and pd.notna(row['marca']):
+                            marca_nombre = str(row['marca']).strip()
+                            marca, _ = Marca.objects.get_or_create(
+                                nombre=marca_nombre,
+                                defaults={'activo': True}
+                            )
+                        
+                        # Obtener o crear proveedor si existe
+                        proveedor = None
+                        if 'proveedor' in df.columns and pd.notna(row['proveedor']):
+                            proveedor_nombre = str(row['proveedor']).strip()
+                            proveedor, _ = Proveedor.objects.get_or_create(
+                                nombre=proveedor_nombre,
+                                defaults={'activo': True}
+                            )
+                        
+                        # Obtener impuesto si existe
+                        impuesto = None
+                        if 'impuesto' in df.columns and pd.notna(row['impuesto']):
+                            impuesto_nombre = str(row['impuesto']).strip()
+                            try:
+                                impuesto = Impuesto.objects.get(nombre=impuesto_nombre)
+                            except Impuesto.DoesNotExist:
+                                pass
+                        
+                        # Preparar datos del producto
+                        producto_data = {
+                            'nombre': str(row['nombre']).strip(),
+                            'categoria': categoria,
+                            'marca': marca,
+                            'proveedor': proveedor,
+                            'impuesto': impuesto,
+                            'activo': True,
+                            'usar_impuesto_global': True,
+                        }
+                        
+                        # Precio de venta
+                        try:
+                            producto_data['precio_venta'] = Decimal(str(row['precio_venta']))
+                        except (InvalidOperation, ValueError, TypeError):
+                            producto_data['precio_venta'] = Decimal('0')
+                        
+                        # Precio de compra si existe
+                        if 'precio_compra' in df.columns and pd.notna(row['precio_compra']):
+                            try:
+                                producto_data['precio_compra'] = Decimal(str(row['precio_compra']))
+                            except (InvalidOperation, ValueError, TypeError):
+                                producto_data['precio_compra'] = None
+                        
+                        # Stock
+                        try:
+                            producto_data['stock'] = int(row['stock']) if pd.notna(row['stock']) else 0
+                        except (ValueError, TypeError):
+                            producto_data['stock'] = 0
+                        
+                        # Stock mínimo si existe
+                        if 'stock_minimo' in df.columns and pd.notna(row['stock_minimo']):
+                            try:
+                                producto_data['stock_minimo'] = int(row['stock_minimo'])
+                            except (ValueError, TypeError):
+                                producto_data['stock_minimo'] = 5
+                        
+                        # Campos opcionales
+                        campos_opcionales = ['almacenamiento', 'memoria_ram', 'descripcion', 'colores_disponibles']
+                        for campo in campos_opcionales:
+                            if campo in df.columns and pd.notna(row[campo]):
+                                producto_data[campo] = str(row[campo]).strip()
+                        
+                        # Crear o actualizar producto
+                        producto, created = Producto.objects.update_or_create(
+                            nombre=producto_data['nombre'],
+                            categoria=producto_data['categoria'],
+                            defaults=producto_data
+                        )
+                        
+                        if created:
+                            productos_creados += 1
+                        else:
+                            productos_actualizados += 1
+                        
+                except Exception as e:
+                    errores.append(f"Fila {index + 1}: {str(e)}")
+                    continue
+            
+            # Preparar mensaje de respuesta
+            message_parts = []
+            if productos_creados > 0:
+                message_parts.append(f"{productos_creados} productos creados")
+            if productos_actualizados > 0:
+                message_parts.append(f"{productos_actualizados} productos actualizados")
+            if errores:
+                message_parts.append(f"{len(errores)} errores")
+            
+            message = "Importación completada. " + ", ".join(message_parts)
+            
+            if errores:
+                message += f". Errores: {'; '.join(errores[:5])}"  # Mostrar primeros 5 errores
+            
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'creados': productos_creados,
+                'actualizados': productos_actualizados,
+                'errores': len(errores)
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error durante la importación: {str(e)}'
+            })
 
 
 def _serialize_fiscal_config(config: FiscalVoucherConfig | None) -> dict[str, object]:
@@ -5358,10 +5818,16 @@ def build_sales_report(queryset):
 
 
 @require_GET
+@login_required
 def report_total_sales_api(request):
+    """API para reporte de ventas totales"""
+    
     queryset, start_date, end_date = get_filtered_sales_queryset(request)
     total_sales, total_cost, total_discount, total_trade_in, report_rows, ventas_count = build_sales_report(queryset)
     total_profit = (total_sales - total_cost).quantize(TWO_PLACES)
+
+    # Limitar resultados para mejor rendimiento
+    limited_rows = report_rows[:50] if len(report_rows) > 50 else report_rows
 
     return JsonResponse(
         {
@@ -5381,7 +5847,13 @@ def report_total_sales_api(request):
             },
             "ventas": ventas_count,
             "ventas_display": ventas_count,
-            "rows": report_rows,
+            "rows": limited_rows,
+            "rows_truncated": len(report_rows) > 50,
+            "total_rows": len(report_rows),
+            "performance": {
+                "rows_limited": True,
+                "limit": 50
+            }
         }
     )
 
@@ -5887,6 +6359,106 @@ def registrar_venta_api(request):
 
 
 @login_required
+def factura_robusta_preview_view(request):
+    """
+    Vista previa de factura robusta en HTML
+    """
+    # Obtener configuración guardada o usar defaults
+    config = {
+        'cabecera': {
+            'titulo': 'FACTURA',
+            'mostrar_linea': True
+        },
+        'cliente': {
+            'titulo': 'Datos del Cliente',
+            'mostrar_cliente': True,
+            'mostrar_telefono': True,
+            'mostrar_vendedor': True,
+            'mostrar_documento': True,
+            'mostrar_fecha': True,
+            'mostrar_num_factura': True
+        },
+        'concepto': {
+            'titulo': 'Concepto',
+            'col_producto': True,
+            'col_cantidad': True,
+            'col_precio': True,
+            'col_total': True
+        },
+        'totales': {
+            'mostrar_forma_pago': True,
+            'mostrar_subtotal': True,
+            'mostrar_itbis': True,
+            'mostrar_total': True,
+            'tasa_itbis': 18
+        },
+        'garantia': {
+            'mostrar_garantia': True,
+            'texto_garantia': 'Este producto tiene garantía de 1 año a partir de la fecha de compra. La garantía cubre defectos de fabricación. No cubre daños por mal uso, caídas, líquidos o manipulación inadecuada.'
+        },
+        'firmas': {
+            'mostrar_firmas': True,
+            'firma_vendedor': 'Firma del Vendedor',
+            'firma_cliente': 'Firma del Cliente'
+        },
+        'footer': {
+            'empresa_nombre': 'Tu Empresa SRL',
+            'empresa_direccion': 'Dirección de la empresa',
+            'empresa_whatsapp': '809-555-0000',
+            'mostrar_logo': True
+        }
+    }
+    
+    # Datos de ejemplo para la vista previa
+    from django.utils import timezone
+    from decimal import Decimal
+    
+    demo_data = {
+        'factura_numero': 'FACT-0001',
+        'fecha': timezone.now().strftime('%d/%m/%Y'),
+        'cliente': {
+            'nombre': 'Juan Pérez',
+            'telefono': '809-555-1234',
+            'documento': '123-456789-0'
+        },
+        'vendedor': 'Carlos Rodríguez',
+        'productos': [
+            {
+                'nombre': 'Teléfono Samsung Galaxy S23',
+                'cantidad': 1,
+                'precio_unitario': Decimal('25000.00'),
+                'total': Decimal('25000.00')
+            },
+            {
+                'nombre': 'Fundilla Protectora',
+                'cantidad': 2,
+                'precio_unitario': Decimal('500.00'),
+                'total': Decimal('1000.00')
+            },
+            {
+                'nombre': 'Tempered Glass',
+                'cantidad': 1,
+                'precio_unitario': Decimal('800.00'),
+                'total': Decimal('800.00')
+            }
+        ],
+        'pago': {
+            'formato': 'Efectivo',
+            'cuenta': '123456789'
+        },
+        'subtotal': Decimal('26800.00'),
+        'itbis': Decimal('4824.00'),
+        'total': Decimal('31624.00')
+    }
+    
+    context = {
+        'config': config,
+        'data': demo_data
+    }
+    
+    return render(request, 'dashboard/facturas/robusta_preview.html', context)
+
+@login_required
 def factura_preview_view(request):
     """
     Vista previa de factura en PDF basada en la configuración
@@ -6142,6 +6714,131 @@ def factura_preview_view(request):
         return HttpResponse(html_content)
 
 
+def get_colores_por_marca_api(request):
+    """API para obtener colores disponibles para una marca específica"""
+    marca_id = request.GET.get('marca')
+    if not marca_id:
+        return JsonResponse({'colors': []}, status=200)
+    
+    try:
+        # Obtener productos de esta marca que tengan unidades con colores
+        colores = (
+            ProductoUnidadDetalle.objects
+            .filter(producto__marca_id=marca_id, color__isnull=False)
+            .exclude(color='')
+            .exclude(color='N/A')
+            .exclude(color='Sin color')
+            .values_list('color', flat=True)
+            .distinct()
+            .order_by('color')
+        )
+        
+        return JsonResponse({
+            'colors': list(colores)
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Error al obtener colores: {str(e)}'
+        }, status=500)
+
+
+def get_almacenamiento_por_marca_api(request):
+    """API para obtener almacenamiento disponible para una marca específica"""
+    marca_id = request.GET.get('marca')
+    if not marca_id:
+        return JsonResponse({'storage': []}, status=200)
+    
+    try:
+        # Obtener productos de esta marca con almacenamiento
+        almacenamiento_values = (
+            Producto.objects
+            .filter(marca_id=marca_id)
+            .exclude(almacenamiento='')
+            .exclude(almacenamiento='N/A')
+            .values_list('almacenamiento', flat=True)
+            .distinct()
+            .order_by('almacenamiento')
+        )
+        
+        # También verificar en unidades
+        unidad_almacenamiento = (
+            ProductoUnidadDetalle.objects
+            .filter(producto__marca_id=marca_id, almacenamiento__isnull=False)
+            .exclude(almacenamiento='')
+            .exclude(almacenamiento='N/A')
+            .values_list('almacenamiento', flat=True)
+            .distinct()
+            .order_by('almacenamiento')
+        )
+        
+        # Combinar y eliminar duplicados
+        all_storage = set(list(almacenamiento_values) + list(unidad_almacenamiento))
+        
+        # Formatear como código y etiqueta
+        storage_options = [
+            {'code': storage, 'label': storage}
+            for storage in sorted(all_storage)
+        ]
+        
+        return JsonResponse({
+            'storage': storage_options
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Error al obtener almacenamiento: {str(e)}'
+        }, status=500)
+
+
+def get_ram_por_marca_api(request):
+    """API para obtener RAM disponible para una marca específica"""
+    marca_id = request.GET.get('marca')
+    if not marca_id:
+        return JsonResponse({'ram': []}, status=200)
+    
+    try:
+        # Obtener productos de esta marca con RAM
+        ram_values = (
+            Producto.objects
+            .filter(marca_id=marca_id)
+            .exclude(memoria_ram='')
+            .exclude(memoria_ram='N/A')
+            .values_list('memoria_ram', flat=True)
+            .distinct()
+            .order_by('memoria_ram')
+        )
+        
+        # También verificar en unidades
+        unidad_ram = (
+            ProductoUnidadDetalle.objects
+            .filter(producto__marca_id=marca_id, memoria_ram__isnull=False)
+            .exclude(memoria_ram='')
+            .exclude(memoria_ram='N/A')
+            .values_list('memoria_ram', flat=True)
+            .distinct()
+            .order_by('memoria_ram')
+        )
+        
+        # Combinar y eliminar duplicados
+        all_ram = set(list(ram_values) + list(unidad_ram))
+        
+        # Formatear como código y etiqueta
+        ram_options = [
+            {'code': ram, 'label': ram}
+            for ram in sorted(all_ram)
+        ]
+        
+        return JsonResponse({
+            'ram': ram_options
+        }, status=200)
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Error al obtener RAM: {str(e)}'
+        }, status=500)
+
+
 def get_factura_config(request):
     """
     Obtener configuración de factura desde SiteConfiguration
@@ -6256,151 +6953,100 @@ def obtener_factura_config(request):
 
 def venta_factura_view(request, venta_id):
     """
-    Generar y mostrar factura PDF para una venta específica
+    Generar y mostrar factura HTML robusta para una venta específica
     """
     try:
-        from reportlab.pdfgen import canvas
-        from reportlab.lib.pagesizes import letter, A4
-        from reportlab.lib.units import mm
-        from io import BytesIO
-        
         venta = get_object_or_404(Venta, pk=venta_id)
-        site_config = SiteConfiguration.get_solo()
-        factura_config = get_factura_config(request)
+        
+        # Obtener configuración guardada o usar defaults
+        config = {
+            'cabecera': {
+                'titulo': 'FACTURA',
+                'mostrar_linea': True
+            },
+            'cliente': {
+                'titulo': 'Datos del Cliente',
+                'mostrar_cliente': True,
+                'mostrar_telefono': True,
+                'mostrar_vendedor': True,
+                'mostrar_documento': True,
+                'mostrar_fecha': True,
+                'mostrar_num_factura': True
+            },
+            'concepto': {
+                'titulo': 'Concepto',
+                'col_producto': True,
+                'col_cantidad': True,
+                'col_precio': True,
+                'col_total': True
+            },
+            'totales': {
+                'mostrar_forma_pago': True,
+                'mostrar_subtotal': True,
+                'mostrar_itbis': True,
+                'mostrar_total': True,
+                'tasa_itbis': 18
+            },
+            'garantia': {
+                'mostrar_garantia': True,
+                'texto_garantia': 'Este producto tiene garantía de 1 año a partir de la fecha de compra. La garantía cubre defectos de fabricación. No cubre daños por mal uso, caídas, líquidos o manipulación inadecuada.'
+            },
+            'firmas': {
+                'mostrar_firmas': True,
+                'firma_vendedor': 'Firma del Vendedor',
+                'firma_cliente': 'Firma del Cliente'
+            },
+            'footer': {
+                'empresa_nombre': 'Tu Empresa SRL',
+                'empresa_direccion': 'Dirección de la empresa',
+                'empresa_whatsapp': '809-555-0000',
+                'mostrar_logo': True
+            }
+        }
+        
+        # Datos reales de la venta
+        from decimal import Decimal
         
         # Calcular totales
         subtotal = Decimal('0')
         itbis_total = Decimal('0')
         
+        productos_data = []
         for detalle in venta.detalles.all():
+            productos_data.append({
+                'nombre': detalle.producto.nombre,
+                'cantidad': detalle.cantidad,
+                'precio_unitario': detalle.precio_unitario,
+                'total': detalle.subtotal
+            })
             subtotal += detalle.subtotal
             itbis_total += detalle.itbis
         
-        # Crear buffer para PDF
-        buffer = BytesIO()
+        venta_data = {
+            'factura_numero': f'FACT-{venta.pk:06d}',
+            'fecha': venta.fecha.strftime('%d/%m/%Y'),
+            'cliente': {
+                'nombre': venta.cliente.nombre,
+                'telefono': venta.cliente.telefono or '',
+                'documento': venta.cliente.documento or ''
+            },
+            'vendedor': venta.vendedor.username if venta.vendedor else 'N/A',
+            'productos': productos_data,
+            'pago': {
+                'formato': venta.get_metodo_pago_display(),
+                'cuenta': 'N/A'
+            },
+            'subtotal': subtotal,
+            'itbis': itbis_total,
+            'total': venta.total
+        }
         
-        # Determinar tamaño de página según formato
-        if factura_config['formatoFactura'] == 'a4':
-            page_size = A4
-        else:
-            page_size = letter
-            
-        # Crear canvas
-        p = canvas.Canvas(buffer, pagesize=page_size)
+        context = {
+            'config': config,
+            'data': venta_data
+        }
         
-        # Configurar fuentes
-        p.setFont("Helvetica", 10)
-        
-        # Dibujar encabezado
-        y_position = page_size[1] - 20*mm
-        
-        # Empresa (usar configuración)
-        p.setFont("Helvetica-Bold", 16)
-        p.drawString(20*mm, y_position, factura_config['emisorNombre'])
-        y_position -= 10*mm
-        
-        p.setFont("Helvetica", 9)
-        p.drawString(20*mm, y_position, f"RNC: {factura_config['emisorRNC']}")
-        y_position -= 5*mm
-        p.drawString(20*mm, y_position, f"Tel: {factura_config['emisorTelefono']}")
-        y_position -= 5*mm
-        p.drawString(20*mm, y_position, f"Dir: {factura_config['emisorDireccion']}")
-        y_position -= 10*mm
-        
-        # Línea separadora
-        p.line(20*mm, y_position, page_size[0] - 20*mm, y_position)
-        y_position -= 10*mm
-        
-        # Datos de factura (usar configuración)
-        p.setFont("Helvetica-Bold", 11)
-        p.drawString(20*mm, y_position, "FACTURA")
-        p.setFont("Helvetica", 9)
-        p.drawString(100*mm, y_position, f"NCF: {factura_config['tipoComprobante']}{factura_config['serieFactura']}0000001")
-        y_position -= 7*mm
-        p.drawString(20*mm, y_position, f"No: FAC-{venta.pk:06d}")
-        y_position -= 7*mm
-        p.drawString(20*mm, y_position, f"Fecha: {venta.fecha.strftime('%d/%m/%Y %H:%M')}")
-        y_position -= 7*mm
-        p.drawString(20*mm, y_position, f"Cliente: {venta.cliente.nombre}")
-        if venta.cliente.documento:
-            y_position -= 7*mm
-            p.drawString(20*mm, y_position, f"RNC/Céd: {venta.cliente.documento}")
-        y_position -= 10*mm
-        
-        # Información adicional si está configurada
-        if factura_config['infoAdicional']:
-            p.setFont("Helvetica", 8)
-            p.drawString(20*mm, y_position, f"Nota: {factura_config['infoAdicional']}")
-            y_position -= 10*mm
-        
-        # Línea separadora
-        p.line(20*mm, y_position, page_size[0] - 20*mm, y_position)
-        y_position -= 10*mm
-        
-        # Encabezados de items
-        p.setFont("Helvetica-Bold", 9)
-        p.drawString(20*mm, y_position, "Descripción")
-        p.drawString(80*mm, y_position, "Cant")
-        p.drawString(100*mm, y_position, "Precio")
-        p.drawString(130*mm, y_position, "ITBIS")
-        p.drawString(160*mm, y_position, "Total")
-        y_position -= 7*mm
-        
-        # Items
-        p.setFont("Helvetica", 8)
-        for detalle in venta.detalles.all():
-            # Descripción (ajustar si es muy larga)
-            desc = detalle.producto.nombre[:40] + "..." if len(detalle.producto.nombre) > 40 else detalle.producto.nombre
-            if detalle.unidad_index:
-                desc += f" (Unidad #{detalle.unidad_index})"
-            p.drawString(20*mm, y_position, desc)
-            p.drawString(80*mm, y_position, str(detalle.cantidad))
-            p.drawString(100*mm, y_position, f"${detalle.precio_unitario:.2f}")
-            p.drawString(130*mm, y_position, f"${detalle.itbis:.2f}")
-            # Calcular total como subtotal + itbis
-            total_detalle = detalle.subtotal + detalle.itbis
-            p.drawString(160*mm, y_position, f"${total_detalle:.2f}")
-            y_position -= 6*mm
-        
-        y_position -= 10*mm
-        
-        # Línea separadora
-        p.line(20*mm, y_position, page_size[0] - 20*mm, y_position)
-        y_position -= 10*mm
-        
-        # Totales
-        p.setFont("Helvetica-Bold", 10)
-        p.drawString(120*mm, y_position, f"Subtotal: ${subtotal:.2f}")
-        y_position -= 7*mm
-        p.drawString(120*mm, y_position, f"ITBIS: ${itbis_total:.2f}")
-        if venta.descuento_total > 0:
-            y_position -= 7*mm
-            p.drawString(120*mm, y_position, f"Descuento: ${venta.descuento_total:.2f}")
-        y_position -= 7*mm
-        p.drawString(120*mm, y_position, f"Total: ${venta.total:.2f}")
-        y_position -= 7*mm
-        p.drawString(120*mm, y_position, f"Pago: {venta.get_metodo_pago_display()}")
-        
-        # Pie de página con resolución DGII
-        if factura_config['resolucionDGII'] and factura_config['includeFooter']:
-            y_position -= 15*mm
-            p.setFont("Helvetica", 7)
-            p.drawString(20*mm, y_position, f"Resolución DGII: {factura_config['resolucionDGII']}")
-            y_position -= 5*mm
-            p.drawString(20*mm, y_position, "Válida para efectos fiscales")
-            y_position -= 5*mm
-            p.drawString(20*mm, y_position, "Original: Cliente | Copia: Vendedor")
-        
-        # Guardar PDF
-        p.save()
-        
-        # Obtener valor del buffer
-        pdf_value = buffer.getvalue()
-        buffer.close()
-        
-        response = HttpResponse(pdf_value, content_type='application/pdf')
-        response['Content-Disposition'] = 'inline; filename=factura.pdf'
-        return response
+        return render(request, 'dashboard/facturas/robusta_preview.html', context)
             
     except Exception as e:
         logger.error(f"Error generando factura para venta {venta_id}: {str(e)}")

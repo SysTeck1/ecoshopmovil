@@ -169,6 +169,32 @@ class DynamicProductForm(BaseProductForm):
         self.is_creation_mode = kwargs.pop('is_creation_mode', True)
         super().__init__(*args, **kwargs)
         
+        # Personalizar el campo de modelo para incluir data-brand-id ANTES de eliminar campos
+        if 'modelo' in self.fields:
+            self.fields['modelo'].widget.attrs['class'] = 'field__control'
+            # Personalizar las opciones del campo modelo
+            from ventas.models import Modelo
+            modelos = Modelo.objects.select_related('marca').order_by('marca__nombre', 'nombre')
+            
+            # Crear opciones con data-brand-id
+            choices = [('', '---------')]
+            for modelo in modelos:
+                choice_value = str(modelo.id)
+                choice_label = f"{modelo.marca.nombre} - {modelo.nombre}" if modelo.marca else modelo.nombre
+                choices.append((choice_value, choice_label))
+            
+            self.fields['modelo'].choices = choices
+            
+            # Agregar atributo data-brand-id a cada opción
+            self.fields['modelo'].widget.attrs['data-brand-options'] = 'true'
+            
+            # Crear un diccionario de marca_id para cada modelo
+            brand_mapping = {}
+            for modelo in modelos:
+                brand_mapping[str(modelo.id)] = str(modelo.marca.id) if modelo.marca else ''
+            
+            self.fields['modelo'].widget.attrs['data-brand-mapping'] = str(brand_mapping)
+        
         # Obtener campos permitidos para este tipo de producto
         if self.is_creation_mode:
             allowed_fields = get_product_form_fields(self.product_type)  # Sin precios

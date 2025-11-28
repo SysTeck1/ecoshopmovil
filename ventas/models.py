@@ -578,7 +578,38 @@ class ProductoUnitDetail(TimeStampedModel):
         unique_together = ("producto", "unidad_index")
 
     def __str__(self) -> str:
-        return f"{self.producto} - Unidad {self.unidad_index}"
+        return self.get_nombre_descriptivo()
+    
+    def get_nombre_descriptivo(self) -> str:
+        """Genera un nombre descriptivo con las características principales de la unidad"""
+        partes = []
+        
+        # Título del producto (nombre base)
+        if self.producto:
+            partes.append(self.producto.nombre)
+        
+        # Almacenamiento (solo si tiene valor y no es N/A)
+        if self.almacenamiento and self.almacenamiento not in ['N/A', 'NA', '']:
+            partes.append(self.almacenamiento)
+        
+        # RAM (solo si tiene valor y no es N/A)
+        if self.memoria_ram and self.memoria_ram not in ['N/A', 'NA', '']:
+            partes.append(self.memoria_ram)
+        
+        # Color (solo si tiene valor y no está vacío)
+        if self.color and self.color.strip() not in ['', 'N/A', 'NA', 'Sin color']:
+            partes.append(self.color.title())
+        
+        # Batería (solo si tiene valor)
+        if self.vida_bateria and self.vida_bateria.strip():
+            partes.append(f"Batería: {self.vida_bateria}")
+        
+        # Si no hay características adicionales, usar el formato original
+        if len(partes) == 1:
+            return f"{self.producto} - Unidad {self.unidad_index}"
+        
+        # Unir las características con " | "
+        return " | ".join(partes)
     
     def save(self, *args, **kwargs):
         if not self.codigo_barras:

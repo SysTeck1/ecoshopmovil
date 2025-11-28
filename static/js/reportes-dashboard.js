@@ -277,6 +277,8 @@
             this.modals = new Map();
             this.activeModal = null;
             this.globalFilters = { start: "", end: "" };
+            this.cache = new Map(); // Cache para respuestas
+            this.loadingPromises = new Map(); // Evitar peticiones duplicadas
         }
 
         init() {
@@ -285,7 +287,38 @@
             this.initModals();
             this.initRangePicker();
             this.bindEscapeListener();
-            this.refreshCards();
+            this.initIntersectionObserver();
+            // No cargar tarjetas inmediatamente, esperar a que sean visibles
+            // this.refreshCards(); // REMOVIDO para optimizar carga
+        }
+
+        initIntersectionObserver() {
+            // Observer para cargar tarjetas solo cuando sean visibles
+            if ('IntersectionObserver' in window) {
+                this.observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const card = entry.target;
+                            const type = card.getAttribute('data-report-trigger');
+                            if (type && !card.dataset.loaded) {
+                                this.loadCardData(card, type);
+                                card.dataset.loaded = 'true';
+                                this.observer.unobserve(card);
+                            }
+                        }
+                    });
+                }, {
+                    rootMargin: '50px' // Cargar 50px antes de que sea visible
+                });
+
+                // Observar todas las tarjetas
+                this.cardElements.forEach(card => {
+                    this.observer.observe(card);
+                });
+            } else {
+                // Fallback para navegadores sin IntersectionObserver
+                setTimeout(() => this.refreshCards(), 1000);
+            }
         }
 
         cacheElements() {
@@ -323,10 +356,21 @@
                 this.rangeApplyBtn.addEventListener("click", () => {
                     this.globalFilters.start = this.rangeStart?.value || "";
                     this.globalFilters.end = this.rangeEnd?.value || "";
+                    // Limpiar cache al cambiar filtros
+                    this.clearCache();
                     this.refreshCards();
                     this.showToast("Rango aplicado correctamente.", "success");
                 });
             }
+        }
+
+        clearCache() {
+            this.cache.clear();
+            this.loadingPromises.clear();
+            // Resetear loaded state de las tarjetas
+            this.cardElements.forEach(card => {
+                delete card.dataset.loaded;
+            });
         }
 
         bindEscapeListener() {
@@ -349,29 +393,76 @@
             this.activeModal = modal;
         }
 
-        refreshCards() {
-            this.cards.forEach((card, type) => {
-                const config = this.config[type];
-                if (!config) {
-                    return;
-                }
-                this.setCardLoading(card, true);
-                this.fetchReport(type, { useGlobalFilters: true })
-                    .then((data) => {
+        loadCardData(card, type) {
+            const config = this.config[type];
+            if (!config) {
+                return;
+            }
+            
+            // Generar clave de cache
+            const cacheKey = this.generateCacheKey(type, { useGlobalFilters: true });
+            
+            // Verificar si ya está en cache
+            if (this.cache.has(cacheKey)) {
+                const cachedData = this.cache.get(cacheKey);
+                const value = config.cardValue ? config.cardValue(cachedData) : "—";
+                this.updateCardValue(card, value ?? "—");
+                return;
+            }
+            
+            // Verificar si ya hay una petición en curso
+            if (this.loadingPromises.has(cacheKey)) {
+                this.loadingPromises.get(cacheKey)
+                    .then(data => {
                         const value = config.cardValue ? config.cardValue(data) : "—";
                         this.updateCardValue(card, value ?? "—");
                     })
-                    .catch((error) => {
+                    .catch(error => {
                         console.error(error);
                         this.updateCardValue(card, "—");
-                        this.showToast(
-                            "No fue posible obtener el resumen del reporte.",
-                            "error"
-                        );
-                    })
-                    .finally(() => {
-                        this.setCardLoading(card, false);
                     });
+                return;
+            }
+            
+            // Iniciar nueva petición
+            this.setCardLoading(card, true);
+            const promise = this.fetchReport(type, { useGlobalFilters: true });
+            
+            this.loadingPromises.set(cacheKey, promise);
+            
+            promise
+                .then((data) => {
+                    // Guardar en cache
+                    this.cache.set(cacheKey, data);
+                    
+                    const value = config.cardValue ? config.cardValue(data) : "—";
+                    this.updateCardValue(card, value ?? "—");
+                })
+                .catch((error) => {
+                    console.error(error);
+                    this.updateCardValue(card, "—");
+                    this.showToast(
+                        "No fue posible obtener el resumen del reporte.",
+                        "error"
+                    );
+                })
+                .finally(() => {
+                    this.loadingPromises.delete(cacheKey);
+                    this.setCardLoading(card, false);
+                });
+        }
+
+        generateCacheKey(type, options = {}) {
+            const filters = options.filters || {};
+            const useGlobal = options.useGlobalFilters ? 'global' : 'custom';
+            const filterStr = JSON.stringify(filters);
+            const globalStr = JSON.stringify(this.globalFilters);
+            return `${type}-${useGlobal}-${filterStr}-${globalStr}`;
+        }
+
+        refreshCards() {
+            this.cards.forEach((card, type) => {
+                this.loadCardData(card, type);
             });
         }
 
@@ -399,15 +490,23 @@
                 return Promise.reject(new Error(`Reporte no configurado: ${type}`));
             }
 
+            // Generar clave de cache
+            const cacheKey = this.generateCacheKey(type, options);
+            
+            // Verificar cache primero
+            if (this.cache.has(cacheKey)) {
+                return Promise.resolve(this.cache.get(cacheKey));
+            }
+
             const params = new URLSearchParams();
             const filters = { ...(config.defaultFilters || {}) };
 
             if (options.useGlobalFilters && config.supportsRange !== false) {
                 if (this.globalFilters.start) {
-                    filters.start = this.globalFilters.start;
+                    filters[config.paramMap?.start || "start"] = this.globalFilters.start;
                 }
                 if (this.globalFilters.end) {
-                    filters.end = this.globalFilters.end;
+                    filters[config.paramMap?.end || "end"] = this.globalFilters.end;
                 }
             }
 
@@ -415,31 +514,55 @@
                 Object.assign(filters, options.filters);
             }
 
-            const map = config.paramMap || {};
             Object.entries(filters).forEach(([key, value]) => {
-                if (value === null || value === undefined || value === "") {
-                    return;
+                if (value) {
+                    params.append(key, value);
                 }
-                const paramName = map[key] || key;
-                params.set(paramName, value);
             });
 
-            const url = params.toString()
-                ? `${config.endpoint}?${params.toString()}`
-                : config.endpoint;
+            const url = `${config.endpoint}?${params.toString()}`;
+            
+            // Verificar si ya hay una petición en curso
+            if (this.loadingPromises.has(cacheKey)) {
+                return this.loadingPromises.get(cacheKey);
+            }
 
-            return fetch(url, {
-                method: "GET",
-                credentials: "same-origin",
+            // Crear nueva petición con timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
+            
+            const promise = fetch(url, {
+                signal: controller.signal,
                 headers: {
-                    Accept: "application/json",
-                },
-            }).then((response) => {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Cache-Control': 'no-cache'
+                }
+            })
+            .then(response => {
+                clearTimeout(timeoutId);
                 if (!response.ok) {
-                    throw new Error(`Error HTTP ${response.status}`);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 return response.json();
+            })
+            .then(data => {
+                // Guardar en cache
+                this.cache.set(cacheKey, data);
+                return data;
+            })
+            .catch(error => {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    throw new Error('La petición tomó demasiado tiempo');
+                }
+                throw error;
+            })
+            .finally(() => {
+                this.loadingPromises.delete(cacheKey);
             });
+
+            this.loadingPromises.set(cacheKey, promise);
+            return promise;
         }
 
         showToast(message, type = "info") {

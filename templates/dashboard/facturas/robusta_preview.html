@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factura Robusta</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .factura-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border: 2px solid #333;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .factura-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #333;
+            padding-bottom: 15px;
+        }
+        
+        .factura-title {
+            font-size: 28px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #333;
+        }
+        
+        .factura-line {
+            flex: 1;
+            height: 2px;
+            background: #333;
+            margin-left: 20px;
+        }
+        
+        .datos-cliente-section {
+            margin-bottom: 20px;
+            border: 2px solid #333;
+            padding: 15px;
+            background: #f9f9f9;
+        }
+        
+        .datos-cliente-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+        
+        .datos-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .dato-item {
+            display: flex;
+            margin-bottom: 8px;
+        }
+        
+        .dato-label {
+            font-weight: bold;
+            margin-right: 10px;
+            min-width: 100px;
+        }
+        
+        .concepto-section {
+            margin-bottom: 20px;
+        }
+        
+        .concepto-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            border-bottom: 2px solid #333;
+            padding-bottom: 5px;
+        }
+        
+        .productos-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        .productos-table th,
+        .productos-table td {
+            border: 1px solid #333;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .productos-table th {
+            background: #333;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .totales-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .pago-section {
+            flex: 1;
+        }
+        
+        .totales-calculo {
+            flex: 1;
+            text-align: right;
+        }
+        
+        .totales-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            padding: 5px 0;
+        }
+        
+        .totales-item.total {
+            border-top: 2px solid #333;
+            font-weight: bold;
+            font-size: 18px;
+            margin-top: 10px;
+            padding-top: 10px;
+        }
+        
+        .garantia-section {
+            margin-bottom: 20px;
+            text-align: center;
+            border: 2px solid #333;
+            padding: 15px;
+            background: #f0f0f0;
+        }
+        
+        .garantia-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        
+        .firmas-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        
+        .firma-box {
+            flex: 1;
+            text-align: center;
+            border-bottom: 1px solid #333;
+            padding: 20px 0;
+            margin: 0 20px;
+        }
+        
+        .firma-label {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .factura-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 2px solid #333;
+            padding-top: 15px;
+            margin-top: 20px;
+        }
+        
+        .empresa-info {
+            flex: 1;
+        }
+        
+        .contacto-info {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .logo-info {
+            flex: 1;
+            text-align: right;
+        }
+        
+        .logo-placeholder {
+            width: 80px;
+            height: 80px;
+            border: 2px solid #333;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #f9f9f9;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .factura-container {
+                box-shadow: none;
+                border: 1px solid #333;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="factura-container">
+        <!-- CABECERA -->
+        {% if config.cabecera.mostrar_linea %}
+        <div class="factura-header">
+            <h1 class="factura-title">{{ config.cabecera.titulo }}</h1>
+            <div class="factura-line"></div>
+        </div>
+        {% else %}
+        <div class="factura-header" style="justify-content: center;">
+            <h1 class="factura-title">{{ config.cabecera.titulo }}</h1>
+        </div>
+        {% endif %}
+        
+        <!-- DATOS DEL CLIENTE -->
+        {% if config.cliente.mostrar_cliente or config.cliente.mostrar_telefono or config.cliente.mostrar_vendedor or config.cliente.mostrar_documento or config.cliente.mostrar_fecha or config.cliente.mostrar_num_factura %}
+        <div class="datos-cliente-section">
+            <div class="datos-cliente-title">{{ config.cliente.titulo }}</div>
+            <div class="datos-grid">
+                <div class="columna-izquierda">
+                    {% if config.cliente.mostrar_cliente %}
+                    <div class="dato-item">
+                        <span class="dato-label">Cliente:</span>
+                        <span>{{ data.cliente.nombre }}</span>
+                    </div>
+                    {% endif %}
+                    {% if config.cliente.mostrar_telefono %}
+                    <div class="dato-item">
+                        <span class="dato-label">Teléfono:</span>
+                        <span>{{ data.cliente.telefono }}</span>
+                    </div>
+                    {% endif %}
+                    {% if config.cliente.mostrar_vendedor %}
+                    <div class="dato-item">
+                        <span class="dato-label">Vendedor:</span>
+                        <span>{{ data.vendedor }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="columna-derecha">
+                    {% if config.cliente.mostrar_documento %}
+                    <div class="dato-item">
+                        <span class="dato-label">Cédula/RNC/Pasaporte:</span>
+                        <span>{{ data.cliente.documento }}</span>
+                    </div>
+                    {% endif %}
+                    {% if config.cliente.mostrar_fecha %}
+                    <div class="dato-item">
+                        <span class="dato-label">Fecha:</span>
+                        <span>{{ data.fecha }}</span>
+                    </div>
+                    {% endif %}
+                    {% if config.cliente.mostrar_num_factura %}
+                    <div class="dato-item">
+                        <span class="dato-label">No. de Factura:</span>
+                        <span>{{ data.factura_numero }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- CONCEPTO -->
+        <div class="concepto-section">
+            <div class="concepto-title">{{ config.concepto.titulo }}</div>
+            <table class="productos-table">
+                <thead>
+                    <tr>
+                        {% if config.concepto.col_producto %}<th>Producto</th>{% endif %}
+                        {% if config.concepto.col_cantidad %}<th>Cantidad</th>{% endif %}
+                        {% if config.concepto.col_precio %}<th>Precio Unit.</th>{% endif %}
+                        {% if config.concepto.col_total %}<th>Total</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for producto in data.productos %}
+                    <tr>
+                        {% if config.concepto.col_producto %}<td>{{ producto.nombre }}</td>{% endif %}
+                        {% if config.concepto.col_cantidad %}<td>{{ producto.cantidad }}</td>{% endif %}
+                        {% if config.concepto.col_precio %}<td>RD$ {{ producto.precio_unitario|floatformat:2 }}</td>{% endif %}
+                        {% if config.concepto.col_total %}<td>RD$ {{ producto.total|floatformat:2 }}</td>{% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- TOTALES Y FORMA DE PAGO -->
+        <div class="totales-section">
+            {% if config.totales.mostrar_forma_pago %}
+            <div class="pago-section">
+                <div class="dato-item">
+                    <span class="dato-label">Formato de Pago:</span>
+                    <span>{{ data.pago.formato }}</span>
+                </div>
+                <div class="dato-item">
+                    <span class="dato-label">No. de Cuenta:</span>
+                    <span>{{ data.pago.cuenta }}</span>
+                </div>
+            </div>
+            {% endif %}
+            <div class="totales-calculo">
+                {% if config.totales.mostrar_subtotal %}
+                <div class="totales-item">
+                    <span>Subtotal:</span>
+                    <span>RD$ {{ data.subtotal|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                {% if config.totales.mostrar_itbis %}
+                <div class="totales-item">
+                    <span>ITBIS ({{ config.totales.tasa_itbis }}%):</span>
+                    <span>RD$ {{ data.itbis|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                {% if config.totales.mostrar_total %}
+                <div class="totales-item total">
+                    <span>Total:</span>
+                    <span>RD$ {{ data.total|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- GARANTÍA -->
+        {% if config.garantia.mostrar_garantia %}
+        <div class="garantia-section">
+            <div class="garantia-title">Garantía</div>
+            <p>{{ config.garantia.texto_garantia }}</p>
+        </div>
+        {% endif %}
+        
+        <!-- FIRMAS -->
+        {% if config.firmas.mostrar_firmas %}
+        <div class="firmas-section">
+            <div class="firma-box">
+                <div class="firma-label">{{ config.firmas.firma_vendedor }}</div>
+                <div>_________________________</div>
+            </div>
+            <div class="firma-box">
+                <div class="firma-label">{{ config.firmas.firma_cliente }}</div>
+                <div>_________________________</div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- FOOTER -->
+        <div class="factura-footer">
+            <div class="empresa-info">
+                <strong>{{ config.footer.empresa_nombre }}</strong><br>
+                {{ config.footer.empresa_direccion }}<br>
+                Teléfono: {{ config.footer.empresa_whatsapp }}
+            </div>
+            <div class="contacto-info">
+                <strong>WhatsApp:</strong><br>
+                {{ config.footer.empresa_whatsapp }}<br>
+                empresa@whatsapp.com
+            </div>
+            {% if config.footer.mostrar_logo %}
+            <div class="logo-info">
+                <div class="logo-placeholder">
+                    LOGO
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

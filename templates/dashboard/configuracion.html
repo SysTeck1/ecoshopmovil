@@ -3755,26 +3755,41 @@
                                             <thead>
                                                 <tr>
                                                     <th>Nombre</th>
-                                                    <th>Precio</th>
+                                                    <th>Precio Venta</th>
                                                     <th>Stock</th>
                                                     <th>Categoría</th>
+                                                    <th>Marca</th>
+                                                    <th>Proveedor</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <tr>
                                                     <td>Samsung Galaxy S24</td>
-                                                    <td>$899</td>
+                                                    <td>$899.99</td>
                                                     <td>25</td>
-                                                    <td>Teléfono</td>
+                                                    <td>Smartphones</td>
+                                                    <td>Samsung</td>
+                                                    <td>TechStore SRL</td>
                                                 </tr>
                                                 <tr>
                                                     <td>iPhone 15 Case</td>
-                                                    <td>$29</td>
+                                                    <td>$29.99</td>
                                                     <td>50</td>
-                                                    <td>Accesorio</td>
+                                                    <td>Accesorios</td>
+                                                    <td>Apple</td>
+                                                    <td>Mobile Zone</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Dell Inspiron 15</td>
+                                                    <td>$1299.99</td>
+                                                    <td>15</td>
+                                                    <td>Laptops</td>
+                                                    <td>Dell</td>
+                                                    <td>DigitalHub</td>
                                                 </tr>
                                             </tbody>
                                         </table>
+                                        <small><strong>Campos disponibles:</strong> nombre (requerido), precio_venta (requerido), stock (requerido), categoria (requerido), marca, proveedor, impuesto, precio_compra, stock_minimo, almacenamiento, memoria_ram, descripcion, colores_disponibles</small>
                                     </div>
                                 </div>
                                 <div class="modal-actions">
@@ -3801,17 +3816,22 @@
                 
                 // Download template
                 modal.querySelector('[data-download-template]').addEventListener('click', function() {
-                    var csvContent = "Nombre,Precio,Stock,Categoría,Marca\n";
-                    csvContent += "Samsung Galaxy S24,899,25,Teléfono,Samsung\n";
-                    csvContent += "iPhone 15 Case,29,50,Accesorio,Apple\n";
+                    var csvContent = "nombre,precio_venta,stock,categoria,marca,proveedor,impuesto,precio_compra,stock_minimo,almacenamiento,memoria_ram,descripcion,colores_disponibles\n";
+                    csvContent += "Samsung Galaxy S24,899.99,25,Smartphones,Samsung,TechStore SRL,ITBIS 18%,650.00,5,256GB,8GB,Samsung Galaxy S24 con 256GB y 8GB RAM,Negro Blanco Azul\n";
+                    csvContent += "iPhone 15 Case,29.99,50,Accesorios,Apple,Mobile Zone,ITBIS 18%,15.00,10,,,\"Funda protectora para iPhone 15\",\"Negro, Blanco, Rosa, Azul\"\n";
+                    csvContent += "Dell Inspiron 15,1299.99,15,Laptops,Dell,DigitalHub,ITBIS 18%,950.00,5,512GB,16GB,Dell Inspiron 15 con procesador Intel i5,Negro Plateado\n";
+                    csvContent += "AirPods Pro,249.99,30,Audio,Apple,SmartDevices,ITBIS 18%,180.00,8,,,\"Auriculares inalámbricos con cancelación de ruido\",Blanco\n";
+                    csvContent += "PlayStation 5,499.99,10,Gaming,Sony,GadgetWorld,ITBIS 18%,380.00,3,1TB,,,\"Consola de videojuegos PlayStation 5\",Blanco Negro\n";
                     
                     var blob = new Blob([csvContent], { type: 'text/csv' });
                     var url = window.URL.createObjectURL(blob);
                     var a = document.createElement('a');
                     a.href = url;
-                    a.download = 'plantilla_productos.csv';
+                    a.download = 'plantilla_productos_completa.csv';
                     a.click();
-                    window.URL.revokeObjectURL(url);
+                    if(typeof window.URL !== 'undefined' && window.URL.revokeObjectURL) {
+                        window.URL.revokeObjectURL(url);
+                    }
                 });
                 
                 // Import products
@@ -3822,8 +3842,35 @@
                         return;
                     }
                     
-                    showToast('Procesando importación... Se notificará cuando complete.', 'info');
-                    modal.remove();
+                    var formData = new FormData();
+                    formData.append('file', fileInput.files[0]);
+                    formData.append('resource', 'productos');
+                    formData.append('action', 'importar');
+                    
+                    fetch(window.location.href, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast(data.message, 'success');
+                            modal.remove();
+                            // Recargar la página después de un breve delay
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 2000);
+                        } else {
+                            showToast(data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('Error al procesar la importación', 'error');
+                    });
                 });
             }
         })();
@@ -3867,7 +3914,9 @@
                 a.href = url;
                 a.download = 'plantilla_productos_sistema_pos.csv';
                 a.click();
-                window.URL.revokeObjectURL(url);
+                if(typeof window.URL !== 'undefined' && window.URL.revokeObjectURL) {
+                    window.URL.revokeObjectURL(url);
+                }
             });
         })();
 
@@ -3981,18 +4030,6 @@
                 event.preventDefault();
                 showToast('Abriendo configuración de comprobante fiscal...', 'info');
                 // TODO: Implement fiscal receipt configuration
-            });
-        })();
-        
-        // Editar Factura
-        (function () {
-            var trigger = document.querySelector('[data-settings-action="editar-factura"]');
-            if (!trigger) return;
-
-            trigger.addEventListener('click', function (event) {
-                event.preventDefault();
-                showToast('Abriendo editor de facturas...', 'info');
-                // TODO: Implement invoice editor
             });
         })();
         
@@ -4685,444 +4722,311 @@
             }
         })();
 
-        // Editar Factura
-        (function () {
-            var trigger = document.querySelector('[data-settings-action="editar-factura"]');
-            if (!trigger) return;
+        // Editar Factura - Nuevo código limpio
+        document.addEventListener('DOMContentLoaded', function() {
+            const editarFacturaBtn = document.querySelector('[data-settings-action="editar-factura"]');
+            if (editarFacturaBtn) {
+                editarFacturaBtn.addEventListener('click', function openEditFacturaModal() {
+                    // Crear modal con configuración en tiempo real
+                    const modalHtml = `
+                        <div class="modal" id="edit-factura-modal" style="display: block; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999;">
+                            <div class="modal-dialog" style="position: relative; background: white; margin: 20px auto; padding: 0; max-width: 800px; max-height: 90vh; overflow-y: auto; border-radius: 8px;">
+                                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #ddd;">
+                                    <h2 style="margin: 0;">Configuración de Factura Robusta</h2>
+                                    <button type="button" class="modal-close" onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+                                </div>
+                                <div class="modal-content" style="padding: 20px;">
+                                    <div class="configuracion-accordion" id="factura-accordion">
+                                        <!-- Cabecera -->
+                                        <div class="accordion-item">
+                                            <button type="button" class="accordion-trigger" onclick="toggleAccordion(this)">
+                                                <span class="accordion-label">📋 Cabecera de Factura</span>
+                                                <span class="accordion-icon">▸</span>
+                                            </button>
+                                            <div class="accordion-panel" style="display: none;">
+                                                <div class="config-section" style="padding: 15px;">
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Título de Factura:</label>
+                                                        <input type="text" id="factura-titulo" value="FACTURA" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                    </div>
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Mostrar línea decorativa:</label>
+                                                        <label style="display: flex; align-items: center;">
+                                                            <input type="checkbox" id="mostrar-linea" checked style="margin-right: 8px;">
+                                                            <span>Mostrar línea al lado derecho del título</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
-            // Function to get CSRF token
-            function getCookie(name) {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        const cookie = cookies[i].trim();
-                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }
-                    }
-                }
-                return cookieValue;
-            }
+                                        <!-- Datos del Cliente -->
+                                        <div class="accordion-item">
+                                            <button type="button" class="accordion-trigger" onclick="toggleAccordion(this)">
+                                                <span class="accordion-label">👤 Datos del Cliente</span>
+                                                <span class="accordion-icon">▸</span>
+                                            </button>
+                                            <div class="accordion-panel" style="display: none;">
+                                                <div class="config-section" style="padding: 15px;">
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Título de sección:</label>
+                                                        <input type="text" id="cliente-titulo" value="Datos del Cliente" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                    </div>
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Campos a mostrar:</label>
+                                                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                                                            <label style="display: flex; align-items: center;">
+                                                                <input type="checkbox" id="mostrar-cliente" checked style="margin-right: 8px;">
+                                                                <span>Cliente</span>
+                                                            </label>
+                                                            <label style="display: flex; align-items: center;">
+                                                                <input type="checkbox" id="mostrar-telefono" checked style="margin-right: 8px;">
+                                                                <span>Teléfono</span>
+                                                            </label>
+                                                            <label style="display: flex; align-items: center;">
+                                                                <input type="checkbox" id="mostrar-vendedor" checked style="margin-right: 8px;">
+                                                                <span>Vendedor</span>
+                                                            </label>
+                                                            <label style="display: flex; align-items: center;">
+                                                                <input type="checkbox" id="mostrar-documento" checked style="margin-right: 8px;">
+                                                                <span>Cédula/RNC/Pasaporte</span>
+                                                            </label>
+                                                            <label style="display: flex; align-items: center;">
+                                                                <input type="checkbox" id="mostrar-fecha" checked style="margin-right: 8px;">
+                                                                <span>Fecha</span>
+                                                            </label>
+                                                            <label style="display: flex; align-items: center;">
+                                                                <input type="checkbox" id="mostrar-num-factura" checked style="margin-right: 8px;">
+                                                                <span>No. de Factura</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
-            trigger.addEventListener('click', function (event) {
-                event.preventDefault();
-                openEditFacturaModal();
-            });
+                                        <!-- Concepto/Productos -->
+                                        <div class="accordion-item">
+                                            <button type="button" class="accordion-trigger" onclick="toggleAccordion(this)">
+                                                <span class="accordion-label">📦 Concepto y Productos</span>
+                                                <span class="accordion-icon">▸</span>
+                                            </button>
+                                            <div class="accordion-panel" style="display: none;">
+                                                <div class="config-section" style="padding: 15px;">
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Título de sección:</label>
+                                                        <input type="text" id="concepto-titulo" value="Concepto" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                    </div>
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Columnas de tabla:</label>
+                                                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                                                            <label style="display: flex; align-items: center;">
+                                                                <input type="checkbox" id="col-producto" checked style="margin-right: 8px;">
+                                                                <span>Producto</span>
+                                                            </label>
+                                                            <label style="display: flex; align-items: center;">
+                                                                <input type="checkbox" id="col-cantidad" checked style="margin-right: 8px;">
+                                                                <span>Cantidad</span>
+                                                            </label>
+                                                            <label style="display: flex; align-items: center;">
+                                                                <input type="checkbox" id="col-precio" checked style="margin-right: 8px;">
+                                                                <span>Precio Unit.</span>
+                                                            </label>
+                                                            <label style="display: flex; align-items: center;">
+                                                                <input type="checkbox" id="col-total" checked style="margin-right: 8px;">
+                                                                <span>Total</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
-            function openEditFacturaModal() {
-                // Cargar configuración desde la base de datos
-                fetch('/app/api/factura-config/')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            var config = data.config;
-                            var modalHtml = `
-                                <div class="modal" id="edit-factura-modal" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-header">
-                                            <h2>Editar Configuración de Factura</h2>
-                                            <button type="button" class="modal-close" data-close-edit-factura>&times;</button>
-                                        </div>
-                                        <div class="modal-content">
-                                            <div class="factura-config-form">
-                                                <div class="form-field">
-                                                    <label>Número de Resolución DGII</label>
-                                                    <input type="text" id="resolucion-dgii" value="${config.resolucionDGII}" placeholder="RES-XXXXXXXXX">
+                                        <!-- Totales y Pago -->
+                                        <div class="accordion-item">
+                                            <button type="button" class="accordion-trigger" onclick="toggleAccordion(this)">
+                                                <span class="accordion-label">💰 Totales y Forma de Pago</span>
+                                                <span class="accordion-icon">▸</span>
+                                            </button>
+                                            <div class="accordion-panel" style="display: none;">
+                                                <div class="config-section" style="padding: 15px;">
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Mostrar forma de pago:</label>
+                                                        <label style="display: flex; align-items: center;">
+                                                            <input type="checkbox" id="mostrar-forma-pago" checked style="margin-right: 8px;">
+                                                            <span>Formato de Pago y No. de Cuenta</span>
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Cálculos de totales:</label>
+                                                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                                                            <label style="display: flex; align-items: center;">
+                                                                <input type="checkbox" id="mostrar-subtotal" checked style="margin-right: 8px;">
+                                                                <span>Subtotal</span>
+                                                            </label>
+                                                            <label style="display: flex; align-items: center;">
+                                                                <input type="checkbox" id="mostrar-itbis" checked style="margin-right: 8px;">
+                                                                <span>ITBIS</span>
+                                                            </label>
+                                                            <label style="display: flex; align-items: center;">
+                                                                <input type="checkbox" id="mostrar-total" checked style="margin-right: 8px;">
+                                                                <span>Total</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Tasa de ITBIS (%):</label>
+                                                        <input type="number" id="tasa-itbis" value="18" min="0" max="100" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                    </div>
                                                 </div>
-                                                
-                                                <div class="form-field">
-                                                    <label>RNC/Cédula del Emisor</label>
-                                                    <input type="text" id="emisor-rnc" value="${config.emisorRNC}" placeholder="XXXXXXXXX">
+                                            </div>
+                                        </div>
+
+                                        <!-- Garantía -->
+                                        <div class="accordion-item">
+                                            <button type="button" class="accordion-trigger" onclick="toggleAccordion(this)">
+                                                <span class="accordion-label">🛡️ Garantía</span>
+                                                <span class="accordion-icon">▸</span>
+                                            </button>
+                                            <div class="accordion-panel" style="display: none;">
+                                                <div class="config-section" style="padding: 15px;">
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: flex; align-items: center;">
+                                                            <input type="checkbox" id="mostrar-garantia" checked style="margin-right: 8px;">
+                                                            <span style="font-weight: bold;">Mostrar sección de garantía</span>
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Texto de garantía:</label>
+                                                        <textarea id="texto-garantia" rows="4" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">Este producto tiene garantía de 1 año a partir de la fecha de compra. La garantía cubre defectos de fabricación. No cubre daños por mal uso, caídas, líquidos o manipulación inadecuada.</textarea>
+                                                    </div>
                                                 </div>
-                                                
-                                                <div class="form-field">
-                                                    <label>Nombre del Emisor</label>
-                                                    <input type="text" id="emisor-nombre" value="${config.emisorNombre}" placeholder="Nombre de la empresa">
+                                            </div>
+                                        </div>
+
+                                        <!-- Firmas -->
+                                        <div class="accordion-item">
+                                            <button type="button" class="accordion-trigger" onclick="toggleAccordion(this)">
+                                                <span class="accordion-label">✍️ Firmas</span>
+                                                <span class="accordion-icon">▸</span>
+                                            </button>
+                                            <div class="accordion-panel" style="display: none;">
+                                                <div class="config-section" style="padding: 15px;">
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: flex; align-items: center;">
+                                                            <input type="checkbox" id="mostrar-firmas" checked style="margin-right: 8px;">
+                                                            <span style="font-weight: bold;">Mostrar firmas</span>
+                                                        </label>
+                                                    </div>
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Etiqueta Vendedor:</label>
+                                                        <input type="text" id="firma-vendedor" value="Firma del Vendedor" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                    </div>
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Etiqueta Cliente:</label>
+                                                        <input type="text" id="firma-cliente" value="Firma del Cliente" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                    </div>
                                                 </div>
-                                    
-                                    <div class="form-field">
-                                                    <label>Tipo de Comprobante</label>
-                                                    <select id="tipo-comprobante">
-                                                        <option value="01" ${config.tipoComprobante === '01' ? 'selected' : ''}>Factura de Crédito Fiscal</option>
-                                                        <option value="02" ${config.tipoComprobante === '02' ? 'selected' : ''}>Factura de Consumo</option>
-                                                        <option value="03" ${config.tipoComprobante === '03' ? 'selected' : ''}>Nota de Débito</option>
-                                                        <option value="04" ${config.tipoComprobante === '04' ? 'selected' : ''}>Nota de Crédito</option>
-                                                        <option value="11" ${config.tipoComprobante === '11' ? 'selected' : ''}>Factura de Proveedor</option>
-                                                        <option value="12" ${config.tipoComprobante === '12' ? 'selected' : ''}>Comprobante de Gasto Menor</option>
-                                                    </select>
+                                            </div>
+                                        </div>
+
+                                        <!-- Footer -->
+                                        <div class="accordion-item">
+                                            <button type="button" class="accordion-trigger" onclick="toggleAccordion(this)">
+                                                <span class="accordion-label">🏢 Footer</span>
+                                                <span class="accordion-icon">▸</span>
+                                            </button>
+                                            <div class="accordion-panel" style="display: none;">
+                                                <div class="config-section" style="padding: 15px;">
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nombre de Empresa:</label>
+                                                        <input type="text" id="empresa-nombre" value="Tu Empresa SRL" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                    </div>
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Dirección:</label>
+                                                        <input type="text" id="empresa-direccion" value="Dirección de la empresa" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                    </div>
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">WhatsApp:</label>
+                                                        <input type="text" id="empresa-whatsapp" value="809-555-0000" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                    </div>
+                                                    <div class="form-field" style="margin-bottom: 15px;">
+                                                        <label style="display: flex; align-items: center;">
+                                                            <input type="checkbox" id="mostrar-logo" checked style="margin-right: 8px;">
+                                                            <span style="font-weight: bold;">Mostrar logo</span>
+                                                        </label>
+                                                    </div>
                                                 </div>
-                                                
-                                                <div class="form-field">
-                                                    <label>Formato de Factura</label>
-                                                    <select id="formato-factura">
-                                                        <option value="standard" ${config.formatoFactura === 'standard' ? 'selected' : ''}>Estándar DGII</option>
-                                                        <option value="simplified" ${config.formatoFactura === 'simplified' ? 'selected' : ''}>Simplificado</option>
-                                                        <option value="detailed" ${config.formatoFactura === 'detailed' ? 'selected' : ''}>Detallado</option>
-                                                        <option value="thermal" ${config.formatoFactura === 'thermal' ? 'selected' : ''}>Térmico (80mm)</option>
-                                                        <option value="letter" ${config.formatoFactura === 'letter' ? 'selected' : ''}>Carta (Letter)</option>
-                                                        <option value="a4" ${config.formatoFactura === 'a4' ? 'selected' : ''}>A4</option>
-                                                    </select>
-                                                </div>
-                                    
-                                    <div class="form-field" id="formato-config">
-                                        <label>Configuración Adicional</label>
-                                        <div id="standard-options" class="formato-options">
-                                            <div class="option-item">
-                                                <label>
-                                                    <input type="checkbox" id="include-watermark" checked>
-                                                    Marca de agua
-                                                </label>
-                                            </div>
-                                            <div class="option-item">
-                                                <label>
-                                                    <input type="checkbox" id="include-footer" ${config.includeFooter ? 'checked' : ''}>
-                                                    Pie de página completo
-                                                </label>
-                                            </div>
-                                        </div>
-                                        
-                                        <div id="simplified-options" class="formato-options" style="display: none;">
-                                            <div class="option-item">
-                                                <label>
-                                                    <input type="checkbox" id="simple-items" checked>
-                                                    Items simplificados
-                                                </label>
-                                            </div>
-                                            <div class="option-item">
-                                                <label>
-                                                    <input type="checkbox" id="no-taxes">
-                                                    Sin desglose de impuestos
-                                                </label>
-                                            </div>
-                                        </div>
-                                        
-                                        <div id="thermal-options" class="formato-options" style="display: none;">
-                                            <div class="option-item">
-                                                <label>
-                                                    <input type="checkbox" id="compact-mode" checked>
-                                                    Modo compacto
-                                                </label>
-                                            </div>
-                                            <div class="option-item">
-                                                <label>
-                                                    <input type="checkbox" id="cut-line">
-                                                    Línea de corte
-                                                </label>
-                                            </div>
-                                        </div>
-                                        
-                                        <div id="detailed-options" class="formato-options" style="display: none;">
-                                            <div class="option-item">
-                                                <label>
-                                                    <input type="checkbox" id="include-images" checked>
-                                                    Incluir imágenes de productos
-                                                </label>
-                                            </div>
-                                            <div class="option-item">
-                                                <label>
-                                                    <input type="checkbox" id="include-specs" checked>
-                                                    Especificaciones técnicas
-                                                </label>
-                                            </div>
-                                        </div>
-                                        
-                                        <div id="letter-options" class="formato-options" style="display: none;">
-                                            <div class="option-item">
-                                                <label>
-                                                    <input type="checkbox" id="letter-header" checked>
-                                                    Encabezado completo
-                                                </label>
-                                            </div>
-                                            <div class="option-item">
-                                                <label>
-                                                    <input type="checkbox" id="letter-watermark">
-                                                    Marca de agua sutil
-                                                </label>
-                                            </div>
-                                        </div>
-                                        
-                                        <div id="a4-options" class="formato-options" style="display: none;">
-                                            <div class="option-item">
-                                                <label>
-                                                    <input type="checkbox" id="a4-header" checked>
-                                                    Encabezado corporativo
-                                                </label>
-                                            </div>
-                                            <div class="option-item">
-                                                <label>
-                                                    <input type="checkbox" id="a4-footer" checked>
-                                                    Pie de página extendido
-                                                </label>
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    <div class="form-field">
-                                                    <label>Serie de Factura</label>
-                                                    <input type="text" id="serie-factura" value="${config.serieFactura}" placeholder="Ej: A0101">
-                                                </div>
-                                                
-                                                <div class="form-field">
-                                                    <label>Secuencia Inicial</label>
-                                                    <input type="number" id="secuencia-inicial" value="${config.secuenciaInicial}" min="1" placeholder="1">
-                                                </div>
-                                                
-                                                <div class="form-field">
-                                                    <label>Información Adicional</label>
-                                                    <textarea id="info-adicional" rows="3" placeholder="Información adicional para la factura">${config.infoAdicional}</textarea>
-                                                </div>
-                                                
-                                                <div class="form-field">
-                                                    <label>
-                                                        <input type="checkbox" id="incluir-ITBIS" ${config.incluirITBIS ? 'checked' : ''}>
-                                                        Incluir desglose de ITBIS
-                                                    </label>
-                                                </div>
-                                    
-                                    <div class="form-field">
-                                                    <label>
-                                                        <input type="checkbox" id="incluir-leyendas" ${config.incluirLeyendas ? 'checked' : ''}>
-                                                        Incluir leyendas fiscales
-                                                    </label>
-                                                </div>
-                                                
-                                                <div class="form-field">
-                                                    <label>
-                                                        <input type="checkbox" id="incluir-logo" ${config.incluirLogo ? 'checked' : ''}>
-                                                        Incluir logo de la empresa
-                                                    </label>
-                                                </div>
-                                                
-                                                <div class="form-field" id="logo-config">
-                                                    <label>Tamaño del Logo</label>
-                                                    <select id="tamano-logo">
-                                                        <option value="small" ${config.tamanoLogo === 'small' ? 'selected' : ''}>Pequeño (20mm)</option>
-                                                        <option value="medium" ${config.tamanoLogo === 'medium' ? 'selected' : ''}>Mediano (30mm)</option>
-                                                        <option value="large" ${config.tamanoLogo === 'large' ? 'selected' : ''}>Grande (40mm)</option>
-                                                    </select>
-                                                </div>
-                                                
-                                                <div class="form-field" id="logo-position">
-                                                    <label>Posición del Logo</label>
-                                                    <select id="posicion-logo">
-                                                        <option value="top-left" ${config.posicionLogo === 'top-left' ? 'selected' : ''}>Superior Izquierda</option>
-                                                        <option value="top-center" ${config.posicionLogo === 'top-center' ? 'selected' : ''}>Superior Centro</option>
-                                                        <option value="top-right" ${config.posicionLogo === 'top-right' ? 'selected' : ''}>Superior Derecha</option>
-                                                        <option value="bottom-left" ${config.posicionLogo === 'bottom-left' ? 'selected' : ''}>Inferior Izquierda</option>
-                                                        <option value="bottom-center" ${config.posicionLogo === 'bottom-center' ? 'selected' : ''}>Inferior Centro</option>
-                                                        <option value="bottom-right" ${config.posicionLogo === 'bottom-right' ? 'selected' : ''}>Inferior Derecha</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="modal-actions">
-                                                <button type="button" class="btn btn-secondary" data-close-edit-factura>Cancelar</button>
-                                                <button type="button" class="btn btn-primary" data-save-edit-factura>Guardar Configuración</button>
-                                                <button type="button" class="btn btn-outline" data-preview-factura>Vista Previa</button>
-                                            </div>
-                                        </div>
+                                    <div class="modal-actions" style="margin-top: 20px; text-align: right; padding-top: 15px; border-top: 1px solid #ddd;">
+                                        <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()" style="margin-right: 10px; padding: 8px 16px; border: 1px solid #ddd; background: #f5f5f5; cursor: pointer; border-radius: 4px;">Cancelar</button>
+                                        <button type="button" class="btn btn-primary" onclick="guardarConfiguracionFactura()" style="padding: 8px 16px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px;">Guardar Configuración</button>
+                                        <button type="button" class="btn btn-outline" onclick="vistaPreviaFactura()" style="margin-left: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; cursor: pointer; border-radius: 4px;">Vista Previa</button>
                                     </div>
                                 </div>
-                            `;
-                            
-                            document.body.insertAdjacentHTML('beforeend', modalHtml);
-                            var modal = document.getElementById('edit-factura-modal');
-                            modal.setAttribute('aria-hidden', 'false');
-                            modal.classList.add('is-visible');
-                            
-                            // Guardar el elemento con focus antes de abrir el modal
-                            var focusedElementBeforeModal = document.activeElement;
-                            
-                            // Enfocar el primer elemento del modal
-                            var firstFocusableElement = modal.querySelector('input, button, select, textarea');
-                            if (firstFocusableElement) {
-                                setTimeout(() => firstFocusableElement.focus(), 100);
-                            }
-                            
-                            // Close handlers
-                            modal.querySelectorAll('[data-close-edit-factura]').forEach(function(btn) {
-                                btn.addEventListener('click', function() {
-                                    modal.setAttribute('aria-hidden', 'true');
-                                    modal.classList.remove('is-visible');
-                                    // Restaurar el focus al elemento original
-                                    if (focusedElementBeforeModal) {
-                                        focusedElementBeforeModal.focus();
-                                    }
-                                    setTimeout(() => modal.remove(), 300);
-                                });
-                            });
-                            
-                            // Save configuration
-                            modal.querySelector('[data-save-edit-factura]').addEventListener('click', function() {
-                                var config = {
-                                    resolucionDGII: document.getElementById('resolucion-dgii').value,
-                                    emisorRNC: document.getElementById('emisor-rnc').value,
-                                    emisorNombre: document.getElementById('emisor-nombre').value,
-                                    emisorTelefono: '809-555-1234',  // Puedes agregar estos campos al formulario
-                                    emisorDireccion: 'Dirección por defecto',  // Puedes agregar estos campos al formulario
-                                    tipoComprobante: document.getElementById('tipo-comprobante').value,
-                                    formatoFactura: document.getElementById('formato-factura').value,
-                                    serieFactura: document.getElementById('serie-factura').value,
-                                    secuenciaInicial: document.getElementById('secuencia-inicial').value,
-                                    infoAdicional: document.getElementById('info-adicional').value,
-                                    incluirITBIS: document.getElementById('incluir-ITBIS').checked,
-                                    incluirLeyendas: document.getElementById('incluir-leyendas').checked,
-                                    incluirLogo: document.getElementById('incluir-logo').checked,
-                                    tamanoLogo: document.getElementById('tamano-logo').value,
-                                    posicionLogo: document.getElementById('posicion-logo').value,
-                                    // Opciones de formato
-                                    includeFooter: document.getElementById('include-footer')?.checked || false
-                                };
-                                
-                                // Save to database via API
-                                fetch('/app/api/factura-config/guardar/', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'X-CSRFToken': getCookie('csrftoken')
-                                    },
-                                    body: JSON.stringify(config)
-                                })
-                                .then(response => response.json())
-                                .then(data => {
-                                    if (data.success) {
-                                        showToast('Configuración de factura guardada exitosamente', 'success');
-                                        modal.setAttribute('aria-hidden', 'true');
-                                        modal.classList.remove('is-visible');
-                                        // Restaurar el focus al elemento original
-                                        if (focusedElementBeforeModal) {
-                                            focusedElementBeforeModal.focus();
-                                        }
-                                        setTimeout(() => modal.remove(), 300);
-                                    } else {
-                                        showToast('Error: ' + data.error, 'error');
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error('Error:', error);
-                                    showToast('Error al guardar la configuración', 'error');
-                                });
-                            });
-                            
-                            // Toggle logo options
-                            var incluirLogoCheckbox = document.getElementById('incluir-logo');
-                            var logoConfig = document.getElementById('logo-config');
-                            var logoPosition = document.getElementById('logo-position');
-                            
-                            function toggleLogoOptions() {
-                                var showLogo = incluirLogoCheckbox.checked;
-                                logoConfig.style.display = showLogo ? 'block' : 'none';
-                                logoPosition.style.display = showLogo ? 'block' : 'none';
-                            }
-                            
-                            incluirLogoCheckbox.addEventListener('change', toggleLogoOptions);
-                            toggleLogoOptions(); // Initialize state
-                            
-                            // Toggle formato options
-                            var formatoSelect = document.getElementById('formato-factura');
-                            var formatoOptions = {
-                                'standard': document.getElementById('standard-options'),
-                                'simplified': document.getElementById('simplified-options'),
-                                'thermal': document.getElementById('thermal-options'),
-                                'detailed': document.getElementById('detailed-options'),
-                                'letter': document.getElementById('letter-options'),
-                                'a4': document.getElementById('a4-options')
-                            };
-                            
-                            function toggleFormatoOptions() {
-                                var selectedFormato = formatoSelect.value;
-                                
-                                // Hide all options
-                                Object.values(formatoOptions).forEach(function(options) {
-                                    if (options) options.style.display = 'none';
-                                });
-                                
-                                // Show selected options
-                                if (formatoOptions[selectedFormato]) {
-                                    formatoOptions[selectedFormato].style.display = 'block';
-                                }
-                            }
-                            
-                            formatoSelect.addEventListener('change', toggleFormatoOptions);
-                            toggleFormatoOptions(); // Initialize state
-                            
-                            // Preview
-                            modal.querySelector('[data-preview-factura]').addEventListener('click', function() {
-                                var config = {
-                                    resolucionDGII: document.getElementById('resolucion-dgii').value,
-                                    emisorRNC: document.getElementById('emisor-rnc').value,
-                                    emisorNombre: document.getElementById('emisor-nombre').value,
-                                    tipoComprobante: document.getElementById('tipo-comprobante').value,
-                                    formatoFactura: document.getElementById('formato-factura').value,
-                                    serieFactura: document.getElementById('serie-factura').value,
-                                    secuenciaInicial: document.getElementById('secuencia-inicial').value,
-                                    infoAdicional: document.getElementById('info-adicional').value,
-                                    incluirITBIS: document.getElementById('incluir-ITBIS').checked,
-                                    incluirLeyendas: document.getElementById('incluir-leyendas').checked,
-                                    incluirLogo: document.getElementById('incluir-logo').checked,
-                                    tamanoLogo: document.getElementById('tamano-logo').value,
-                                    posicionLogo: document.getElementById('posicion-logo').value
-                                };
-                                
-                                showToast('Generando vista previa de factura...', 'info');
-                                
-                                // Abrir visor PDF en nueva ventana
-                                setTimeout(function() {
-                                    var pdfUrl = '/app/facturas/vista-previa/?' + new URLSearchParams({
-                                        tipo: config.tipoComprobante,
-                                        formato: config.formatoFactura,
-                                        serie: config.serieFactura,
-                                        emisor: config.emisorNombre,
-                                        rnc: config.emisorRNC,
-                                        resolucion: config.resolucionDGII,
-                                        incluir_itbis: config.incluirITBIS,
-                                        incluir_leyendas: config.incluirLeyendas,
-                                        incluir_logo: config.incluirLogo,
-                                        tamano_logo: config.tamanoLogo,
-                                        posicion_logo: config.posicionLogo,
-                                        preview: 'true'
-                                    }).toString();
-                                    
-                                    // Abrir en nueva ventana para vista previa e impresión
-                                    window.open(pdfUrl, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
-                                    showToast('Vista previa abierta en nueva ventana', 'success');
-                                }, 1000);
-                            });
-                            
-                            // Click outside to close
-                            modal.addEventListener('click', function(event) {
-                                if (event.target === modal) {
-                                    modal.setAttribute('aria-hidden', 'true');
-                                    modal.classList.remove('is-visible');
-                                    // Restaurar el focus al elemento original
-                                    if (focusedElementBeforeModal) {
-                                        focusedElementBeforeModal.focus();
-                                    }
-                                    setTimeout(() => modal.remove(), 300);
-                                }
-                            });
-                            
-                            // Escape key to close
-                            document.addEventListener('keydown', function(event) {
-                                if (event.key === 'Escape' && modal.classList.contains('is-visible')) {
-                                    modal.setAttribute('aria-hidden', 'true');
-                                    modal.classList.remove('is-visible');
-                                    // Restaurar el focus al elemento original
-                                    if (focusedElementBeforeModal) {
-                                        focusedElementBeforeModal.focus();
-                                    }
-                                    setTimeout(() => modal.remove(), 300);
-                                }
-                            });
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Insertar modal en el body
+                    document.body.insertAdjacentHTML('beforeend', modalHtml);
+                    
+                    // Agregar estilos CSS para el acordeón
+                    const accordionStyles = `
+                        <style>
+                        .accordion-item {
+                            border: 1px solid #ddd;
+                            margin-bottom: 10px;
+                            border-radius: 4px;
+                            overflow: hidden;
                         }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        showToast('Error al cargar la configuración de factura', 'error');
-                    });
+                        
+                        .accordion-trigger {
+                            width: 100%;
+                            padding: 15px;
+                            background: #f8f9fa;
+                            border: none;
+                            text-align: left;
+                            cursor: pointer;
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            transition: background 0.3s;
+                        }
+                        
+                        .accordion-trigger:hover {
+                            background: #e9ecef;
+                        }
+                        
+                        .accordion-trigger.active {
+                            background: #007bff;
+                            color: white;
+                        }
+                        
+                        .accordion-label {
+                            font-weight: bold;
+                        }
+                        
+                        .accordion-icon {
+                            transition: transform 0.3s;
+                        }
+                        
+                        .accordion-trigger.active .accordion-icon {
+                            transform: rotate(90deg);
+                        }
+                        
+                        .accordion-panel {
+                            background: white;
+                        }
+                        </style>
+                    `;
+                    document.head.insertAdjacentHTML('beforeend', accordionStyles);
+                });
             }
-        })();
+        });
 
         // Eliminar Registro DB
         (function () {
@@ -5189,6 +5093,88 @@
         
         function showCustomConfirm(message) {
             return showToast(message + ' (Acción requerida)', 'warning');
+        }
+
+        // Funciones para el modal de configuración de factura
+        function toggleAccordion(trigger) {
+            const panel = trigger.nextElementSibling;
+            const isActive = trigger.classList.contains('active');
+            
+            // Cerrar todos los paneles
+            document.querySelectorAll('.accordion-trigger').forEach(t => {
+                t.classList.remove('active');
+                t.nextElementSibling.style.display = 'none';
+            });
+            
+            // Abrir el panel actual si no estaba activo
+            if (!isActive) {
+                trigger.classList.add('active');
+                panel.style.display = 'block';
+            }
+        }
+
+        function guardarConfiguracionFactura() {
+            // Recopilar todos los datos del formulario
+            const config = {
+                cabecera: {
+                    titulo: document.getElementById('factura-titulo').value,
+                    mostrar_linea: document.getElementById('mostrar-linea').checked
+                },
+                cliente: {
+                    titulo: document.getElementById('cliente-titulo').value,
+                    mostrar_cliente: document.getElementById('mostrar-cliente').checked,
+                    mostrar_telefono: document.getElementById('mostrar-telefono').checked,
+                    mostrar_vendedor: document.getElementById('mostrar-vendedor').checked,
+                    mostrar_documento: document.getElementById('mostrar-documento').checked,
+                    mostrar_fecha: document.getElementById('mostrar-fecha').checked,
+                    mostrar_num_factura: document.getElementById('mostrar-num-factura').checked
+                },
+                concepto: {
+                    titulo: document.getElementById('concepto-titulo').value,
+                    col_producto: document.getElementById('col-producto').checked,
+                    col_cantidad: document.getElementById('col-cantidad').checked,
+                    col_precio: document.getElementById('col-precio').checked,
+                    col_total: document.getElementById('col-total').checked
+                },
+                totales: {
+                    mostrar_forma_pago: document.getElementById('mostrar-forma-pago').checked,
+                    mostrar_subtotal: document.getElementById('mostrar-subtotal').checked,
+                    mostrar_itbis: document.getElementById('mostrar-itbis').checked,
+                    mostrar_total: document.getElementById('mostrar-total').checked,
+                    tasa_itbis: document.getElementById('tasa-itbis').value
+                },
+                garantia: {
+                    mostrar_garantia: document.getElementById('mostrar-garantia').checked,
+                    texto_garantia: document.getElementById('texto-garantia').value
+                },
+                firmas: {
+                    mostrar_firmas: document.getElementById('mostrar-firmas').checked,
+                    firma_vendedor: document.getElementById('firma-vendedor').value,
+                    firma_cliente: document.getElementById('firma-cliente').value
+                },
+                footer: {
+                    empresa_nombre: document.getElementById('empresa-nombre').value,
+                    empresa_direccion: document.getElementById('empresa-direccion').value,
+                    empresa_whatsapp: document.getElementById('empresa-whatsapp').value,
+                    mostrar_logo: document.getElementById('mostrar-logo').checked
+                }
+            };
+            
+            // Guardar en localStorage (temporal)
+            localStorage.setItem('facturaConfig', JSON.stringify(config));
+            
+            // Mostrar mensaje de éxito
+            showToast('Configuración de factura guardada exitosamente', 'success');
+            
+            // Cerrar modal
+            document.getElementById('edit-factura-modal').remove();
+        }
+
+        function vistaPreviaFactura() {
+            // Abrir vista previa en nueva ventana
+            const previewUrl = '/app/facturas/robusta_preview/';
+            window.open(previewUrl, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
+            showToast('Abriendo vista previa de factura...', 'info');
         }
     </script>
 {% endblock %}
